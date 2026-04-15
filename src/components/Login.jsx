@@ -106,14 +106,16 @@ export default function Login() {
                   }`}
                 >
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                    className="w-10 h-10 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-bold"
                     style={{
-                      background: active ? 'rgba(245,158,11,0.2)'  : 'rgba(255,255,255,0.08)',
-                      color:      active ? '#fbbf24'                : '#9ca3af',
+                      background: user.avatar_url ? 'transparent' : active ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.08)',
+                      color:      active ? '#fbbf24' : '#9ca3af',
                       border:     active ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(255,255,255,0.1)',
                     }}
                   >
-                    {initial}
+                    {user.avatar_url
+                      ? <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                      : initial}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-white text-sm">{user.name}</div>
@@ -138,8 +140,8 @@ export default function Login() {
         {/* Step 2: PIN entry */}
         {selected && (
           <div className={`animate-fade-in ${shaking ? 'animate-bounce' : ''}`}>
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-3 text-center">
-              Enter PIN for {selected.name}
+            <p className="text-zinc-600 text-[10px] font-medium uppercase tracking-widest mb-3 text-center">
+              Enter passcode for {selected.name}
             </p>
             <input
               type="password"

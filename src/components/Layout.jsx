@@ -91,10 +91,16 @@ export default function Layout({ children }) {
 
           <div className="flex items-center gap-2.5">
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: rc.bg, color: rc.color, border: `1px solid ${rc.color}40` }}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
+              style={{
+                background: currentUser?.avatar_url ? 'transparent' : rc.bg,
+                color: rc.color,
+                border: `1px solid ${rc.color}40`,
+              }}
             >
-              {currentUser?.avatar}
+              {currentUser?.avatar_url
+                ? <img src={currentUser.avatar_url} alt={currentUser.name} className="w-full h-full object-cover" />
+                : currentUser?.avatar}
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold text-white leading-none">{currentUser?.name}</div>

@@ -690,10 +690,16 @@ export default function ProjectDetail() {
                   style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}
                 >
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
+                    style={{
+                      background: member.avatar_url ? 'transparent' : 'rgba(245,158,11,0.15)',
+                      color: '#fbbf24',
+                      border: '1px solid rgba(245,158,11,0.3)',
+                    }}
                   >
-                    {member.avatar || member.name?.[0]}
+                    {member.avatar_url
+                      ? <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                      : (member.avatar || member.name?.[0])}
                   </div>
                   <div>
                     <p className="text-xs text-zinc-500">Currently with</p>
@@ -934,112 +940,6 @@ export default function ProjectDetail() {
             </div>
           )}
 
-          {/* ── Thumbnails (YouTube only, Joel can upload) ── */}
-          {proj.type === 'youtube' && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Thumbnails</p>
-                {isJoel && (
-                  <>
-                    <button
-                      onClick={() => thumbInputRef.current?.click()}
-                      className="text-xs px-2 py-1 rounded flex items-center gap-1"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
-                    >
-                      <Upload size={11} /> Upload
-                    </button>
-                    <input
-                      ref={thumbInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleThumbnailUpload}
-                      style={{ display: 'none' }}
-                    />
-                  </>
-                )}
-              </div>
-              {(proj.thumbnails || []).length === 0 ? (
-                <p className="text-sm text-zinc-600 py-2">No thumbnails yet.</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {(proj.thumbnails || []).map((thumb) => (
-                    <div key={thumb.id} className="relative rounded-lg overflow-hidden"
-                      style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <img
-                        src={thumb.data}
-                        alt={thumb.label}
-                        className="w-full object-cover"
-                        style={{ height: 100 }}
-                      />
-                      <div className="p-1.5 flex items-center gap-1">
-                        {isJoel ? (
-                          <input
-                            value={thumb.label}
-                            onChange={(e) => updateThumbnailLabel(thumb.id, e.target.value)}
-                            className="flex-1 text-xs bg-transparent text-zinc-400 border-none outline-none"
-                            style={{ minWidth: 0 }}
-                          />
-                        ) : (
-                          <span className="flex-1 text-xs text-zinc-500 truncate">{thumb.label}</span>
-                        )}
-                        {isJoel && (
-                          <button onClick={() => removeThumbnail(thumb.id)}
-                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>
-                            <Trash2 size={11} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Caption ── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Caption</p>
-              {(canEditCaption || isJoel) && (
-                <div className="flex items-center gap-2">
-                  {captionSaved && <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>}
-                  <button
-                    onClick={saveCaption}
-                    className="text-xs px-2 py-1 rounded"
-                    style={
-                      canEditCaption
-                        ? { background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }
-                        : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
-                    }
-                  >
-                    Save
-                  </button>
-                </div>
-              )}
-            </div>
-            {canEditCaption || isJoel ? (
-              <textarea
-                value={editCaption}
-                onChange={(e) => setEditCaption(e.target.value)}
-                placeholder="Write the caption here…"
-                className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-200 placeholder-zinc-700"
-                style={{
-                  background: canEditCaption ? 'rgba(168,85,247,0.05)' : 'rgba(255,255,255,0.03)',
-                  border:     canEditCaption ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(255,255,255,0.07)',
-                }}
-                rows={5}
-              />
-            ) : proj.caption ? (
-              <div className="rounded-lg px-3 py-2.5 text-sm text-zinc-300 whitespace-pre-wrap"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                {proj.caption}
-              </div>
-            ) : (
-              <span className="text-sm text-zinc-600">No caption yet</span>
-            )}
-          </div>
-
           {/* ── Script / Notes (Feature 8: structured two-column template) ── */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1152,105 +1052,108 @@ export default function ProjectDetail() {
             )}
           </div>
 
-          {/* ── Shot List (Feature 7: YouTube, Instagram, TikTok) ── */}
-          {['youtube', 'instagram', 'tiktok'].includes(proj.type) && (
+
+          {/* ── Caption ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Caption</p>
+              {(canEditCaption || isJoel) && (
+                <div className="flex items-center gap-2">
+                  {captionSaved && <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>}
+                  <button
+                    onClick={saveCaption}
+                    className="text-xs px-2 py-1 rounded"
+                    style={
+                      canEditCaption
+                        ? { background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }
+                        : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
+                    }
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+            {canEditCaption || isJoel ? (
+              <textarea
+                value={editCaption}
+                onChange={(e) => setEditCaption(e.target.value)}
+                placeholder="Write the caption here…"
+                className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-200 placeholder-zinc-700"
+                style={{
+                  background: canEditCaption ? 'rgba(168,85,247,0.05)' : 'rgba(255,255,255,0.03)',
+                  border:     canEditCaption ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                }}
+                rows={5}
+              />
+            ) : proj.caption ? (
+              <div className="rounded-lg px-3 py-2.5 text-sm text-zinc-300 whitespace-pre-wrap"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                {proj.caption}
+              </div>
+            ) : (
+              <span className="text-sm text-zinc-600">No caption yet</span>
+            )}
+          </div>
+
+          {/* ── Thumbnails (YouTube only, Joel can upload) ── */}
+          {proj.type === 'youtube' && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Shot List</p>
-                  {shotListSavedAt && (
-                    <span className="text-xs text-zinc-600">
-                      Saved {formatDistanceToNow(new Date(shotListSavedAt), { addSuffix: true })}
-                    </span>
-                  )}
-                </div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Thumbnails</p>
                 {isJoel && (
-                  <button
-                    onClick={() => {
-                      const newShot = { id: 's' + Date.now(), desc: '', type: 'Wide', notes: '' }
-                      handleShotListChange([...shotListDraft, newShot])
-                    }}
-                    className="text-xs px-2 py-0.5 rounded"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
-                  >
-                    + Add Shot
-                  </button>
+                  <>
+                    <button
+                      onClick={() => thumbInputRef.current?.click()}
+                      className="text-xs px-2 py-1 rounded flex items-center gap-1"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
+                    >
+                      <Upload size={11} /> Upload
+                    </button>
+                    <input
+                      ref={thumbInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleThumbnailUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </>
                 )}
               </div>
-              {shotListDraft.length === 0 ? (
-                <p className="text-xs text-zinc-600 py-2">
-                  {isJoel ? 'No shots yet — click "+ Add Shot" to start.' : 'No shot list added yet.'}
-                </p>
+              {(proj.thumbnails || []).length === 0 ? (
+                <p className="text-sm text-zinc-600 py-2">No thumbnails yet.</p>
               ) : (
-                <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                        {['#', 'Description', 'Type', 'Notes', ...(isJoel ? [''] : [])].map((h) => (
-                          <th key={h} className="text-left px-2 py-1.5"
-                            style={{ color: '#52525b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shotListDraft.map((shot, i) => (
-                        <tr key={shot.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td className="px-2 py-1.5" style={{ color: '#52525b', width: 20 }}>{i + 1}</td>
-                          <td className="px-2 py-1.5">
-                            {isJoel ? (
-                              <input
-                                value={shot.desc}
-                                onChange={(e) => handleShotListChange(shotListDraft.map((s) => s.id === shot.id ? { ...s, desc: e.target.value } : s))}
-                                placeholder="Description…"
-                                className="w-full bg-transparent outline-none text-zinc-300 placeholder-zinc-700"
-                                style={{ fontSize: 11 }}
-                              />
-                            ) : (
-                              <span className="text-zinc-300">{shot.desc || '—'}</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-1.5" style={{ width: 80 }}>
-                            {isJoel ? (
-                              <select
-                                value={shot.type || 'Wide'}
-                                onChange={(e) => handleShotListChange(shotListDraft.map((s) => s.id === shot.id ? { ...s, type: e.target.value } : s))}
-                                style={{ fontSize: 10, background: 'transparent', color: '#a1a1aa', border: 'none', outline: 'none', padding: 0 }}
-                              >
-                                {['Wide', 'Medium', 'Close', 'B-Roll'].map((t) => <option key={t} value={t}>{t}</option>)}
-                              </select>
-                            ) : (
-                              <span className="text-zinc-500">{shot.type || 'Wide'}</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-1.5">
-                            {isJoel ? (
-                              <input
-                                value={shot.notes || ''}
-                                onChange={(e) => handleShotListChange(shotListDraft.map((s) => s.id === shot.id ? { ...s, notes: e.target.value } : s))}
-                                placeholder="Notes…"
-                                className="w-full bg-transparent outline-none text-zinc-500 placeholder-zinc-700"
-                                style={{ fontSize: 11 }}
-                              />
-                            ) : (
-                              <span className="text-zinc-500">{shot.notes || ''}</span>
-                            )}
-                          </td>
-                          {isJoel && (
-                            <td className="px-2 py-1.5" style={{ width: 24 }}>
-                              <button
-                                onClick={() => handleShotListChange(shotListDraft.filter((s) => s.id !== shot.id))}
-                                style={{ background: 'none', border: 'none', color: '#52525b', display: 'flex', cursor: 'pointer' }}
-                              >
-                                <X size={11} />
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="grid grid-cols-2 gap-3">
+                  {(proj.thumbnails || []).map((thumb) => (
+                    <div key={thumb.id} className="relative rounded-lg overflow-hidden"
+                      style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <img
+                        src={thumb.data}
+                        alt={thumb.label}
+                        className="w-full object-cover"
+                        style={{ height: 100 }}
+                      />
+                      <div className="p-1.5 flex items-center gap-1">
+                        {isJoel ? (
+                          <input
+                            value={thumb.label}
+                            onChange={(e) => updateThumbnailLabel(thumb.id, e.target.value)}
+                            className="flex-1 text-xs bg-transparent text-zinc-400 border-none outline-none"
+                            style={{ minWidth: 0 }}
+                          />
+                        ) : (
+                          <span className="flex-1 text-xs text-zinc-500 truncate">{thumb.label}</span>
+                        )}
+                        {isJoel && (
+                          <button onClick={() => removeThumbnail(thumb.id)}
+                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>
+                            <Trash2 size={11} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

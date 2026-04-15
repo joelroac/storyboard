@@ -123,7 +123,7 @@ export function AppProvider({ children }) {
           supabase.from('activity_log').select('*').order('created_at', { ascending: true }),
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('workflow_settings').select('*'),
-          supabase.from('team_members').select('id, name, role, avatar, pin'),
+          supabase.from('team_members').select('id, name, role, avatar, pin, avatar_url'),
         ])
 
         if (projErr)   console.error('Projects fetch error:', projErr)
@@ -267,11 +267,12 @@ export function AppProvider({ children }) {
     if (String(data.pin) !== String(pin)) { console.warn('PIN mismatch for', userId); return null }
 
     const user = {
-      id:     data.id,
-      name:   data.name,
-      role:   data.role,
-      pin:    data.pin,
-      avatar: data.avatar || (data.name ? data.name[0] : userId[0].toUpperCase()),
+      id:         data.id,
+      name:       data.name,
+      role:       data.role,
+      pin:        data.pin,
+      avatar:     data.avatar || (data.name ? data.name[0] : userId[0].toUpperCase()),
+      avatar_url: data.avatar_url || null,
     }
     setCurrentUser(user)
     return user

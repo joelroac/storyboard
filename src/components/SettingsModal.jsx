@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { X, GripVertical, RotateCcw } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { X, GripVertical, RotateCcw, Camera } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { WORKFLOWS, STAGE_OWNER } from '../data/seedData'
 
@@ -21,10 +21,24 @@ export default function SettingsModal({ onClose }) {
 
   const [tab, setTab] = useState('team')
 
-  // ── Team names + passcodes ─────────────────────────────────────────────────
+  // ── Team names + passcodes + photos ───────────────────────────────────────
   const [names, setNames]         = useState({})
   const [passcodes, setPasscodes] = useState({})
   const [namesSaved, setNamesSaved] = useState(false)
+  const photoInputRefs = useRef({})
+
+  function handlePhotoUpload(key, e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async (ev) => {
+      const base64 = ev.target.result
+      const member = teamMembers.find((m) => m.role === OWNER_ROLE[key])
+      if (member) await updateTeamMember(member.id, { avatar_url: base64 })
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   useEffect(() => {
     const n = {}
@@ -194,12 +208,38 @@ export default function SettingsModal({ onClose }) {
                   const member = teamMembers.find((m) => m.role === OWNER_ROLE[key])
                   return (
                     <div key={key} className="flex items-start gap-3">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-5"
-                        style={{ background: 'rgba(255,255,255,0.05)', color: '#a1a1aa', border: '1px solid rgba(255,255,255,0.1)' }}
+                      {/* Avatar — click to upload photo */}
+                      <button
+                        type="button"
+                        onClick={() => photoInputRefs.current[key]?.click()}
+                        className="relative w-10 h-10 rounded-full shrink-0 mt-5 overflow-hidden group"
+                        style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+                        title="Upload photo"
                       >
-                        {(names[key] || key)[0]?.toUpperCase()}
-                      </div>
+                        {(() => {
+                          const member = teamMembers.find((m) => m.role === OWNER_ROLE[key])
+                          return member?.avatar_url
+                            ? <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                            : (
+                              <div className="w-full h-full flex items-center justify-center text-sm font-bold"
+                                style={{ background: 'rgba(255,255,255,0.05)', color: '#a1a1aa' }}>
+                                {(names[key] || key)[0]?.toUpperCase()}
+                              </div>
+                            )
+                        })()}
+                        {/* Camera overlay on hover */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: 'rgba(0,0,0,0.55)' }}>
+                          <Camera size={13} style={{ color: '#fff' }} />
+                        </div>
+                      </button>
+                      <input
+                        ref={(el) => { photoInputRefs.current[key] = el }}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUpload(key, e)}
+                        style={{ display: 'none' }}
+                      />
                       <div className="flex-1 flex flex-col gap-2">
                         <div>
                           <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">
