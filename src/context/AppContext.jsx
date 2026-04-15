@@ -19,6 +19,25 @@ const PLATFORM_FROM_DB = {
   Newsletter: 'newsletter',
 }
 
+// Maps between DB assignedRole values and frontend owner keys
+const ROLE_TO_OWNER = { admin: 'joel', editor: 'anthony', social_manager: 'tiana' }
+const OWNER_TO_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
+
+// Parse a workflow_settings DB row into the frontend shape { type, stages[], owners{} }
+function parseWfRow(row) {
+  const frontendType = PLATFORM_FROM_DB[row.platform]
+  if (!frontendType) return null
+  // stages in DB are objects: { name, assignedRole, ... }
+  const stages = (row.stages || []).map((s) => (typeof s === 'string' ? s : s.name)).filter(Boolean)
+  const owners = {}
+  for (const s of (row.stages || [])) {
+    const name = typeof s === 'string' ? s : s.name
+    const role = typeof s === 'object' ? s.assignedRole : null
+    if (name && role) owners[name] = ROLE_TO_OWNER[role] || 'joel'
+  }
+  return { type: frontendType, stages, owners }
+}
+
 function brandFromDb(row) {
   if (!row.brand_type || row.brand_type === 'Organic') return 'Organic'
   return row.brand_name || row.brand_type || ''
@@ -123,7 +142,7 @@ export function AppProvider({ children }) {
           supabase.from('activity_log').select('*').order('created_at', { ascending: true }),
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('workflow_settings').select('*'),
-          supabase.from('team_members').select('id, name, role, avatar, pin, avatar_url'),
+          supabase.from('team_members').select('id, name, role, pin, avatar_url'),
         ])
 
         if (projErr)   console.error('Projects fetch error:', projErr)
@@ -140,10 +159,12 @@ export function AppProvider({ children }) {
         setNotifications((notifRows || []).map(dbToNotif))
         setTeamMembers(memberRows || [])
 
+        // Parse workflow_settings: DB uses 'platform' column with stage objects
         if (wfRows && wfRows.length > 0) {
           const wfMap = {}
           for (const row of wfRows) {
-            if (row.type) wfMap[row.type] = row
+            const parsed = parseWfRow(row)
+            if (parsed) wfMap[parsed.type] = parsed
           }
           setWorkflowSettings(wfMap)
         }
@@ -271,7 +292,7 @@ export function AppProvider({ children }) {
       name:       data.name,
       role:       data.role,
       pin:        data.pin,
-      avatar:     data.avatar || (data.name ? data.name[0] : userId[0].toUpperCase()),
+      avatar:     data.name ? data.name[0] : userId[0].toUpperCase(),
       avatar_url: data.avatar_url || null,
     }
     setCurrentUser(user)
@@ -296,13 +317,19 @@ export function AppProvider({ children }) {
     return teamMembers.find((m) => m.role === role) || null
   }, [teamMembers])
 
+  // Use saved custom workflow if one exists, otherwise fall back to seed defaults
   const getWorkflow = useCallback((type) => {
+    const custom = workflowSettings[type]
+    if (custom?.stages?.length > 0) return custom.stages
     return WORKFLOWS[type] || []
-  }, [])
+  }, [workflowSettings])
 
+  // Use saved custom owner if one exists, otherwise fall back to seed defaults
   const getStageOwner = useCallback((type, status) => {
+    const custom = workflowSettings[type]
+    if (custom?.owners && status in custom.owners) return custom.owners[status]
     return STAGE_OWNER[type]?.[status] || null
-  }, [])
+  }, [workflowSettings])
 
   // ── Banner system ──────────────────────────────────────────────────────────
 
@@ -486,7 +513,34 @@ export function AppProvider({ children }) {
   const updateTeamMember = useCallback(async (memberId, updates) => {
     const { error } = await supabase.from('team_members').update(updates).eq('id', memberId)
     if (error) { console.error('Error updating team member:', error); return false }
-    setTeamMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, ...updates } : m))
+
+    // Re-fetch the full team_members table from Supabase so local state
+    // always reflects what is actually stored — not just an optimistic patch.
+    // Note: the DB has no 'avatar' column — do not include it in the select.
+    const { data: freshMembers, error: fetchErr } = await supabase
+      .from('team_members')
+      .select('id, name, role, pin, avatar_url')
+    if (fetchErr) {
+      console.error('Error re-fetching team members:', fetchErr)
+      // Fall back to optimistic patch if re-fetch fails
+      setTeamMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, ...updates } : m))
+      setCurrentUser((prev) => prev?.id === memberId ? { ...prev, ...updates } : prev)
+    } else {
+      setTeamMembers(freshMembers || [])
+      // Sync currentUser from the fresh DB row (name, avatar_url, pin all up-to-date)
+      setCurrentUser((prev) => {
+        if (!prev) return prev
+        const fresh = (freshMembers || []).find((m) => m.id === prev.id)
+        if (!fresh) return prev
+        return {
+          ...prev,
+          name:       fresh.name,
+          pin:        fresh.pin,
+          avatar_url: fresh.avatar_url ?? null,
+          avatar:     fresh.name ? fresh.name[0] : prev.avatar,
+        }
+      })
+    }
     return true
   }, [])
 
@@ -526,12 +580,41 @@ export function AppProvider({ children }) {
   // ── Workflow settings save ─────────────────────────────────────────────────
 
   const saveWorkflowSettings = useCallback(async (type, wfData) => {
-    const row = { type, ...wfData, updated_at: new Date().toISOString() }
+    // The DB column is 'platform' (Title Case), not 'type'.
+    // Stages must be stored as objects: { name, assignedRole } — not plain strings.
+    // There is no 'owners' column — ownership is encoded inside the stage objects.
+    const platform = PLATFORM_TO_DB[type]
+    if (!platform) { console.error('Unknown workflow type:', type); return false }
+
+    const dbStages = (wfData.stages || []).map((stageName) => ({
+      name:         stageName,
+      parallel:     false,
+      assignedRole: OWNER_TO_ROLE[wfData.owners?.[stageName]] || 'admin',
+    }))
+
     const { error } = await supabase
       .from('workflow_settings')
-      .upsert(row, { onConflict: 'type' })
+      .update({ stages: dbStages, updated_at: new Date().toISOString() })
+      .eq('platform', platform)
+
     if (error) { console.error('Error saving workflow settings:', error); return false }
-    setWorkflowSettings((prev) => ({ ...prev, [type]: { ...row } }))
+
+    // Re-fetch the full table so local state exactly mirrors the DB.
+    const { data: freshWf, error: fetchErr } = await supabase
+      .from('workflow_settings')
+      .select('*')
+    if (fetchErr) {
+      console.error('Error re-fetching workflow settings:', fetchErr)
+      // Optimistic fallback
+      setWorkflowSettings((prev) => ({ ...prev, [type]: { type, stages: wfData.stages, owners: wfData.owners } }))
+    } else {
+      const wfMap = {}
+      for (const row of freshWf || []) {
+        const parsed = parseWfRow(row)
+        if (parsed) wfMap[parsed.type] = parsed
+      }
+      setWorkflowSettings(wfMap)
+    }
     return true
   }, [])
 

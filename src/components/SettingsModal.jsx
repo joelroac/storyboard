@@ -30,13 +30,29 @@ export default function SettingsModal({ onClose }) {
   function handlePhotoUpload(key, e) {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      const base64 = ev.target.result
+
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = async () => {
+      // Resize to max 300px on longest side, encode as JPEG 0.82 quality
+      // keeps payload well under 100 KB — safe for Supabase REST limits
+      const MAX = 300
+      let { naturalWidth: w, naturalHeight: h } = img
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round((h / w) * MAX); w = MAX }
+        else        { w = Math.round((w / h) * MAX); h = MAX }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      const base64 = canvas.toDataURL('image/jpeg', 0.82)
+
+      URL.revokeObjectURL(objectUrl)
       const member = teamMembers.find((m) => m.role === OWNER_ROLE[key])
       if (member) await updateTeamMember(member.id, { avatar_url: base64 })
     }
-    reader.readAsDataURL(file)
+    img.onerror = () => URL.revokeObjectURL(objectUrl)
+    img.src = objectUrl
     e.target.value = ''
   }
 
@@ -69,33 +85,29 @@ export default function SettingsModal({ onClose }) {
   }
 
   // ── Workflow editor ────────────────────────────────────────────────────────
-  const [wfType, setWfType]       = useState('youtube')
-  const [wfStages, setWfStages]   = useState([])
-  const [wfOwners, setWfOwners]   = useState({})
-  const [wfParallel, setWfParallel] = useState({})
-  const [dragIdx, setDragIdx]     = useState(null)
+  const [wfType, setWfType]           = useState('youtube')
+  const [wfStages, setWfStages]       = useState([])
+  const [wfOwners, setWfOwners]       = useState({})
+  const [dragIdx, setDragIdx]         = useState(null)
   const [dragOverIdx, setDragOverIdx] = useState(null)
-  const [wfSaved, setWfSaved]     = useState(false)
+  const [wfSaved, setWfSaved]         = useState(false)
 
   useEffect(() => {
     const custom = workflowSettings?.[wfType]
     if (custom && custom.stages) {
       setWfStages([...custom.stages])
       setWfOwners({ ...(custom.owners || {}) })
-      setWfParallel({ ...(custom.parallel_with || custom.parallelWith || {}) })
     } else {
       setWfStages([...(WORKFLOWS[wfType] || [])])
       setWfOwners({ ...(STAGE_OWNER[wfType] || {}) })
-      setWfParallel({})
     }
     setWfSaved(false)
   }, [wfType, workflowSettings])
 
   async function handleSaveWorkflow() {
     const ok = await saveWorkflowSettings(wfType, {
-      stages:       wfStages,
-      owners:       wfOwners,
-      parallel_with: wfParallel,
+      stages: wfStages,
+      owners: wfOwners,
     })
     if (ok !== false) {
       setWfSaved(true)
@@ -106,7 +118,6 @@ export default function SettingsModal({ onClose }) {
   function resetWorkflow() {
     setWfStages([...(WORKFLOWS[wfType] || [])])
     setWfOwners({ ...(STAGE_OWNER[wfType] || {}) })
-    setWfParallel({})
   }
 
   function addStage() {
@@ -117,7 +128,6 @@ export default function SettingsModal({ onClose }) {
     const removed = wfStages[i]
     setWfStages((s) => s.filter((_, idx) => idx !== i))
     setWfOwners((o) => { const n = { ...o }; delete n[removed]; return n })
-    setWfParallel((p) => { const n = { ...p }; delete n[removed]; return n })
   }
 
   function renameStage(i, val) {
@@ -127,11 +137,6 @@ export default function SettingsModal({ onClose }) {
       const n = { ...o }
       n[val] = n[old]
       delete n[old]
-      return n
-    })
-    setWfParallel((p) => {
-      const n = { ...p }
-      if (n[old]) { n[val] = n[old]; delete n[old] }
       return n
     })
   }
@@ -303,7 +308,7 @@ export default function SettingsModal({ onClose }) {
               </div>
 
               <p className="text-xs text-zinc-500 mb-3">
-                Drag rows to reorder. Assign an owner for each stage. "Also starts" sets parallel stages (comma-separated).
+                Drag rows to reorder. Assign an owner to each stage.
               </p>
 
               <div className="flex flex-col gap-2 mb-3">
@@ -348,18 +353,6 @@ export default function SettingsModal({ onClose }) {
                           <option key={k} value={k}>{getOwnerLabel(k)}</option>
                         ))}
                       </select>
-
-                      <input
-                        value={(wfParallel[stage] || []).join(', ')}
-                        onChange={(e) => setWfParallel((p) => ({
-                          ...p,
-                          [stage]: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
-                        }))}
-                        placeholder="Also starts…"
-                        title="Comma-separated parallel stages"
-                        className="text-xs text-zinc-400 rounded px-2 py-1"
-                        style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'transparent', outline: 'none', width: 100 }}
-                      />
 
                       <button
                         onClick={() => removeStage(i)}

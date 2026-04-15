@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download } from 'lucide-react'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
-import { WORKFLOWS, STAGE_OWNER, CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
+import { CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon } from './shared/Icons'
 
@@ -11,8 +11,7 @@ const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
 
 // ── Progress Bar ──────────────────────────────────────────────────────────────
 
-function ProgressBar({ type, status }) {
-  const stages     = WORKFLOWS[type] || []
+function ProgressBar({ stages, status }) {
   const currentIdx = stages.indexOf(status)
   const pct        = stages.length > 1 ? (currentIdx / (stages.length - 1)) * 100 : 100
 
@@ -70,7 +69,7 @@ export default function ProjectDetail() {
     selectedProject, setSelectedProject,
     currentUser, updateProject, advanceStatus, overrideStatus, changePlatform,
     addNotification, deleteProject, addBanner,
-    projects, teamMembers, getTeamName, getMemberByRole,
+    projects, teamMembers, getTeamName, getMemberByRole, getWorkflow, getStageOwner,
   } = useApp()
 
   const [proj, setProj]                           = useState(null)
@@ -165,14 +164,14 @@ export default function ProjectDetail() {
   const isAnthony = currentUser?.role === 'editor'
   const isTiana   = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
 
-  const workflow        = WORKFLOWS[proj.type] || []
-  const stageOwnerKey   = STAGE_OWNER[proj.type]?.[proj.status]
+  const workflow        = getWorkflow(proj.type)
+  const stageOwnerKey   = getStageOwner(proj.type, proj.status)
   const ownerMember     = teamMembers.find((m) => m.role === OWNER_ROLE[stageOwnerKey])
 
   // Parallel stages — if activeStages has more than one entry, show all their owners
   const activeStages    = (proj.activeStages?.length > 1) ? proj.activeStages : [proj.status]
   const parallelOwners  = activeStages.map((stage) => {
-    const ownerKey = STAGE_OWNER[proj.type]?.[stage]
+    const ownerKey = getStageOwner(proj.type, stage)
     const member   = teamMembers.find((m) => m.role === OWNER_ROLE[ownerKey])
     return { stage, member }
   }).filter((x) => x.member)
@@ -667,7 +666,7 @@ export default function ProjectDetail() {
           {/* ── Progress bar ── */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Workflow Progress</p>
-            <ProgressBar type={proj.type} status={proj.status} />
+            <ProgressBar stages={workflow} status={proj.status} />
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-zinc-500">{workflow[0]}</span>
               <span className="text-xs text-zinc-500">{workflow[workflow.length - 1]}</span>

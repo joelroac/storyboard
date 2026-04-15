@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Plus, AlertCircle, CalendarDays, CheckCircle2, Trash2 } from 'lucide-react'
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
-import { JOEL_REVIEW_STAGES, STAGE_OWNER, TYPE_LABELS, getStatusColor } from '../../data/seedData'
+import { JOEL_REVIEW_STAGES, TYPE_LABELS, getStatusColor } from '../../data/seedData'
 import StatusBadge from '../shared/StatusBadge'
 import { PlatformIcon } from '../shared/Icons'
 import AddProjectModal from './AddProjectModal'
@@ -28,8 +28,8 @@ function daysLabel(dateStr) {
 // Maps STAGE_OWNER key → DB role for teamMembers lookup
 const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
 
-function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow }) {
-  const ownerKey    = STAGE_OWNER[project.type]?.[project.status]
+function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow, getStageOwner }) {
+  const ownerKey    = getStageOwner ? getStageOwner(project.type, project.status) : null
   const ownerMember = teamMembers?.find(m => m.role === OWNER_ROLE[ownerKey])
   const days        = daysLabel(project.publishDate)
   const workflow    = getWorkflow ? getWorkflow(project.type) : []
@@ -150,7 +150,7 @@ function ReviewCard({ project, onClick, getTeamName }) {
 }
 
 export default function JoelDashboard() {
-  const { projects, setSelectedProject, advanceStatus, deleteProject, getTeamName, getWorkflow, teamMembers } = useApp()
+  const { projects, setSelectedProject, advanceStatus, deleteProject, getTeamName, getWorkflow, getStageOwner, teamMembers } = useApp()
   const [showAdd, setShowAdd]           = useState(false)
   const [dragOverCol, setDragOverCol]   = useState(null)
   const [deletingId, setDeletingId]     = useState(null)
@@ -310,6 +310,7 @@ export default function JoelDashboard() {
                           onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
                           teamMembers={teamMembers}
                           getWorkflow={getWorkflow}
+                          getStageOwner={getStageOwner}
                         />
                       ))
                     )}

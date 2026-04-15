@@ -5,8 +5,11 @@ import Notifications from './Notifications'
 import SettingsModal from './SettingsModal'
 
 export default function Layout({ children }) {
-  const { currentUser, logout, activeTab, setActiveTab } = useApp()
+  const { currentUser, teamMembers, logout, activeTab, setActiveTab } = useApp()
   const [showSettings, setShowSettings] = useState(false)
+  // Resolve avatar_url live from teamMembers so it updates without re-login
+  const liveMember   = teamMembers.find((m) => m.id === currentUser?.id)
+  const avatarUrl    = liveMember?.avatar_url || currentUser?.avatar_url || null
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'creator'
 
   // All roles see calendar; editor (Anthony) sees YouTube-only calendar
@@ -93,13 +96,13 @@ export default function Layout({ children }) {
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
               style={{
-                background: currentUser?.avatar_url ? 'transparent' : rc.bg,
+                background: avatarUrl ? 'transparent' : rc.bg,
                 color: rc.color,
                 border: `1px solid ${rc.color}40`,
               }}
             >
-              {currentUser?.avatar_url
-                ? <img src={currentUser.avatar_url} alt={currentUser.name} className="w-full h-full object-cover" />
+              {avatarUrl
+                ? <img src={avatarUrl} alt={currentUser?.name} className="w-full h-full object-cover" />
                 : currentUser?.avatar}
             </div>
             <div className="hidden sm:block">
