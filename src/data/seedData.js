@@ -1,4 +1,61 @@
-import { addDays, endOfMonth, format } from 'date-fns'
+import { addDays, endOfMonth, format, formatDistanceToNow } from 'date-fns'
+
+// Human-readable platform labels
+export const TYPE_LABELS = {
+  youtube:    'YouTube',
+  instagram:  'Instagram',
+  tiktok:     'TikTok',
+  newsletter: 'Newsletter',
+}
+
+/**
+ * Returns a color hex string for a given workflow status.
+ */
+export function getStatusColor(status) {
+  const map = {
+    'Filming':             '#a78bfa',
+    'Raw Footage Ready':   '#818cf8',
+    'Drafting':            '#a78bfa',
+    'In Review':           '#fbbf24',
+    'Editing in Progress': '#60a5fa',
+    'Edit Review':         '#f59e0b',
+    'Revision Requested':  '#f87171',
+    'Final Review':        '#f59e0b',
+    'Caption Needed':      '#fb923c',
+    'Caption In Review':   '#2dd4bf',
+    'Ready to Post':       '#4ade80',
+    'Ready to Send':       '#4ade80',
+    'Scheduled':           '#facc15',
+    'Posted':              '#9ca3af',
+    'Sent':                '#9ca3af',
+  }
+  return map[status] || '#71717a'
+}
+
+/**
+ * Format a YYYY-MM-DD string like "Jan 5, 2025".
+ */
+export function formatDateStr(str) {
+  if (!str) return '—'
+  try {
+    const d = new Date(str + 'T12:00:00')
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch (_) {
+    return str
+  }
+}
+
+/**
+ * Human-readable "X ago" from an ISO timestamp.
+ */
+export function timeAgo(iso) {
+  if (!iso) return ''
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true })
+  } catch (_) {
+    return iso
+  }
+}
 
 export const USERS = {
   joel: { id: 'joel', name: 'Joel', role: 'creator', pin: '1111', avatar: 'J' },

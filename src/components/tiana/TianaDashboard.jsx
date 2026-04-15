@@ -1,9 +1,10 @@
-import React from 'react'
-import { CheckCircle2, Clock, Send } from 'lucide-react'
+import React, { useState } from 'react'
+import { CheckCircle2, Clock, Plus } from 'lucide-react'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import StatusBadge from '../shared/StatusBadge'
 import { PlatformIcon } from '../shared/Icons'
+import AddProjectModal from '../joel/AddProjectModal'
 
 function daysLabel(dateStr) {
   if (!dateStr) return null
@@ -38,7 +39,7 @@ function ProjectCard({ project, onClick, highlight }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-white truncate">{project.title}</span>
-          {project.brand && (
+          {project.brand && project.brand !== 'Organic' && (
             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
               style={{ background: 'rgba(255,255,255,0.07)', color: '#71717a' }}>
               {project.brand}
@@ -65,45 +66,70 @@ function ProjectCard({ project, onClick, highlight }) {
 }
 
 export default function TianaDashboard() {
-  const { projects, setSelectedProject } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName } = useApp()
+  const [showAdd, setShowAdd] = useState(false)
   const now = new Date()
 
-  const needsCaption = projects.filter(p => p.status === 'Caption Needed')
+  const needsCaption     = projects.filter(p => p.status === 'Caption Needed')
   const awaitingApproval = projects.filter(p => p.status === 'Caption In Review')
-  const readyToPost = projects.filter(p => ['Ready to Post', 'Scheduled'].includes(p.status))
-  const postedThisMonth = projects.filter(p => {
+  const readyToPost      = projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send')
+  const scheduled        = projects.filter(p => p.status === 'Scheduled')
+  const postedThisMonth  = projects.filter(p => {
     if (!['Posted', 'Sent'].includes(p.status)) return false
     const history = p.statusHistory || []
     const postedEntry = [...history].reverse().find(h => ['Posted', 'Sent'].includes(h.status))
     if (!postedEntry) return false
     return isWithinInterval(new Date(postedEntry.timestamp), {
       start: startOfMonth(now),
-      end: endOfMonth(now),
+      end:   endOfMonth(now),
     })
   })
 
-  function open(p) {
-    setSelectedProject(p)
+  function handleMarkPublished(p) {
+    const newStatus = p.status === 'Ready to Send' ? 'Sent' : 'Posted'
+    advanceStatus(p.id, newStatus, currentUser.id)
+    const joelId = getMemberByRole('admin')?.id
+    const msg = `${getTeamName(currentUser.id)} published "${p.title}"`
+    addNotification({ message: msg, projectId: p.id, forUser: joelId })
+    addBanner(msg, 'success')
   }
+
+  function open(p) { setSelectedProject(p) }
 
   return (
     <div className="px-6 py-6 max-w-3xl mx-auto">
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-editorial text-3xl font-semibold text-white">Hey, Tiana.</h1>
-        <p className="text-zinc-500 text-sm mt-1">
-          {format(now, 'EEEE, MMMM d')} · Here's your content queue
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="font-editorial text-3xl font-semibold text-white">Caption & Social Queue</h1>
+          <p className="text-zinc-500 text-sm mt-1">
+            {format(now, 'EEEE, MMMM d')} · Here's your content queue
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+        >
+          <Plus size={15} />
+          New Project
+        </button>
       </div>
+
+      {showAdd && (
+        <AddProjectModal
+          onClose={() => setShowAdd(false)}
+          limitTypes={['instagram', 'tiktok', 'newsletter']}
+        />
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-3 mb-8">
         {[
-          { label: 'Needs Caption', count: needsCaption.length, color: '#fb923c' },
-          { label: 'Awaiting Joel', count: awaitingApproval.length, color: '#c084fc' },
-          { label: 'Ready to Post', count: readyToPost.length, color: '#4ade80' },
-          { label: 'Posted This Month', count: postedThisMonth.length, color: '#9ca3af' },
+          { label: 'Needs Caption',     count: needsCaption.length,     color: '#fb923c' },
+          { label: 'Awaiting Joel',     count: awaitingApproval.length, color: '#c084fc' },
+          { label: 'Ready to Post',     count: readyToPost.length,      color: '#4ade80' },
+          { label: 'Posted This Month', count: postedThisMonth.length,  color: '#9ca3af' },
         ].map(stat => (
           <div key={stat.label} className="card rounded-xl p-3 text-center">
             <p className="text-2xl font-bold" style={{ color: stat.color, fontFamily: 'Inter' }}>
@@ -116,11 +142,11 @@ export default function TianaDashboard() {
         ))}
       </div>
 
-      {/* Needs My Attention */}
+      {/* Needs My Attention — Caption Needed */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-2 h-2 rounded-full bg-orange-400" />
-          <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Needs My Attention</h2>
+          <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Needs Caption</h2>
           {needsCaption.length > 0 && (
             <span className="text-xs px-2 py-0.5 rounded-full font-bold"
               style={{ background: 'rgba(249,115,22,0.2)', color: '#fb923c' }}>
@@ -147,7 +173,7 @@ export default function TianaDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{p.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      {p.brand && (
+                      {p.brand && p.brand !== 'Organic' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                           style={{ background: 'rgba(255,255,255,0.07)', color: '#71717a' }}>
                           {p.brand}
@@ -191,11 +217,11 @@ export default function TianaDashboard() {
         )}
       </section>
 
-      {/* Ready to Post */}
+      {/* Ready to Post — with Mark as Published button */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-2 h-2 rounded-full bg-emerald-400" />
-          <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Ready to Post</h2>
+          <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Ready to Publish</h2>
         </div>
         {readyToPost.length === 0 ? (
           <div className="rounded-xl py-8 text-center"
@@ -205,11 +231,57 @@ export default function TianaDashboard() {
         ) : (
           <div className="flex flex-col gap-3">
             {readyToPost.map(p => (
-              <ProjectCard key={p.id} project={p} onClick={() => open(p)} />
+              <div key={p.id}
+                className="rounded-xl p-4 flex items-center gap-4"
+                style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="flex-1 flex items-center gap-3 cursor-pointer" onClick={() => open(p)}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <PlatformIcon type={p.type} size={16} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{p.title}</p>
+                    <StatusBadge status={p.status} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleMarkPublished(p)}
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
+                  Mark as Published
+                </button>
+              </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* Scheduled */}
+      {scheduled.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2 h-2 rounded-full bg-yellow-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Scheduled</h2>
+          </div>
+          <div className="flex flex-col gap-3">
+            {scheduled.map(p => (
+              <div key={p.id}
+                className="rounded-xl p-4 flex items-center gap-3 cursor-pointer card-hover"
+                style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}
+                onClick={() => open(p)}>
+                <PlatformIcon type={p.type} size={14} />
+                <span className="text-sm font-semibold text-white flex-1 truncate">{p.title}</span>
+                <span className="text-xs text-zinc-500">
+                  {p.scheduledTime
+                    ? new Date(p.scheduledTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                    : p.publishDate ? format(parseISO(p.publishDate), 'MMM d') : ''}
+                </span>
+                <StatusBadge status={p.status} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Posted This Month */}
       {postedThisMonth.length > 0 && (
@@ -233,6 +305,14 @@ export default function TianaDashboard() {
             ))}
           </div>
         </section>
+      )}
+
+      {needsCaption.length === 0 && awaitingApproval.length === 0 && readyToPost.length === 0 && scheduled.length === 0 && postedThisMonth.length === 0 && (
+        <div className="card p-8 text-center">
+          <div className="text-3xl mb-3">✓</div>
+          <p className="text-base font-semibold text-white mb-2">All caught up!</p>
+          <p className="text-sm text-zinc-500">No items in your queue right now.</p>
+        </div>
       )}
     </div>
   )

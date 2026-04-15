@@ -1,22 +1,28 @@
-import React from 'react'
-import { LayoutDashboard, CalendarDays, LogOut } from 'lucide-react'
+import React, { useState } from 'react'
+import { LayoutDashboard, CalendarDays, LogOut, Settings, Clapperboard } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Notifications from './Notifications'
+import SettingsModal from './SettingsModal'
 
 export default function Layout({ children }) {
   const { currentUser, logout, activeTab, setActiveTab } = useApp()
+  const [showSettings, setShowSettings] = useState(false)
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'creator'
 
+  // All roles see calendar; editor (Anthony) sees YouTube-only calendar
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+    { id: 'calendar',  label: 'Calendar',  icon: CalendarDays },
   ]
 
   const roleColor = {
-    creator: { bg: 'rgba(245,158,11,0.15)', color: '#fbbf24', label: 'Creator' },
-    editor: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa', label: 'Editor' },
-    social: { bg: 'rgba(168,85,247,0.15)', color: '#c084fc', label: 'Social' },
+    admin:          { bg: 'rgba(245,158,11,0.15)', color: '#fbbf24', label: 'Admin' },
+    creator:        { bg: 'rgba(245,158,11,0.15)', color: '#fbbf24', label: 'Creator' },
+    editor:         { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', label: 'Editor' },
+    social_manager: { bg: 'rgba(168,85,247,0.15)',  color: '#c084fc', label: 'Social' },
+    social:         { bg: 'rgba(168,85,247,0.15)',  color: '#c084fc', label: 'Social' },
   }
-  const rc = roleColor[currentUser?.role] || roleColor.creator
+  const rc = roleColor[currentUser?.role] || roleColor.admin
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0c0c0e' }}>
@@ -33,20 +39,19 @@ export default function Layout({ children }) {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2.5">
             <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.25)' }}
             >
-              🎬
+              <Clapperboard size={14} style={{ color: '#f59e0b' }} />
             </div>
             <span className="font-editorial text-lg font-semibold text-white tracking-tight">
               The Storyboard
             </span>
           </div>
 
-          {/* Tabs — only show calendar for Joel */}
-          {(currentUser?.role === 'admin' || currentUser?.role === 'creator') && (
-            <nav className="flex items-center gap-1">
-              {tabs.map((tab) => {
+          {/* Tabs — dashboard always + calendar for all roles */}
+          <nav className="flex items-center gap-1">
+            {tabs.map((tab) => {
                 const Icon = tab.icon
                 const active = activeTab === tab.id
                 return (
@@ -66,11 +71,22 @@ export default function Layout({ children }) {
                 )
               })}
             </nav>
-          )}
         </div>
 
         {/* Right: notifications + user */}
         <div className="flex items-center gap-3">
+          {/* Settings — Joel only */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
+              style={{ color: '#52525b', border: '1px solid rgba(255,255,255,0.07)' }}
+              title="Settings"
+            >
+              <Settings size={13} />
+            </button>
+          )}
+
           <Notifications />
 
           <div className="flex items-center gap-2.5">
@@ -101,6 +117,8 @@ export default function Layout({ children }) {
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

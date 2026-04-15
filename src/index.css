@@ -238,3 +238,38 @@ textarea {
 .dot-instagram { background: #a855f7; }
 .dot-tiktok { background: #14b8a6; }
 .dot-newsletter { background: #f59e0b; }
+
+/* Banner slide-down animation */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Select elements inside dark modals */
+select {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #d4d4d8;
+  border-radius: 6px;
+  padding: 4px 8px;
+  outline: none;
+  font-size: 13px;
+}
+select option {
+  background: #1a1a20;
+  color: #f4f4f5;
+}
+
+/* Workflow row drag animation */
+.wf-row {
+  transition: transform 200ms ease-out, opacity 150ms ease, box-shadow 100ms ease;
+}
+.wf-row.dragging-source {
+  opacity: 0.35;
+}
+.wf-row.drag-target-above {
+  box-shadow: 0 -2px 0 #f59e0b;
+}
+.wf-row.drag-target-below {
+  box-shadow: 0 2px 0 #f59e0b;
+}

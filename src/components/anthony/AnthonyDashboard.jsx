@@ -18,7 +18,7 @@ function daysLabel(dateStr) {
 }
 
 export default function AnthonyDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole } = useApp()
 
   const myActive = projects.filter(
     p => p.type === 'youtube' && ANTHONY_STAGES.includes(p.status)
@@ -28,13 +28,11 @@ export default function AnthonyDashboard() {
   )
 
   function handleMarkDone(project) {
-    advanceStatus(project.id, 'Edit Review', 'anthony')
-    addNotification({
-      type: 'edit_complete',
-      message: `Anthony marked "${project.title}" as done — ready for your review`,
-      projectId: project.id,
-      forUser: 'joel',
-    })
+    advanceStatus(project.id, 'Edit Review', currentUser.id)
+    const joelId = getMemberByRole('admin')?.id
+    const msg = `Anthony marked "${project.title}" as done — ready for your review`
+    addNotification({ message: msg, projectId: project.id, forUser: joelId })
+    addBanner(msg, 'info')
   }
 
   const canMarkDone = (p) => p.status === 'Editing in Progress' || p.status === 'Revision Requested'
@@ -62,6 +60,34 @@ export default function AnthonyDashboard() {
             </span>
           )}
         </div>
+
+        {/* My Active Tasks highlight */}
+        {myActive.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full bg-blue-400" />
+              <span className="text-xs font-semibold text-white">My Active Tasks</span>
+              <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                style={{ background: 'rgba(96,165,250,0.2)', color: '#60a5fa' }}>
+                {myActive.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').length}
+              </span>
+            </div>
+            {myActive.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').map(p => (
+              <div key={p.id}
+                className="rounded-xl p-3 mb-2 flex items-center gap-3 cursor-pointer transition-all"
+                style={{
+                  background: p.status === 'Revision Requested' ? 'rgba(248,113,113,0.04)' : 'rgba(96,165,250,0.04)',
+                  border: p.status === 'Revision Requested' ? '1px solid rgba(248,113,113,0.25)' : '1px solid rgba(96,165,250,0.2)',
+                }}
+                onClick={() => setSelectedProject(p)}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">{p.title}</p>
+                </div>
+                <StatusBadge status={p.status} />
+              </div>
+            ))}
+          </div>
+        )}
 
         {myActive.length === 0 ? (
           <div className="rounded-2xl py-16 text-center"
@@ -93,17 +119,14 @@ export default function AnthonyDashboard() {
                   <div className="px-5 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <button
-                          onClick={() => setSelectedProject(p)}
-                          className="text-left"
-                        >
+                        <button onClick={() => setSelectedProject(p)} className="text-left">
                           <h3 className="font-editorial text-xl font-semibold text-white hover:text-amber-300 transition-colors">
                             {p.title}
                           </h3>
                         </button>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <StatusBadge status={p.status} />
-                          {p.brand && (
+                          {p.brand && p.brand !== 'Organic' && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                               style={{ background: 'rgba(255,255,255,0.07)', color: '#71717a' }}>
                               {p.brand}
@@ -146,7 +169,7 @@ export default function AnthonyDashboard() {
                   <div className="px-5 py-4 flex flex-col gap-3"
                     style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
 
-                    {/* Dropbox button */}
+                    {/* Dropbox / Drive button */}
                     {p.dropboxLink ? (
                       <a
                         href={p.dropboxLink}
@@ -158,6 +181,7 @@ export default function AnthonyDashboard() {
                           color: '#60a5fa',
                           border: '1px solid rgba(59,130,246,0.3)',
                         }}
+                        onClick={e => e.stopPropagation()}
                       >
                         <ExternalLink size={14} />
                         Open in Dropbox

@@ -9,7 +9,7 @@ export default function Notifications() {
   const ref = useRef(null)
 
   const myNotifs = notifications.filter(
-    (n) => n.forUser === currentUser?.id || n.forUser === 'all'
+    (n) => n.forUser === currentUser?.id || n.forUser === null
   )
   const count = unreadCount(currentUser?.id)
 

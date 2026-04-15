@@ -1,157 +1,287 @@
-import React, { useState, useEffect } from 'react'
-import { X, ExternalLink, Clock, User, ChevronRight, AlertCircle } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download } from 'lucide-react'
+import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
-import { WORKFLOWS, STAGE_OWNER, JOEL_REVIEW_STAGES, USERS, CONTENT_TYPES } from '../data/seedData'
+import { WORKFLOWS, STAGE_OWNER, CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon } from './shared/Icons'
 
+// Mapping: stage-owner key → DB role
+const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
+
+// ── Progress Bar ──────────────────────────────────────────────────────────────
+
 function ProgressBar({ type, status }) {
-  const stages = WORKFLOWS[type] || []
+  const stages     = WORKFLOWS[type] || []
   const currentIdx = stages.indexOf(status)
+  const pct        = stages.length > 1 ? (currentIdx / (stages.length - 1)) * 100 : 100
 
   return (
-    <div className="flex gap-1 items-center">
-      {stages.map((stage, i) => (
-        <div
-          key={stage}
-          title={stage}
-          className={`progress-stage ${i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}`}
-        />
-      ))}
+    <div>
+      <div className="flex gap-1 items-center mb-2">
+        {stages.map((stage, i) => (
+          <div
+            key={stage}
+            title={stage}
+            className={`progress-stage ${i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}`}
+          />
+        ))}
+      </div>
+      <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: '#f59e0b', borderRadius: 2, transition: 'width 400ms ease' }} />
+      </div>
     </div>
   )
 }
 
-function TimelineEntry({ entry }) {
-  const user = USERS[entry.changedBy]
+// ── Timeline Entry ─────────────────────────────────────────────────────────────
+
+function TimelineEntry({ entry, getTeamName }) {
+  const name    = getTeamName(entry.changedBy)
+  const initial = name ? name[0].toUpperCase() : '?'
+
   return (
     <div className="flex gap-3 items-start">
-      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-        style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
-        {user?.avatar || '?'}
+      <div
+        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
+        style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}
+      >
+        {initial}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-white">{user?.name || entry.changedBy}</span>
+          <span className="text-xs font-medium text-white">{name}</span>
           <ChevronRight size={10} className="text-zinc-600" />
           <StatusBadge status={entry.status} />
         </div>
-        {entry.note && (
-          <p className="text-xs text-zinc-500 mt-1 italic">"{entry.note}"</p>
-        )}
+        {entry.note && <p className="text-xs text-zinc-500 mt-1 italic">"{entry.note}"</p>}
         <p className="text-xs text-zinc-600 mt-0.5">
-          {format(new Date(entry.timestamp), 'MMM d, yyyy · h:mm a')}
+          {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
         </p>
       </div>
     </div>
   )
 }
 
-export default function ProjectDetail() {
-  const { selectedProject, setSelectedProject, currentUser, updateProject, advanceStatus, addNotification, projects } = useApp()
+// ── Main component ─────────────────────────────────────────────────────────────
 
-  const [proj, setProj] = useState(null)
-  const [editTitle, setEditTitle] = useState('')
-  const [editBrand, setEditBrand] = useState('')
-  const [editDate, setEditDate] = useState('')
-  const [editDropbox, setEditDropbox] = useState('')
-  const [editNotes, setEditNotes] = useState('')
-  const [editCaption, setEditCaption] = useState('')
-  const [revisionNote, setRevisionNote] = useState('')
+export default function ProjectDetail() {
+  const {
+    selectedProject, setSelectedProject,
+    currentUser, updateProject, advanceStatus, overrideStatus, changePlatform,
+    addNotification, deleteProject, addBanner,
+    projects, teamMembers, getTeamName, getMemberByRole,
+  } = useApp()
+
+  const [proj, setProj]                           = useState(null)
+  const [editTitle, setEditTitle]                 = useState('')
+  const [editBrand, setEditBrand]                 = useState('')
+  const [editBrandType, setEditBrandType]         = useState('Organic')
+  const [editBrandName, setEditBrandName]         = useState('')
+  const [editDate, setEditDate]                   = useState('')
+  const [editDropbox, setEditDropbox]             = useState('')
+  const [editAsana, setEditAsana]                 = useState('')
+  const [editVideoBreakdown, setEditVideoBreakdown] = useState('')
+  const [editCaption, setEditCaption]             = useState('')
+  const [captionSaved, setCaptionSaved]           = useState(false)
+  // Script as structured blocks (Feature 8)
+  const [scriptBlocks, setScriptBlocks]           = useState([])
+  const [scriptUnsaved, setScriptUnsaved]         = useState(false)
+  const [scriptSavedAt, setScriptSavedAt]         = useState(null)
+  // Shot list with debounce (Feature 7)
+  const [shotListDraft, setShotListDraft]         = useState([])
+  const [shotListSavedAt, setShotListSavedAt]     = useState(null)
+  const [revisionNote, setRevisionNote]           = useState('')
   const [showRevisionInput, setShowRevisionInput] = useState(false)
-  const [scheduledTime, setScheduledTime] = useState('')
+  const [scheduledTime, setScheduledTime]         = useState('')
   const [showScheduleInput, setShowScheduleInput] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete]         = useState(false)
+  const [titleError, setTitleError]               = useState('')
+  // Override stage
+  const [overrideStage, setOverrideStage]         = useState('')
+  const [showOverrideConfirm, setShowOverrideConfirm] = useState(false)
+  // Change content type (Feature 6)
+  const [editType, setEditType]                   = useState('')
+  const [showTypeConfirm, setShowTypeConfirm]     = useState(false)
+
+  const captionTimerRef  = useRef(null)
+  const scriptTimerRef   = useRef(null)
+  const shotTimerRef     = useRef(null)
+  const thumbInputRef    = useRef(null)
+
+  // Parse legacy plain-text script or JSON blocks (Feature 8 backward compat)
+  function parseScriptBlocks(notesStr) {
+    if (!notesStr) return [{ id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }]
+    try {
+      const parsed = JSON.parse(notesStr)
+      if (Array.isArray(parsed) && parsed.length > 0 && 'scriptLine' in parsed[0]) return parsed
+    } catch (_) {}
+    // Legacy plain text → single row
+    return [{ id: 'b_' + Date.now(), scriptLine: notesStr, shotNote: '' }]
+  }
 
   // Sync local state when selectedProject changes
   useEffect(() => {
     if (!selectedProject) return
-    // Get fresh data from projects list
     const fresh = projects.find((p) => p.id === selectedProject.id) || selectedProject
     setProj(fresh)
     setEditTitle(fresh.title)
-    setEditBrand(fresh.brand || '')
+    setEditType(fresh.type)
+    setShowTypeConfirm(false)
+
+    // Parse brand field into type + name
+    if (!fresh.brand || fresh.brand === 'Organic') {
+      setEditBrandType('Organic')
+      setEditBrandName('')
+    } else {
+      setEditBrandType('Brand Deal')
+      setEditBrandName(fresh.brand)
+    }
+
     setEditDate(fresh.publishDate || '')
     setEditDropbox(fresh.dropboxLink || '')
-    setEditNotes(fresh.notes || '')
+    setEditAsana(fresh.asanaLink || '')
+    setEditVideoBreakdown(fresh.videoBreakdown || '')
     setEditCaption(fresh.caption || '')
+    setScriptBlocks(parseScriptBlocks(fresh.notes))
+    setScriptSavedAt(null)
+    setScriptUnsaved(false)
+    setShotListDraft(fresh.shotList || [])
+    setShotListSavedAt(null)
     setScheduledTime(fresh.scheduledTime || '')
+    setOverrideStage(fresh.status)
     setShowRevisionInput(false)
     setShowScheduleInput(false)
+    setShowOverrideConfirm(false)
     setRevisionNote('')
+    setConfirmDelete(false)
+    setCaptionSaved(false)
+    setTitleError('')
   }, [selectedProject, projects])
 
   if (!selectedProject || !proj) return null
 
-  const isJoel = currentUser?.role === 'admin' || currentUser?.role === 'creator'
+  const isJoel    = currentUser?.role === 'admin' || currentUser?.role === 'creator'
   const isAnthony = currentUser?.role === 'editor'
-  const isTiana = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
+  const isTiana   = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
 
-  const workflow = WORKFLOWS[proj.type] || []
-  const currentStageIdx = workflow.indexOf(proj.status)
-  const stageOwner = STAGE_OWNER[proj.type]?.[proj.status]
-  const ownerUser = USERS[stageOwner]
+  const workflow        = WORKFLOWS[proj.type] || []
+  const stageOwnerKey   = STAGE_OWNER[proj.type]?.[proj.status]
+  const ownerMember     = teamMembers.find((m) => m.role === OWNER_ROLE[stageOwnerKey])
 
-  function saveEdits() {
-    setSaving(true)
+  // Parallel stages — if activeStages has more than one entry, show all their owners
+  const activeStages    = (proj.activeStages?.length > 1) ? proj.activeStages : [proj.status]
+  const parallelOwners  = activeStages.map((stage) => {
+    const ownerKey = STAGE_OWNER[proj.type]?.[stage]
+    const member   = teamMembers.find((m) => m.role === OWNER_ROLE[ownerKey])
+    return { stage, member }
+  }).filter((x) => x.member)
+
+  // Dropbox or Google Drive label
+  const storageLabel       = (proj.type === 'instagram' || proj.type === 'tiktok') ? 'Google Drive Link'      : proj.type === 'newsletter' ? null : 'Dropbox Link'
+  const storagePlaceholder = (proj.type === 'instagram' || proj.type === 'tiktok') ? 'https://drive.google.com/…' : 'https://dropbox.com/…'
+
+  // Derived brand string for saving
+  const brandValue = editBrandType === 'Brand Deal' ? (editBrandName.trim() || 'Brand Deal') : 'Organic'
+
+  // ── Save helpers ────────────────────────────────────────────────────────────
+
+  function saveEdits(extra = {}) {
     updateProject(proj.id, {
-      title: editTitle,
-      brand: editBrand,
+      title:      editTitle,
+      brand:      brandValue,
       publishDate: editDate,
       dropboxLink: editDropbox,
-      notes: editNotes,
+      asanaLink:  editAsana,
+      ...extra,
     })
-    setTimeout(() => setSaving(false), 400)
+  }
+
+  function handleTitleBlur() {
+    const titleLower = editTitle.trim().toLowerCase()
+    const isDupe = projects.some(
+      (p) => p.id !== proj.id && p.type === proj.type && p.title.trim().toLowerCase() === titleLower
+    )
+    if (isDupe) {
+      setTitleError(`A ${TYPE_LABELS[proj.type]} project with this name already exists.`)
+      setEditTitle(proj.title) // revert
+      return
+    }
+    setTitleError('')
+    saveEdits()
   }
 
   function saveCaption() {
     updateProject(proj.id, { caption: editCaption })
+    setCaptionSaved(true)
+    if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
+    captionTimerRef.current = setTimeout(() => setCaptionSaved(false), 2000)
   }
+
+  // Script blocks auto-save with 500ms debounce (Feature 8)
+  function handleScriptBlocksChange(newBlocks) {
+    setScriptBlocks(newBlocks)
+    setScriptUnsaved(true)
+    if (scriptTimerRef.current) clearTimeout(scriptTimerRef.current)
+    scriptTimerRef.current = setTimeout(() => {
+      updateProject(proj.id, { notes: JSON.stringify(newBlocks) })
+      setScriptSavedAt(new Date().toISOString())
+      setScriptUnsaved(false)
+    }, 500)
+  }
+
+  // Shot list debounced save (Feature 7)
+  function handleShotListChange(newList) {
+    setShotListDraft(newList)
+    if (shotTimerRef.current) clearTimeout(shotTimerRef.current)
+    shotTimerRef.current = setTimeout(() => {
+      updateProject(proj.id, { shotList: newList })
+      setShotListSavedAt(new Date().toISOString())
+    }, 500)
+  }
+
+  function saveVideoBreakdown() {
+    updateProject(proj.id, { videoBreakdown: editVideoBreakdown })
+  }
+
+  // ── Advance / notifications ─────────────────────────────────────────────────
 
   function handleAdvance(toStatus, note = null) {
     advanceStatus(proj.id, toStatus, currentUser.id, note)
 
-    // Fire notifications
+    const joelId    = getMemberByRole('admin')?.id
+    const anthonyId = getMemberByRole('editor')?.id
+    const tianaId   = getMemberByRole('social_manager')?.id
+
     if (toStatus === 'Edit Review') {
-      addNotification({
-        type: 'edit_complete',
-        message: `Anthony marked "${proj.title}" as done — ready for your review`,
-        projectId: proj.id,
-        forUser: 'joel',
-      })
+      const msg = `${getTeamName(currentUser.id)} marked "${proj.title}" as done — ready for your review`
+      addNotification({ message: msg, projectId: proj.id, forUser: joelId })
+      addBanner(msg, 'info')
     }
     if (toStatus === 'Caption In Review') {
-      addNotification({
-        type: 'caption_submitted',
-        message: `Tiana submitted a caption for "${proj.title}"`,
-        projectId: proj.id,
-        forUser: 'joel',
-      })
+      const msg = `${getTeamName(currentUser.id)} submitted a caption for "${proj.title}"`
+      addNotification({ message: msg, projectId: proj.id, forUser: joelId })
+      addBanner(msg, 'info')
     }
     if (toStatus === 'Revision Requested') {
-      addNotification({
-        type: 'revision_requested',
-        message: `Joel requested revisions on "${proj.title}"`,
-        projectId: proj.id,
-        forUser: 'anthony',
-      })
+      const msg = `Joel requested revisions on "${proj.title}"`
+      addNotification({ message: msg, projectId: proj.id, forUser: anthonyId })
+      addBanner(msg, 'warning')
     }
-    if (toStatus === 'Caption Needed' || toStatus === 'Caption Needed') {
-      addNotification({
-        type: 'caption_needed',
-        message: `"${proj.title}" is ready for a caption`,
-        projectId: proj.id,
-        forUser: 'tiana',
-      })
+    if (toStatus === 'Caption Needed') {
+      const msg = `"${proj.title}" is ready for a caption`
+      addNotification({ message: msg, projectId: proj.id, forUser: tianaId })
+      addBanner(msg, 'info')
     }
     if (toStatus === 'Ready to Post') {
-      addNotification({
-        type: 'caption_approved',
-        message: `Joel approved the caption for "${proj.title}" — ready to post`,
-        projectId: proj.id,
-        forUser: 'tiana',
-      })
+      const msg = `Joel approved the caption for "${proj.title}" — ready to post`
+      addNotification({ message: msg, projectId: proj.id, forUser: tianaId })
+      addBanner(msg, 'success')
+    }
+    if (toStatus === 'Posted' || toStatus === 'Sent') {
+      const msg = `${getTeamName(currentUser.id)} published "${proj.title}"`
+      addNotification({ message: msg, projectId: proj.id, forUser: joelId })
+      addBanner(msg, 'success')
     }
   }
 
@@ -163,23 +293,204 @@ export default function ProjectDetail() {
 
   function handleRevision() {
     advanceStatus(proj.id, 'Revision Requested', currentUser.id, revisionNote)
+    const anthonyId = getMemberByRole('editor')?.id
     addNotification({
-      type: 'revision_requested',
-      message: `Joel requested revisions on "${proj.title}"${revisionNote ? ': ' + revisionNote : ''}`,
+      message:   `Joel requested revisions on "${proj.title}"${revisionNote ? ': ' + revisionNote : ''}`,
       projectId: proj.id,
-      forUser: 'anthony',
+      forUser:   anthonyId,
     })
     setShowRevisionInput(false)
     setRevisionNote('')
   }
 
-  // Determine what action button to show
+  function handleDelete() {
+    deleteProject(proj.id)
+    setSelectedProject(null)
+  }
+
+  function handleOverrideConfirm() {
+    overrideStatus(proj.id, overrideStage, 'Stage overridden by Joel', currentUser.id)
+    setShowOverrideConfirm(false)
+  }
+
+  // Recall submission — return to previous in-progress stage (Feature 5)
+  function handleRecall() {
+    const prevStatus = proj.status === 'Edit Review' ? 'Editing in Progress' : 'Caption Needed'
+    const note = `${getTeamName(currentUser.id)} recalled submission`
+    advanceStatus(proj.id, prevStatus, currentUser.id, note)
+    addBanner(note, 'info')
+  }
+
+  // Change content type (Feature 6)
+  function handleTypeChange() {
+    if (editType === proj.type) return
+    changePlatform(proj.id, editType, currentUser.id)
+    addBanner(`Platform changed to ${TYPE_LABELS[editType] || editType} — workflow reset`, 'info')
+    setShowTypeConfirm(false)
+  }
+
+  // ── Thumbnails ─────────────────────────────────────────────────────────────
+
+  function handleThumbnailUpload(e) {
+    const files = Array.from(e.target.files)
+    files.forEach((file) => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const newThumb = { id: `t${Date.now()}_${Math.random().toString(36).slice(2)}`, label: file.name, data: ev.target.result }
+        const updated  = [...(proj.thumbnails || []), newThumb]
+        updateProject(proj.id, { thumbnails: updated })
+      }
+      reader.readAsDataURL(file)
+    })
+    e.target.value = ''
+  }
+
+  function removeThumbnail(id) {
+    const updated = (proj.thumbnails || []).filter((t) => t.id !== id)
+    updateProject(proj.id, { thumbnails: updated })
+  }
+
+  function updateThumbnailLabel(id, label) {
+    const updated = (proj.thumbnails || []).map((t) => t.id === id ? { ...t, label } : t)
+    updateProject(proj.id, { thumbnails: updated })
+  }
+
+  // ── PDF Export ─────────────────────────────────────────────────────────────
+
+  async function handlePDFExport() {
+    try {
+      // Ensure jsPDF is loaded (CDN in index.html)
+      const { jsPDF } = window.jspdf || {}
+      if (!jsPDF) { alert('PDF library not loaded. Please refresh.'); return }
+
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const W   = doc.internal.pageSize.getWidth()
+      let y     = 40
+
+      // Title block
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(20)
+      doc.text(proj.title, 40, y); y += 28
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(11)
+      doc.setTextColor(100)
+      const meta = [
+        `Platform: ${TYPE_LABELS[proj.type] || proj.type}`,
+        proj.brand && proj.brand !== 'Organic' ? `Brand: ${proj.brand}` : null,
+        proj.publishDate ? `Publish: ${format(parseISO(proj.publishDate), 'MMMM d, yyyy')}` : null,
+        `Status: ${proj.status}`,
+      ].filter(Boolean).join('   ·   ')
+      doc.text(meta, 40, y); y += 20
+      doc.setTextColor(0)
+
+      // Divider
+      doc.setDrawColor(200)
+      doc.line(40, y, W - 40, y); y += 16
+
+      // Script (handle JSON blocks or plain text)
+      if (proj.notes) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.text('Script / Notes', 40, y); y += 16
+
+        try {
+          const parsed = JSON.parse(proj.notes)
+          if (Array.isArray(parsed) && parsed.length > 0 && 'scriptLine' in parsed[0]) {
+            // Structured blocks → two-column table
+            const hasShots = parsed.some((b) => b.shotNote)
+            doc.autoTable({
+              startY: y,
+              margin: { left: 40, right: 40 },
+              head: [hasShots ? ['Script Line', 'Shot / Visual'] : ['Script Line']],
+              body: parsed.map((b) => hasShots ? [b.scriptLine || '', b.shotNote || ''] : [b.scriptLine || '']),
+              styles: { fontSize: 9, cellPadding: 4 },
+              headStyles: { fillColor: [40, 40, 48], textColor: [180, 180, 180] },
+              columnStyles: hasShots ? { 0: { cellWidth: 250 }, 1: { cellWidth: 'auto', fontStyle: 'italic' } } : {},
+            })
+            y = doc.lastAutoTable.finalY + 16
+          } else {
+            throw new Error('not blocks')
+          }
+        } catch (_) {
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(10)
+          const lines = doc.splitTextToSize(proj.notes, W - 80)
+          doc.text(lines, 40, y); y += lines.length * 13 + 10
+        }
+      }
+
+      // Shot list
+      if ((proj.shotList || []).length > 0) {
+        if (y > 700) { doc.addPage(); y = 40 }
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.text('Shot List', 40, y); y += 10
+
+        doc.autoTable({
+          startY:    y,
+          margin:    { left: 40, right: 40 },
+          head:      [['#', 'Description', 'Type', 'Notes']],
+          body:      (proj.shotList || []).map((s, i) => [i + 1, s.desc, s.type, s.notes]),
+          styles:    { fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: [245, 158, 11], textColor: [0, 0, 0] },
+        })
+        y = doc.lastAutoTable.finalY + 16
+      }
+
+      // Caption
+      if (proj.caption) {
+        if (y > 700) { doc.addPage(); y = 40 }
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.text('Caption', 40, y); y += 16
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        const lines = doc.splitTextToSize(proj.caption, W - 80)
+        doc.text(lines, 40, y); y += lines.length * 13 + 10
+      }
+
+      // Thumbnails
+      if ((proj.thumbnails || []).length > 0) {
+        if (y > 600) { doc.addPage(); y = 40 }
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.text('Thumbnails', 40, y); y += 16
+
+        let x = 40
+        for (const thumb of proj.thumbnails) {
+          try {
+            const imgW = 150, imgH = 90
+            if (x + imgW > W - 40) { x = 40; y += imgH + 24 }
+            if (y + imgH > 760) { doc.addPage(); y = 40; x = 40 }
+            doc.addImage(thumb.data, 'JPEG', x, y, imgW, imgH)
+            doc.setFontSize(8)
+            doc.setFont('helvetica', 'normal')
+            doc.text(thumb.label || '', x, y + imgH + 12, { maxWidth: imgW })
+            x += imgW + 16
+          } catch (_) {}
+        }
+        y += 110
+      }
+
+      const slug = proj.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 50)
+      doc.save(`${slug}_script.pdf`)
+    } catch (err) {
+      console.error('PDF export error:', err)
+      alert('PDF export failed. Check console for details.')
+    }
+  }
+
+  // ── Action button ───────────────────────────────────────────────────────────
+
   function renderActionButton() {
     const s = proj.status
 
     if (isJoel) {
-      if (s === 'Filming') return <ActionBtn color="amber" onClick={() => handleAdvance('Raw Footage Ready')}>Mark Raw Footage Ready</ActionBtn>
-      if (s === 'Raw Footage Ready') return <ActionBtn color="amber" onClick={() => handleAdvance('Editing in Progress')}>Send to Anthony for Editing</ActionBtn>
+      if (s === 'Filming')
+        return <ActionBtn color="amber" onClick={() => handleAdvance('Raw Footage Ready')}>Mark Raw Footage Ready</ActionBtn>
+      if (s === 'Raw Footage Ready')
+        return <ActionBtn color="amber" onClick={() => handleAdvance('Editing in Progress')}>Send to Anthony for Editing</ActionBtn>
       if (s === 'Edit Review') return (
         <div className="flex flex-col gap-2">
           <ActionBtn color="amber" onClick={() => handleAdvance('Final Review')}>Approve Edit → Final Review</ActionBtn>
@@ -201,15 +512,10 @@ export default function ProjectDetail() {
           )}
         </div>
       )
-      if (s === 'Final Review') {
-        const next = proj.type === 'youtube' ? 'Caption Needed' : 'Caption Needed'
-        return <ActionBtn color="amber" onClick={() => handleAdvance(next)}>Approve → Assign Caption to Tiana</ActionBtn>
-      }
-      if (s === 'Caption In Review') return (
-        <div className="flex flex-col gap-2">
-          <ActionBtn color="amber" onClick={() => handleAdvance('Ready to Post')}>Approve Caption → Ready to Post</ActionBtn>
-        </div>
-      )
+      if (s === 'Final Review')
+        return <ActionBtn color="amber" onClick={() => handleAdvance('Caption Needed')}>Approve → Assign Caption</ActionBtn>
+      if (s === 'Caption In Review')
+        return <ActionBtn color="amber" onClick={() => handleAdvance('Ready to Post')}>Approve Caption → Ready to Post</ActionBtn>
       if (s === 'Ready to Post') return (
         <div className="flex flex-col gap-2">
           <ActionBtn color="amber" onClick={() => setShowScheduleInput((v) => !v)}>Schedule Post</ActionBtn>
@@ -228,15 +534,17 @@ export default function ProjectDetail() {
           <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
         </div>
       )
-      if (s === 'Scheduled') return <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
-      if (s === 'Editing in Progress' && proj.type === 'youtube') return null // Anthony's stage
-      if (s === 'Drafting') return <ActionBtn color="amber" onClick={() => handleAdvance('In Review')}>Move to In Review</ActionBtn>
-      if (s === 'In Review') return <ActionBtn color="amber" onClick={() => handleAdvance('Ready to Send')}>Mark Ready to Send</ActionBtn>
-      if (s === 'Ready to Send') return <ActionBtn color="green" onClick={() => handleAdvance('Sent')}>Mark as Sent</ActionBtn>
-      // Instagram/TikTok joel editing
-      if (s === 'Editing in Progress' && (proj.type === 'instagram' || proj.type === 'tiktok')) {
+      if (s === 'Scheduled')
+        return <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
+      if (s === 'Drafting')
+        return <ActionBtn color="amber" onClick={() => handleAdvance('In Review')}>Move to In Review</ActionBtn>
+      if (s === 'In Review')
+        return <ActionBtn color="amber" onClick={() => handleAdvance('Ready to Send')}>Mark Ready to Send</ActionBtn>
+      if (s === 'Ready to Send')
+        return <ActionBtn color="green" onClick={() => handleAdvance('Sent')}>Mark as Sent</ActionBtn>
+      if (s === 'Editing in Progress' && (proj.type === 'instagram' || proj.type === 'tiktok'))
         return <ActionBtn color="amber" onClick={() => handleAdvance('Caption Needed')}>Editing Done → Send to Tiana</ActionBtn>
-      }
+      return null
     }
 
     if (isAnthony && proj.type === 'youtube') {
@@ -247,6 +555,19 @@ export default function ProjectDetail() {
           </ActionBtn>
         )
       }
+      if (s === 'Edit Review') {
+        return (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-zinc-500 text-center">Waiting for Joel's review…</p>
+            <button
+              onClick={handleRecall}
+              className="btn-ghost w-full text-sm py-2.5"
+            >
+              ↩ Recall Submission
+            </button>
+          </div>
+        )
+      }
     }
 
     if (isTiana) {
@@ -254,13 +575,30 @@ export default function ProjectDetail() {
         return (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-zinc-500">Write your caption above, then submit for Joel's review.</p>
-            <ActionBtn color="purple" onClick={() => {
-              saveCaption()
-              handleAdvance('Caption In Review')
-            }}>
+            <ActionBtn color="purple" onClick={() => { saveCaption(); handleAdvance('Caption In Review') }}>
               Submit Caption for Review
             </ActionBtn>
           </div>
+        )
+      }
+      if (s === 'Caption In Review') {
+        return (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-zinc-500 text-center">Caption submitted — waiting for Joel's review</p>
+            <button
+              onClick={handleRecall}
+              className="btn-ghost w-full text-sm py-2.5"
+            >
+              ↩ Recall Submission
+            </button>
+          </div>
+        )
+      }
+      if (s === 'Ready to Post') {
+        return (
+          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>
+            Mark as Published
+          </ActionBtn>
         )
       }
     }
@@ -269,35 +607,44 @@ export default function ProjectDetail() {
   }
 
   const canEditCaption = isTiana && proj.status === 'Caption Needed'
+  const canEditScript  = isJoel
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end modal-backdrop"
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-end modal-backdrop"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null) }}>
-
+      onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null) }}
+    >
       <div
         className="modal-panel h-full w-full max-w-2xl overflow-y-auto flex flex-col"
         style={{ background: '#111115', borderLeft: '1px solid rgba(255,255,255,0.08)' }}
       >
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between px-6 py-4"
-          style={{ background: 'rgba(17,17,21,0.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* ── Header ── */}
+        <div
+          className="sticky top-0 z-10 flex items-start justify-between px-6 py-4"
+          style={{ background: 'rgba(17,17,21,0.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        >
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <PlatformIcon type={proj.type} size={18} />
             <div className="flex-1 min-w-0">
               {isJoel ? (
-                <input
-                  className="font-editorial text-xl font-semibold text-white bg-transparent border-none outline-none w-full"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onBlur={saveEdits}
-                />
+                <>
+                  <input
+                    className="font-editorial text-xl font-semibold text-white bg-transparent border-none outline-none w-full"
+                    value={editTitle}
+                    onChange={(e) => { setEditTitle(e.target.value); setTitleError('') }}
+                    onBlur={handleTitleBlur}
+                  />
+                  {titleError && <p className="text-red-400 text-xs mt-0.5">{titleError}</p>}
+                </>
               ) : (
                 <h2 className="font-editorial text-xl font-semibold text-white truncate">{proj.title}</h2>
               )}
               <div className="flex items-center gap-2 mt-1">
                 <StatusBadge status={proj.status} />
-                {proj.brand && (
+                {proj.brand && proj.brand !== 'Organic' && (
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                     style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af' }}>
                     {proj.brand}
@@ -306,16 +653,18 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          <button onClick={() => setSelectedProject(null)}
+          <button
+            onClick={() => setSelectedProject(null)}
             className="ml-4 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors hover:bg-white/10"
-            style={{ color: '#52525b' }}>
+            style={{ color: '#52525b' }}
+          >
             <X size={16} />
           </button>
         </div>
 
         <div className="flex-1 px-6 py-5 flex flex-col gap-6">
 
-          {/* Progress bar */}
+          {/* ── Progress bar ── */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Workflow Progress</p>
             <ProgressBar type={proj.type} status={proj.status} />
@@ -325,27 +674,89 @@ export default function ProjectDetail() {
             </div>
           </div>
 
-          {/* Current owner */}
-          {ownerUser && (
-            <div className="flex items-center gap-3 rounded-xl p-3"
-              style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
-                {ownerUser.avatar}
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500">Currently with</p>
-                <p className="text-sm font-semibold text-white">{ownerUser.name}</p>
-              </div>
-              <div className="ml-auto">
-                <StatusBadge status={proj.status} />
-              </div>
+          {/* ── Stage owner(s) — supports parallel stages ── */}
+          {parallelOwners.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {parallelOwners.length > 1 && (
+                <p className="text-xs text-amber-400 font-semibold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                  {parallelOwners.length} parallel stages active
+                </p>
+              )}
+              {parallelOwners.map(({ stage, member }) => (
+                <div
+                  key={stage}
+                  className="flex items-center gap-3 rounded-xl p-3"
+                  style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}
+                  >
+                    {member.avatar || member.name?.[0]}
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500">Currently with</p>
+                    <p className="text-sm font-semibold text-white">{member.name}</p>
+                  </div>
+                  <div className="ml-auto">
+                    <StatusBadge status={stage} />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Revision note if present */}
+          {/* ── Admin Override Stage (Joel only) ── */}
+          {isJoel && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Admin Stage Override</p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={overrideStage}
+                  onChange={(e) => { setOverrideStage(e.target.value); setShowOverrideConfirm(false) }}
+                  className="flex-1 text-sm rounded-lg px-3 py-2 text-white"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }}
+                >
+                  {workflow.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                {overrideStage !== proj.status && (
+                  <button
+                    onClick={() => setShowOverrideConfirm(true)}
+                    className="text-xs px-3 py-2 rounded-lg font-semibold"
+                    style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}
+                  >
+                    Override Stage
+                  </button>
+                )}
+              </div>
+              {showOverrideConfirm && (
+                <div
+                  className="mt-2 rounded-lg p-3 flex items-center justify-between gap-3 animate-fade-in"
+                  style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}
+                >
+                  <p className="text-xs text-amber-300">Force-set to <strong>{overrideStage}</strong>?</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleOverrideConfirm}
+                      className="text-xs px-3 py-1.5 rounded font-semibold"
+                      style={{ background: 'rgba(245,158,11,0.2)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      Confirm
+                    </button>
+                    <button onClick={() => { setShowOverrideConfirm(false); setOverrideStage(proj.status) }}
+                      className="btn-ghost text-xs px-3 py-1.5">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Revision note (if present) ── */}
           {proj.status === 'Revision Requested' && proj.statusHistory && (() => {
-            const rev = [...proj.statusHistory].reverse().find(h => h.status === 'Revision Requested')
+            const rev = [...proj.statusHistory].reverse().find((h) => h.status === 'Revision Requested')
             return rev?.note ? (
               <div className="rounded-xl p-3 flex gap-2"
                 style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
@@ -358,72 +769,265 @@ export default function ProjectDetail() {
             ) : null
           })()}
 
-          {/* Project details */}
+          {/* ── Project details grid ── */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Publish Date">
               {isJoel ? (
-                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onBlur={saveEdits}
-                  className="text-sm text-white bg-transparent border-none outline-none w-full" />
+                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onBlur={() => saveEdits()}
+                  className="text-sm text-white bg-transparent border-none outline-none w-full"
+                  style={{ colorScheme: 'dark' }} />
               ) : (
                 <span className="text-sm text-white">{proj.publishDate ? format(parseISO(proj.publishDate), 'MMMM d, yyyy') : '—'}</span>
               )}
             </Field>
-            <Field label="Brand / Client">
+
+            <Field label="Brand / Sponsor">
               {isJoel ? (
-                <input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} onBlur={saveEdits}
-                  placeholder="e.g. Nike"
-                  className="text-sm text-white bg-transparent border-none outline-none w-full placeholder-zinc-700" />
+                <div className="flex flex-col gap-1">
+                  <select
+                    value={editBrandType}
+                    onChange={(e) => setEditBrandType(e.target.value)}
+                    onBlur={() => saveEdits()}
+                    style={{ background: 'transparent', border: 'none', color: '#a1a1aa', fontSize: 13, padding: 0, outline: 'none' }}
+                  >
+                    <option value="Organic">Organic</option>
+                    <option value="Brand Deal">Brand Deal</option>
+                  </select>
+                  {editBrandType === 'Brand Deal' && (
+                    <input
+                      value={editBrandName}
+                      onChange={(e) => setEditBrandName(e.target.value)}
+                      onBlur={() => saveEdits()}
+                      placeholder="Brand name…"
+                      className="text-sm text-white bg-transparent border-none outline-none w-full placeholder-zinc-700"
+                    />
+                  )}
+                </div>
               ) : (
                 <span className="text-sm text-white">{proj.brand || '—'}</span>
               )}
             </Field>
+
             <Field label="Content Type" className="col-span-2">
-              <div className="flex items-center gap-2">
-                <PlatformIcon type={proj.type} size={14} />
-                <span className="text-sm text-white">{CONTENT_TYPES[proj.type]?.label}</span>
-              </div>
+              {isJoel ? (
+                <div>
+                  <div className="flex items-center gap-2">
+                    <PlatformIcon type={editType || proj.type} size={14} />
+                    <select
+                      value={editType}
+                      onChange={(e) => { setEditType(e.target.value); setShowTypeConfirm(e.target.value !== proj.type) }}
+                      style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 13, outline: 'none', cursor: 'pointer' }}
+                    >
+                      {Object.entries(CONTENT_TYPES).map(([t, meta]) => (
+                        <option key={t} value={t}>{meta.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {showTypeConfirm && (
+                    <div
+                      className="mt-2 rounded-lg p-3 animate-fade-in"
+                      style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}
+                    >
+                      <p className="text-xs text-red-400 mb-2">
+                        Changing the platform will reset the workflow stages. Continue?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleTypeChange}
+                          className="text-xs px-3 py-1.5 rounded font-semibold"
+                          style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                        >
+                          Yes, Change Platform
+                        </button>
+                        <button
+                          onClick={() => { setEditType(proj.type); setShowTypeConfirm(false) }}
+                          className="btn-ghost text-xs px-3 py-1.5"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <PlatformIcon type={proj.type} size={14} />
+                  <span className="text-sm text-white">{CONTENT_TYPES[proj.type]?.label}</span>
+                </div>
+              )}
             </Field>
           </div>
 
-          {/* Dropbox link */}
+          {/* ── Storage link ── */}
+          {storageLabel && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">{storageLabel}</p>
+              {isJoel ? (
+                <div>
+                  <input
+                    value={editDropbox}
+                    onChange={(e) => setEditDropbox(e.target.value)}
+                    onBlur={() => saveEdits()}
+                    placeholder={storagePlaceholder}
+                    className="w-full text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  />
+                  {editDropbox && (
+                    <a href={editDropbox} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 mt-1 transition-colors">
+                      <ExternalLink size={11} /> Open link
+                    </a>
+                  )}
+                </div>
+              ) : proj.dropboxLink ? (
+                <a href={proj.dropboxLink} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                  <ExternalLink size={13} /> {proj.dropboxLink}
+                </a>
+              ) : (
+                <span className="text-sm text-zinc-600">No link added</span>
+              )}
+            </div>
+          )}
+
+          {/* ── Asana Link ── */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Dropbox Link</p>
-            {isJoel ? (
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Asana Task</p>
+            <div className="flex items-center gap-2">
               <input
-                value={editDropbox}
-                onChange={(e) => setEditDropbox(e.target.value)}
-                onBlur={saveEdits}
-                placeholder="https://dropbox.com/…"
-                className="w-full text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                value={editAsana}
+                onChange={(e) => setEditAsana(e.target.value)}
+                onBlur={() => saveEdits()}
+                placeholder="https://app.asana.com/…"
+                className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               />
-            ) : proj.dropboxLink ? (
-              <a href={proj.dropboxLink} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                <ExternalLink size={13} />
-                {proj.dropboxLink}
-              </a>
-            ) : (
-              <span className="text-sm text-zinc-600">No Dropbox link added</span>
-            )}
-            {isJoel && editDropbox && (
-              <a href={editDropbox} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 mt-1 transition-colors">
-                <ExternalLink size={11} /> Open link
-              </a>
-            )}
+              {editAsana && (
+                <a href={editAsana} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1">
+                  <ExternalLink size={11} /> Open
+                </a>
+              )}
+            </div>
           </div>
 
-          {/* Caption field */}
+          {/* ── Video Breakdown (YouTube only) ── */}
+          {proj.type === 'youtube' && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Video Breakdown</p>
+              {isJoel || isAnthony ? (
+                <textarea
+                  value={editVideoBreakdown}
+                  onChange={(e) => setEditVideoBreakdown(e.target.value)}
+                  onBlur={saveVideoBreakdown}
+                  placeholder="Scene timestamps, sections, talking points…"
+                  className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-300 placeholder-zinc-700"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  rows={4}
+                  readOnly={isAnthony}
+                />
+              ) : (
+                proj.videoBreakdown
+                  ? <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{proj.videoBreakdown}</p>
+                  : <span className="text-sm text-zinc-600">No breakdown added</span>
+              )}
+            </div>
+          )}
+
+          {/* ── Thumbnails (YouTube only, Joel can upload) ── */}
+          {proj.type === 'youtube' && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Thumbnails</p>
+                {isJoel && (
+                  <>
+                    <button
+                      onClick={() => thumbInputRef.current?.click()}
+                      className="text-xs px-2 py-1 rounded flex items-center gap-1"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
+                    >
+                      <Upload size={11} /> Upload
+                    </button>
+                    <input
+                      ref={thumbInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleThumbnailUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </>
+                )}
+              </div>
+              {(proj.thumbnails || []).length === 0 ? (
+                <p className="text-sm text-zinc-600 py-2">No thumbnails yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {(proj.thumbnails || []).map((thumb) => (
+                    <div key={thumb.id} className="relative rounded-lg overflow-hidden"
+                      style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <img
+                        src={thumb.data}
+                        alt={thumb.label}
+                        className="w-full object-cover"
+                        style={{ height: 100 }}
+                      />
+                      <div className="p-1.5 flex items-center gap-1">
+                        {isJoel ? (
+                          <input
+                            value={thumb.label}
+                            onChange={(e) => updateThumbnailLabel(thumb.id, e.target.value)}
+                            className="flex-1 text-xs bg-transparent text-zinc-400 border-none outline-none"
+                            style={{ minWidth: 0 }}
+                          />
+                        ) : (
+                          <span className="flex-1 text-xs text-zinc-500 truncate">{thumb.label}</span>
+                        )}
+                        {isJoel && (
+                          <button onClick={() => removeThumbnail(thumb.id)}
+                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>
+                            <Trash2 size={11} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Caption ── */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Caption</p>
-            {canEditCaption ? (
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Caption</p>
+              {(canEditCaption || isJoel) && (
+                <div className="flex items-center gap-2">
+                  {captionSaved && <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>}
+                  <button
+                    onClick={saveCaption}
+                    className="text-xs px-2 py-1 rounded"
+                    style={
+                      canEditCaption
+                        ? { background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }
+                        : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
+                    }
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+            {canEditCaption || isJoel ? (
               <textarea
                 value={editCaption}
                 onChange={(e) => setEditCaption(e.target.value)}
                 placeholder="Write the caption here…"
                 className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-200 placeholder-zinc-700"
-                style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.2)' }}
+                style={{
+                  background: canEditCaption ? 'rgba(168,85,247,0.05)' : 'rgba(255,255,255,0.03)',
+                  border:     canEditCaption ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                }}
                 rows={5}
               />
             ) : proj.caption ? (
@@ -436,34 +1040,265 @@ export default function ProjectDetail() {
             )}
           </div>
 
-          {/* Notes */}
+          {/* ── Script / Notes (Feature 8: structured two-column template) ── */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Notes</p>
-            <textarea
-              value={editNotes}
-              onChange={(e) => setEditNotes(e.target.value)}
-              onBlur={() => updateProject(proj.id, { notes: editNotes })}
-              placeholder="Add notes visible to the whole team…"
-              className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-300 placeholder-zinc-700"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-              rows={4}
-            />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">
+                  {proj.type === 'newsletter' ? 'Draft' : 'Script / Notes'}
+                </p>
+                {canEditScript && scriptUnsaved && <span className="text-xs text-zinc-600">Saving…</span>}
+                {canEditScript && !scriptUnsaved && scriptSavedAt && (
+                  <span className="text-xs text-zinc-600">
+                    Saved {formatDistanceToNow(new Date(scriptSavedAt), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+              {isJoel && (
+                <button
+                  onClick={handlePDFExport}
+                  className="text-xs px-2 py-1 rounded flex items-center gap-1"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
+                >
+                  <Download size={11} /> Export PDF
+                </button>
+              )}
+            </div>
+
+            {canEditScript ? (
+              /* Joel: editable script blocks (Script Line | Shot Note) */
+              <div>
+                {/* Column headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: 8, marginBottom: 4 }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                    {proj.type === 'newsletter' ? 'Content' : 'Script Line'}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                    {proj.type === 'newsletter' ? 'Section Note' : 'Shot / Visual'}
+                  </span>
+                  <span />
+                </div>
+                <div className="flex flex-col gap-2">
+                  {scriptBlocks.map((block) => (
+                    <div key={block.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: 8, alignItems: 'start' }}>
+                      <textarea
+                        value={block.scriptLine}
+                        onChange={(e) => {
+                          const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, scriptLine: e.target.value } : b)
+                          handleScriptBlocksChange(updated)
+                        }}
+                        rows={2}
+                        placeholder={proj.type === 'newsletter' ? 'Content…' : 'Script line or dialogue…'}
+                        className="text-sm text-zinc-300 placeholder-zinc-700 rounded-lg px-3 py-2 w-full"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', resize: 'vertical' }}
+                      />
+                      <input
+                        value={block.shotNote}
+                        onChange={(e) => {
+                          const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
+                          handleScriptBlocksChange(updated)
+                        }}
+                        placeholder={proj.type === 'newsletter' ? 'Section note…' : 'Shot / visual description…'}
+                        className="text-sm text-zinc-400 placeholder-zinc-700 rounded-lg px-3 py-2"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 1 }}
+                      />
+                      <button
+                        onClick={() => handleScriptBlocksChange(scriptBlocks.filter((b) => b.id !== block.id))}
+                        style={{ background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', paddingTop: 6 }}
+                        title="Remove row"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => handleScriptBlocksChange([...scriptBlocks, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }])}
+                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mt-2"
+                >
+                  + Add Row
+                </button>
+              </div>
+            ) : (
+              /* Non-Joel: read-only view of script blocks */
+              <div>
+                {scriptBlocks.length > 0 && scriptBlocks.some((b) => b.scriptLine || b.shotNote) ? (
+                  <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+                    {scriptBlocks.filter((b) => b.scriptLine || b.shotNote).map((block, i) => (
+                      <div
+                        key={block.id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: 12,
+                          padding: '10px 12px',
+                          borderBottom: i < scriptBlocks.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                          background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                        }}
+                      >
+                        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                          {block.scriptLine || <span className="text-zinc-700">—</span>}
+                        </p>
+                        <p className="text-xs text-zinc-500 italic leading-relaxed">
+                          {block.shotNote || ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-zinc-600">No script added</span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Action button */}
+          {/* ── Shot List (Feature 7: YouTube, Instagram, TikTok) ── */}
+          {['youtube', 'instagram', 'tiktok'].includes(proj.type) && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Shot List</p>
+                  {shotListSavedAt && (
+                    <span className="text-xs text-zinc-600">
+                      Saved {formatDistanceToNow(new Date(shotListSavedAt), { addSuffix: true })}
+                    </span>
+                  )}
+                </div>
+                {isJoel && (
+                  <button
+                    onClick={() => {
+                      const newShot = { id: 's' + Date.now(), desc: '', type: 'Wide', notes: '' }
+                      handleShotListChange([...shotListDraft, newShot])
+                    }}
+                    className="text-xs px-2 py-0.5 rounded"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
+                  >
+                    + Add Shot
+                  </button>
+                )}
+              </div>
+              {shotListDraft.length === 0 ? (
+                <p className="text-xs text-zinc-600 py-2">
+                  {isJoel ? 'No shots yet — click "+ Add Shot" to start.' : 'No shot list added yet.'}
+                </p>
+              ) : (
+                <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        {['#', 'Description', 'Type', 'Notes', ...(isJoel ? [''] : [])].map((h) => (
+                          <th key={h} className="text-left px-2 py-1.5"
+                            style={{ color: '#52525b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shotListDraft.map((shot, i) => (
+                        <tr key={shot.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <td className="px-2 py-1.5" style={{ color: '#52525b', width: 20 }}>{i + 1}</td>
+                          <td className="px-2 py-1.5">
+                            {isJoel ? (
+                              <input
+                                value={shot.desc}
+                                onChange={(e) => handleShotListChange(shotListDraft.map((s) => s.id === shot.id ? { ...s, desc: e.target.value } : s))}
+                                placeholder="Description…"
+                                className="w-full bg-transparent outline-none text-zinc-300 placeholder-zinc-700"
+                                style={{ fontSize: 11 }}
+                              />
+                            ) : (
+                              <span className="text-zinc-300">{shot.desc || '—'}</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5" style={{ width: 80 }}>
+                            {isJoel ? (
+                              <select
+                                value={shot.type || 'Wide'}
+                                onChange={(e) => handleShotListChange(shotListDraft.map((s) => s.id === shot.id ? { ...s, type: e.target.value } : s))}
+                                style={{ fontSize: 10, background: 'transparent', color: '#a1a1aa', border: 'none', outline: 'none', padding: 0 }}
+                              >
+                                {['Wide', 'Medium', 'Close', 'B-Roll'].map((t) => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            ) : (
+                              <span className="text-zinc-500">{shot.type || 'Wide'}</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {isJoel ? (
+                              <input
+                                value={shot.notes || ''}
+                                onChange={(e) => handleShotListChange(shotListDraft.map((s) => s.id === shot.id ? { ...s, notes: e.target.value } : s))}
+                                placeholder="Notes…"
+                                className="w-full bg-transparent outline-none text-zinc-500 placeholder-zinc-700"
+                                style={{ fontSize: 11 }}
+                              />
+                            ) : (
+                              <span className="text-zinc-500">{shot.notes || ''}</span>
+                            )}
+                          </td>
+                          {isJoel && (
+                            <td className="px-2 py-1.5" style={{ width: 24 }}>
+                              <button
+                                onClick={() => handleShotListChange(shotListDraft.filter((s) => s.id !== shot.id))}
+                                style={{ background: 'none', border: 'none', color: '#52525b', display: 'flex', cursor: 'pointer' }}
+                              >
+                                <X size={11} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Action button ── */}
           <div>
             {renderActionButton()}
           </div>
 
-          {/* Timeline */}
+          {/* ── Timeline ── */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-3">Activity Log</p>
             <div className="flex flex-col gap-3">
               {[...(proj.statusHistory || [])].reverse().map((entry, i) => (
-                <TimelineEntry key={i} entry={entry} />
+                <TimelineEntry key={i} entry={entry} getTeamName={getTeamName} />
               ))}
             </div>
           </div>
+
+          {/* ── Delete (Joel only) ── */}
+          {isJoel && (
+            <div className="mt-2 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full py-2 text-sm rounded-lg flex items-center justify-center gap-2"
+                  style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                >
+                  <Trash2 size={13} /> Delete Project
+                </button>
+              ) : (
+                <div className="rounded-lg p-3" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <p className="text-xs text-red-400 mb-3">This will permanently delete this project.</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleDelete}
+                      className="flex-1 py-2 text-sm rounded"
+                      style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      Confirm Delete
+                    </button>
+                    <button onClick={() => setConfirmDelete(false)} className="btn-ghost flex-1 text-sm py-2">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
@@ -471,21 +1306,27 @@ export default function ProjectDetail() {
   )
 }
 
+// ── Field wrapper ─────────────────────────────────────────────────────────────
+
 function Field({ label, children, className = '' }) {
   return (
-    <div className={`rounded-lg px-3 py-2.5 ${className}`}
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+    <div
+      className={`rounded-lg px-3 py-2.5 ${className}`}
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
       <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">{label}</p>
       {children}
     </div>
   )
 }
 
+// ── Action button ─────────────────────────────────────────────────────────────
+
 function ActionBtn({ children, onClick, color = 'amber', className = '' }) {
   const styles = {
-    amber: 'btn-amber',
-    blue: 'bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg transition-colors',
-    green: 'bg-emerald-500 hover:bg-emerald-400 text-white font-semibold rounded-lg transition-colors',
+    amber:  'btn-amber',
+    blue:   'bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg transition-colors',
+    green:  'bg-emerald-500 hover:bg-emerald-400 text-white font-semibold rounded-lg transition-colors',
     purple: 'bg-purple-500 hover:bg-purple-400 text-white font-semibold rounded-lg transition-colors',
     orange: 'bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-lg transition-colors',
   }
