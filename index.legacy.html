@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Storyboard — Content OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#0c0c0e;color:#d4d4d8;min-height:100vh;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#27272a;border-radius:3px;}
+.font-display{font-family:'Playfair Display',serif;}
+.glass{background:rgba(20,20,24,.8);backdrop-filter:blur(12px);}
+.card{background:#141418;border:1px solid rgba(255,255,255,.06);border-radius:12px;}
+.amber{color:#f59e0b;}
+.amber-bg{background:#f59e0b;}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;transition:opacity .15s;}
+.chip:hover{opacity:.8;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:center;justify-content:center;}
+.modal-box{background:#141418;border:1px solid rgba(255,255,255,.08);border-radius:16px;max-height:90vh;overflow-y:auto;}
+input,textarea,select{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#d4d4d8;border-radius:8px;padding:8px 12px;outline:none;width:100%;font-family:'Inter',sans-serif;}
+input:focus,textarea:focus,select:focus{border-color:rgba(245,158,11,.4);}
+select option{background:#1a1a1e;color:#d4d4d8;}
+button{cursor:pointer;transition:all .15s;}
+.btn-amber{background:#f59e0b;color:#0c0c0e;border:none;border-radius:8px;padding:8px 16px;font-weight:600;font-size:13px;}
+.btn-amber:hover{background:#fbbf24;}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.1);color:#a1a1aa;border-radius:8px;padding:8px 16px;font-size:13px;}
+.btn-ghost:hover{border-color:rgba(255,255,255,.2);color:#d4d4d8;}
+.status-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+.platform-yt{color:#ef4444;}
+.platform-ig{color:#ec4899;}
+.platform-tt{color:#22d3ee;}
+.platform-nl{color:#a78bfa;}
+.cal-day{min-height:80px;border:1px solid rgba(255,255,255,.05);border-radius:8px;padding:6px;cursor:pointer;transition:all .15s;}
+.cal-day:hover{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.02);}
+.cal-day.today{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.04);}
+.cal-day.other-month{opacity:.4;}
+.cal-day.drag-over{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.5);}
+.kanban-col.drag-over{background:rgba(245,158,11,.05);border:1px dashed rgba(245,158,11,.4);border-radius:12px;}
+.dragging{opacity:0.4;}
+.drag-handle{cursor:grab;color:#52525b;}
+.drag-handle:active{cursor:grabbing;}
+.thumbnail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+.script-area{font-family:'Inter',monospace;line-height:1.7;}
+.side-panel{position:fixed;right:0;top:0;height:100vh;width:480px;background:#141418;border-left:1px solid rgba(255,255,255,.07);overflow-y:auto;z-index:40;transform:translateX(100%);transition:transform .3s ease;}
+.side-panel.open{transform:translateX(0);}
+.kanban-card{background:#1a1a1e;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;cursor:pointer;transition:all .15s;position:relative;}
+.kanban-card:hover{border-color:rgba(255,255,255,.12);background:#1e1e22;}
+.notif-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;}
+.wf-row{transition:transform 200ms ease-out,opacity 150ms ease;}
+.wf-row.dragging-source{opacity:0.35;}
+.wf-row.drag-target-above{box-shadow:0 -2px 0 #f59e0b;}
+.wf-row.drag-target-below{box-shadow:0 2px 0 #f59e0b;}
+@keyframes slideDown{from{opacity:0;transform:translateY(-12px);}to{opacity:1;transform:translateY(0);}}
+.banner{animation:slideDown .3s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.fade-in{animation:fadeIn .2s ease;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useContext, createContext, useRef, useCallback } = React;
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const WORKFLOWS = {
+  youtube: ['Filming','Raw Footage Ready','Editing in Progress','Edit Review','Revision Requested','Final Review','Caption Needed','Caption In Review','Ready to Post','Scheduled','Posted'],
+  instagram: ['Filming','Editing in Progress','Caption Needed','Caption In Review','Ready to Post','Scheduled','Posted'],
+  tiktok: ['Filming','Editing in Progress','Caption Needed','Caption In Review','Ready to Post','Scheduled','Posted'],
+  newsletter: ['Drafting','In Review','Ready to Send','Sent']
+};
+
+const STAGE_OWNER = {
+  youtube: {
+    'Filming':'joel','Raw Footage Ready':'joel','Editing in Progress':'anthony',
+    'Edit Review':'joel','Revision Requested':'anthony','Final Review':'joel',
+    'Caption Needed':'tiana','Caption In Review':'joel','Ready to Post':'joel',
+    'Scheduled':'joel','Posted':'joel'
+  },
+  instagram: {
+    'Filming':'joel','Editing in Progress':'joel','Caption Needed':'tiana',
+    'Caption In Review':'joel','Ready to Post':'joel','Scheduled':'joel','Posted':'joel'
+  },
+  tiktok: {
+    'Filming':'joel','Editing in Progress':'joel','Caption Needed':'tiana',
+    'Caption In Review':'joel','Ready to Post':'joel','Scheduled':'joel','Posted':'joel'
+  },
+  newsletter: {
+    'Drafting':'joel','In Review':'joel','Ready to Send':'joel','Sent':'joel'
+  }
+};
+
+const JOEL_REVIEW_STAGES = ['Edit Review','Final Review','Caption In Review'];
+const ANTHONY_STAGES = ['Editing in Progress','Edit Review','Revision Requested'];
+const TIANA_STAGES = ['Caption Needed','Caption In Review','Ready to Post','Scheduled'];
+
+const USERS = [
+  { id:'joel', name:'Joel', role:'creator', pin:'1111', color:'#f59e0b' },
+  { id:'anthony', name:'Anthony', role:'editor', pin:'2222', color:'#60a5fa' },
+  { id:'tiana', name:'Tiana', role:'social', pin:'3333', color:'#34d399' }
+];
+
+const DEFAULT_SETTINGS = {
+  teamNames: { joel:'Joel', anthony:'Anthony', tiana:'Tiana' },
+  customWorkflows: {}
+};
+
+const TYPE_LABELS = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', newsletter: 'Newsletter' };
+
+function makeSeedProjects() {
+  const now = new Date();
+  const addDays = (d, n) => {
+    const x = new Date(d);
+    x.setDate(x.getDate() + n);
+    return x.toISOString().split('T')[0];
+  };
+  const endOfMonth = () => {
+    const x = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return x.toISOString().split('T')[0];
+  };
+  return [
+    {
+      id:'p1', title:'Morning Routine 2025', type:'youtube', brand:'Organic',
+      status:'Editing in Progress', publishDate:addDays(now,5),
+      dropbox:'https://dropbox.com/example1',
+      notes:'Filmed at the new studio. Make sure to include the coffee segment — really good energy there.',
+      caption:'', scheduledTime:null,
+      timeline:[
+        {date:new Date(Date.now()-86400000*2).toISOString(),action:'Project created',user:'joel'},
+        {date:new Date(Date.now()-86400000).toISOString(),action:'Status → Editing in Progress',user:'joel'}
+      ],
+      videoBreakdown:'', thumbnails:[], script:'', scriptLastSaved:null
+    },
+    {
+      id:'p2', title:'Nike x Joel Summer Campaign', type:'instagram', brand:'Nike',
+      status:'Caption Needed', publishDate:addDays(now,3),
+      dropbox:'https://dropbox.com/example2',
+      notes:'Nike wants upbeat, energetic copy. Keep it under 150 chars. Include #JustDoIt and 3 fitness hashtags.',
+      caption:'', scheduledTime:null,
+      timeline:[
+        {date:new Date(Date.now()-86400000*3).toISOString(),action:'Project created',user:'joel'},
+        {date:new Date(Date.now()-86400000).toISOString(),action:'Status → Caption Needed',user:'tiana'}
+      ],
+      videoBreakdown:'', thumbnails:[], script:'', scriptLastSaved:null
+    },
+    {
+      id:'p3', title:'Hot Takes: AI and Creativity', type:'tiktok', brand:'Organic',
+      status:'Ready to Post', publishDate:addDays(now,1),
+      dropbox:'', notes:'',
+      caption:"🤖 Hot take: AI won't replace creative people — it'll just expose who was never actually creative to begin with. Thoughts? 👇 #AICreativity #ContentCreator #HotTake",
+      scheduledTime:null,
+      timeline:[
+        {date:new Date(Date.now()-86400000*4).toISOString(),action:'Project created',user:'joel'},
+        {date:new Date(Date.now()-86400000*2).toISOString(),action:'Status → Ready to Post',user:'tiana'}
+      ],
+      videoBreakdown:'', thumbnails:[], script:'', scriptLastSaved:null
+    },
+    {
+      id:'p4', title:'May Creator Newsletter', type:'newsletter', brand:'Organic',
+      status:'Drafting', publishDate:endOfMonth(),
+      dropbox:'', notes:'Topics: spring content strategy, tool stack updates, behind the scenes of the Nike collab.',
+      caption:'', scheduledTime:null,
+      timeline:[
+        {date:new Date(Date.now()-86400000).toISOString(),action:'Project created',user:'joel'}
+      ],
+      videoBreakdown:'', thumbnails:[], script:'', scriptLastSaved:null
+    }
+  ];
+}
+
+// ── Context ────────────────────────────────────────────────────────────────────
+const AppContext = createContext(null);
+
+function AppProvider({ children }) {
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { const u = localStorage.getItem('sb_user'); return u ? JSON.parse(u) : null; } catch { return null; }
+  });
+  const [projects, setProjects] = useState(() => {
+    try { const p = localStorage.getItem('sb_projects'); return p ? JSON.parse(p) : makeSeedProjects(); } catch { return makeSeedProjects(); }
+  });
+  const [notifications, setNotifications] = useState(() => {
+    try { const n = localStorage.getItem('sb_notifications'); return n ? JSON.parse(n) : []; } catch { return []; }
+  });
+  const [settings, setSettings] = useState(() => {
+    try { const s = localStorage.getItem('sb_settings'); return s ? JSON.parse(s) : DEFAULT_SETTINGS; } catch { return DEFAULT_SETTINGS; }
+  });
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [banners, setBanners] = useState([]);
+
+  useEffect(() => { try { localStorage.setItem('sb_user', JSON.stringify(currentUser)); } catch {} }, [currentUser]);
+  useEffect(() => { try { localStorage.setItem('sb_projects', JSON.stringify(projects)); } catch {} }, [projects]);
+  useEffect(() => { try { localStorage.setItem('sb_notifications', JSON.stringify(notifications)); } catch {} }, [notifications]);
+  useEffect(() => { try { localStorage.setItem('sb_settings', JSON.stringify(settings)); } catch {} }, [settings]);
+
+  // Auto-posting on mount
+  useEffect(() => {
+    const now = new Date();
+    setProjects(prev => prev.map(p => {
+      if (p.status !== 'Scheduled') return p;
+      let shouldPost = false;
+      if (p.scheduledTime) {
+        shouldPost = new Date(p.scheduledTime) <= now;
+      } else if (p.publishDate) {
+        const eod = new Date(p.publishDate + 'T23:59:59');
+        shouldPost = eod <= now;
+      }
+      if (!shouldPost) return p;
+      const wf = WORKFLOWS[p.type] || [];
+      const postedStage = wf.includes('Posted') ? 'Posted' : (wf.includes('Sent') ? 'Sent' : wf[wf.length - 1]);
+      return { ...p, status: postedStage, timeline: [...(p.timeline || []), { date: now.toISOString(), action: `Auto-posted → ${postedStage}`, user: 'system' }] };
+    }));
+  }, []);
+
+  const getTeamName = useCallback((userId) => {
+    return (settings.teamNames && settings.teamNames[userId]) || (USERS.find(u => u.id === userId)?.name) || userId;
+  }, [settings]);
+
+  const getWorkflow = useCallback((type) => {
+    return (settings.customWorkflows && settings.customWorkflows[type]?.stages) || WORKFLOWS[type] || [];
+  }, [settings]);
+
+  const getStageOwner = useCallback((type, status) => {
+    return (settings.customWorkflows && settings.customWorkflows[type]?.owners?.[status]) || (STAGE_OWNER[type]?.[status]) || 'joel';
+  }, [settings]);
+
+  const updateSettings = useCallback((updates) => {
+    setSettings(prev => {
+      const merged = { ...prev };
+      if (updates.teamNames) merged.teamNames = { ...prev.teamNames, ...updates.teamNames };
+      if (updates.customWorkflows) merged.customWorkflows = { ...prev.customWorkflows, ...updates.customWorkflows };
+      // handle full replacement of customWorkflows (e.g. for reset)
+      if (updates.customWorkflows !== undefined && !updates.teamNames) {
+        // check if it's a full replace (all keys present)
+        merged.customWorkflows = { ...prev.customWorkflows, ...updates.customWorkflows };
+      }
+      return merged;
+    });
+  }, []);
+
+  const addBanner = useCallback((message, type = 'info') => {
+    const id = 'b' + Date.now() + Math.random();
+    setBanners(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 4000);
+  }, []);
+
+  const login = (user) => setCurrentUser(user);
+  const logout = () => { setCurrentUser(null); setSelectedProject(null); };
+
+  const addNotification = useCallback((notif) => {
+    const n = { ...notif, id: 'n' + Date.now() + Math.random(), read: false, date: new Date().toISOString() };
+    setNotifications(prev => [n, ...prev]);
+  }, []);
+
+  const addProject = useCallback((proj) => {
+    const newProj = {
+      ...proj,
+      id: 'p' + Date.now(),
+      timeline: [{ date: new Date().toISOString(), action: 'Project created', user: 'joel' }],
+      thumbnails: proj.thumbnails || [],
+      videoBreakdown: proj.videoBreakdown || '',
+      script: proj.script || '',
+      scriptLastSaved: null,
+      asanaLink: proj.asanaLink || '',
+      shotList: proj.shotList || [],
+      activeStages: [],
+    };
+    setProjects(prev => [...prev, newProj]);
+  }, []);
+
+  const updateProject = useCallback((id, updates) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    setSelectedProject(prev => prev && prev.id === id ? { ...prev, ...updates } : prev);
+  }, []);
+
+  const deleteProject = useCallback((id) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    setSelectedProject(prev => prev && prev.id === id ? null : prev);
+  }, []);
+
+  const advanceStatus = useCallback((id, newStatus, userId) => {
+    setProjects(prev => {
+      const proj = prev.find(p => p.id === id);
+      if (!proj) return prev;
+      const entry = { date: new Date().toISOString(), action: `Status → ${newStatus}`, user: userId };
+      const parallelWith = settings.customWorkflows?.[proj.type]?.parallelWith?.[newStatus] || [];
+      const activeStages = parallelWith.length > 0 ? [newStatus, ...parallelWith] : [newStatus];
+      return prev.map(p => p.id === id ? { ...p, status: newStatus, activeStages, timeline: [...(p.timeline || []), entry] } : p);
+    });
+    setSelectedProject(prev => {
+      if (!prev || prev.id !== id) return prev;
+      const entry = { date: new Date().toISOString(), action: `Status → ${newStatus}`, user: userId };
+      const parallelWith = settings.customWorkflows?.[prev.type]?.parallelWith?.[newStatus] || [];
+      const activeStages = parallelWith.length > 0 ? [newStatus, ...parallelWith] : [newStatus];
+      return { ...prev, status: newStatus, activeStages, timeline: [...(prev.timeline || []), entry] };
+    });
+  }, [settings]);
+
+  const overrideStatus = useCallback((id, newStatus, note, userId) => {
+    setProjects(prev => {
+      const proj = prev.find(p => p.id === id);
+      if (!proj) return prev;
+      const entry = { date: new Date().toISOString(), action: note || `Stage overridden → ${newStatus}`, user: userId };
+      return prev.map(p => p.id === id ? { ...p, status: newStatus, activeStages: [newStatus], timeline: [...(p.timeline || []), entry] } : p);
+    });
+    setSelectedProject(prev => {
+      if (!prev || prev.id !== id) return prev;
+      const entry = { date: new Date().toISOString(), action: note || `Stage overridden → ${newStatus}`, user: userId };
+      return { ...prev, status: newStatus, activeStages: [newStatus], timeline: [...(prev.timeline || []), entry] };
+    });
+  }, []);
+
+  const markNotifRead = (id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const clearNotifications = () => setNotifications([]);
+
+  return (
+    <AppContext.Provider value={{
+      currentUser, login, logout,
+      projects, setProjects, addProject, updateProject, deleteProject, advanceStatus, overrideStatus,
+      notifications, addNotification, markNotifRead, markAllRead, clearNotifications,
+      selectedProject, setSelectedProject,
+      settings, updateSettings, getTeamName, getWorkflow, getStageOwner,
+      banners, addBanner
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function formatDateStr(str) {
+  if (!str) return '';
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function getStatusColor(status) {
+  const map = {
+    'Filming': '#f59e0b', 'Raw Footage Ready': '#fb923c', 'Editing in Progress': '#60a5fa',
+    'Edit Review': '#a78bfa', 'Revision Requested': '#f87171', 'Final Review': '#818cf8',
+    'Caption Needed': '#34d399', 'Caption In Review': '#2dd4bf', 'Ready to Post': '#4ade80',
+    'Ready to Send': '#4ade80', 'Scheduled': '#facc15', 'Posted': '#6b7280',
+    'Drafting': '#60a5fa', 'In Review': '#a78bfa', 'Sent': '#6b7280'
+  };
+  return map[status] || '#a1a1aa';
+}
+
+function YoutubeIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <rect x="2" y="5" width="20" height="14" rx="3" fill="#ef4444" opacity="0.9"/>
+      <polygon points="10,9 16,12 10,15" fill="white"/>
+    </svg>
+  );
+}
+function InstagramIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="#ec4899" strokeWidth="2"/>
+      <circle cx="12" cy="12" r="4" stroke="#ec4899" strokeWidth="2"/>
+      <circle cx="17.5" cy="6.5" r="1" fill="#ec4899"/>
+    </svg>
+  );
+}
+function TikTokIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <path d="M19 3h-4v12a3 3 0 1 1-3-3v-4a7 7 0 1 0 7 7V3z" fill="#22d3ee" opacity="0.9"/>
+    </svg>
+  );
+}
+function MailIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <rect x="2" y="4" width="20" height="16" rx="2" stroke="#a78bfa" strokeWidth="2"/>
+      <polyline points="2,4 12,13 22,4" stroke="#a78bfa" strokeWidth="2"/>
+    </svg>
+  );
+}
+function ExternalLinkIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+      <polyline points="15 3 21 3 21 9"/>
+      <line x1="10" y1="14" x2="21" y2="3"/>
+    </svg>
+  );
+}
+function BellIcon({ size = 16, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  );
+}
+function GearIcon({ size = 17, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  );
+}
+function TrashIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6M14 11v6"/>
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>
+  );
+}
+function GrabIcon({ size = 14, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={style}>
+      <line x1="3" y1="8" x2="21" y2="8"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="16" x2="21" y2="16"/>
+    </svg>
+  );
+}
+
+function PlatformIcon({ type, size = 14 }) {
+  if (type === 'youtube') return <YoutubeIcon size={size} />;
+  if (type === 'instagram') return <InstagramIcon size={size} />;
+  if (type === 'tiktok') return <TikTokIcon size={size} />;
+  if (type === 'newsletter') return <MailIcon size={size} />;
+  return <span style={{ color: '#a1a1aa', fontSize: size }}>◉</span>;
+}
+
+function StatusBadge({ status }) {
+  const c = getStatusColor(status);
+  return <span className="status-badge" style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}>{status}</span>;
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────────
+function Login() {
+  const { login, getTeamName } = useContext(AppContext);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = () => {
+    if (!selectedUser) return;
+    if (pin === selectedUser.pin) {
+      login(selectedUser);
+      setError('');
+    } else {
+      setError('Incorrect PIN');
+      setPin('');
+    }
+  };
+
+  const handlePinChange = (e) => {
+    const val = e.target.value;
+    setPin(val);
+    setError('');
+    if (val.length === 4 && selectedUser) {
+      if (val === selectedUser.pin) {
+        login(selectedUser);
+      } else {
+        setError('Incorrect PIN');
+        setPin('');
+      }
+    }
+  };
+
+  const roleLabels = { creator: 'Creator', editor: 'Editor', social: 'Social Media' };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c0c0e' }}>
+      <div style={{ width: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div className="font-display" style={{ fontSize: 32, color: '#f59e0b', marginBottom: 8 }}>Storyboard</div>
+          <div style={{ color: '#52525b', fontSize: 14 }}>Content OS — Select your profile</div>
+        </div>
+        {!selectedUser ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {USERS.map(u => (
+              <button key={u.id} onClick={() => setSelectedUser(u)}
+                style={{ background: '#141418', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', width: '100%', transition: 'border-color .15s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.2)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'}>
+                <div style={{ width: 42, height: 42, borderRadius: 21, background: `${u.color}20`, border: `1px solid ${u.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: u.color }}>
+                  {getTeamName(u.id)[0] || u.id[0].toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, color: '#f4f4f5' }}>{getTeamName(u.id)}</div>
+                  <div style={{ fontSize: 12, color: '#71717a' }}>{roleLabels[u.role]}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 28 }}>
+            <button onClick={() => { setSelectedUser(null); setPin(''); setError(''); }} style={{ background: 'none', border: 'none', color: '#71717a', marginBottom: 20, fontSize: 13 }}>← Back</button>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 28, background: `${selectedUser.color}20`, border: `1px solid ${selectedUser.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: selectedUser.color, margin: '0 auto 12px' }}>
+                {getTeamName(selectedUser.id)[0] || selectedUser.id[0].toUpperCase()}
+              </div>
+              <div style={{ fontWeight: 600, fontSize: 18, color: '#f4f4f5' }}>{getTeamName(selectedUser.id)}</div>
+              <div style={{ fontSize: 12, color: '#71717a' }}>{roleLabels[selectedUser.role]}</div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#71717a', marginBottom: 8, display: 'block' }}>Enter PIN</label>
+              <input type="password" value={pin} onChange={handlePinChange}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="••••" style={{ textAlign: 'center', fontSize: 24, letterSpacing: 8 }} maxLength={4} />
+            </div>
+            {error && <div style={{ color: '#f87171', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>{error}</div>}
+            <button className="btn-amber" style={{ width: '100%', padding: '12px' }} onClick={handleLogin}>Sign In</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+function NotificationPanel({ onClose }) {
+  const { notifications, markNotifRead, markAllRead, clearNotifications, currentUser, setSelectedProject, projects } = useContext(AppContext);
+  const mine = notifications.filter(n => !n.user || n.user === currentUser?.id);
+
+  return (
+    <div style={{ position: 'fixed', top: 56, right: 16, width: 340, background: '#141418', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,.5)', zIndex: 60, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>Notifications</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={markAllRead} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 12 }}>Mark all read</button>
+          <button onClick={clearNotifications} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 12 }}>Clear</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 16 }}>×</button>
+        </div>
+      </div>
+      <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+        {mine.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: '#52525b', fontSize: 13 }}>No notifications</div>
+        ) : mine.map(n => (
+          <div key={n.id}
+            onClick={() => { markNotifRead(n.id); if (n.projectId) { const p = projects.find(x => x.id === n.projectId); if (p) setSelectedProject(p); } onClose(); }}
+            style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.04)', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(245,158,11,.04)', display: 'flex', gap: 10, alignItems: 'flex-start' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.03)'}
+            onMouseLeave={e => e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(245,158,11,.04)'}>
+            {!n.read && <div style={{ width: 6, height: 6, borderRadius: 3, background: '#f59e0b', marginTop: 4, flexShrink: 0 }} />}
+            {n.read && <div style={{ width: 6, flexShrink: 0 }} />}
+            <div>
+              <div style={{ fontSize: 13, color: '#d4d4d8', lineHeight: 1.4 }}>{n.message}</div>
+              <div style={{ fontSize: 11, color: '#52525b', marginTop: 3 }}>{timeAgo(n.date)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Settings Modal ─────────────────────────────────────────────────────────────
+function SettingsModal({ onClose }) {
+  const { settings, updateSettings, getTeamName } = useContext(AppContext);
+  const [tab, setTab] = useState('team');
+  const [names, setNames] = useState({ ...(settings.teamNames || {}) });
+  const [wfType, setWfType] = useState('youtube');
+  const [wfStages, setWfStages] = useState([]);
+  const [wfOwners, setWfOwners] = useState({});
+  const [wfParallel, setWfParallel] = useState({});
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  const [wfSaved, setWfSaved] = useState(false);
+  const [namesSaved, setNamesSaved] = useState(false);
+
+  useEffect(() => {
+    const custom = settings.customWorkflows && settings.customWorkflows[wfType];
+    if (custom && custom.stages) {
+      setWfStages([...custom.stages]);
+      setWfOwners({ ...(custom.owners || {}) });
+      setWfParallel({ ...(custom.parallelWith || {}) });
+    } else {
+      setWfStages([...(WORKFLOWS[wfType] || [])]);
+      setWfOwners({ ...(STAGE_OWNER[wfType] || {}) });
+      setWfParallel({});
+    }
+    setWfSaved(false);
+  }, [wfType, settings.customWorkflows]);
+
+  const saveNames = () => {
+    updateSettings({ teamNames: { ...names } });
+    setNamesSaved(true);
+    setTimeout(() => setNamesSaved(false), 2000);
+  };
+
+  const saveWorkflow = () => {
+    updateSettings({ customWorkflows: { [wfType]: { stages: [...wfStages], owners: { ...wfOwners }, parallelWith: { ...wfParallel } } } });
+    setWfSaved(true);
+    setTimeout(() => setWfSaved(false), 2000);
+  };
+
+  const resetWorkflow = () => {
+    const newCW = { ...(settings.customWorkflows || {}) };
+    delete newCW[wfType];
+    updateSettings({ customWorkflows: newCW });
+    setWfStages([...(WORKFLOWS[wfType] || [])]);
+    setWfOwners({ ...(STAGE_OWNER[wfType] || {}) });
+  };
+
+  const addStage = () => setWfStages(s => [...s, 'New Stage']);
+
+  const removeStage = (i) => {
+    const removed = wfStages[i];
+    setWfStages(s => s.filter((_, idx) => idx !== i));
+    setWfOwners(o => { const n = { ...o }; delete n[removed]; return n; });
+    setWfParallel(p => { const n = { ...p }; delete n[removed]; return n; });
+  };
+
+  const renameStage = (i, val) => {
+    const old = wfStages[i];
+    setWfStages(s => s.map((x, idx) => idx === i ? val : x));
+    setWfOwners(o => { const n = { ...o }; n[val] = n[old]; delete n[old]; return n; });
+    setWfParallel(p => { const n = { ...p }; n[val] = n[old]; delete n[old]; return n; });
+  };
+
+  const handleWfDragStart = (e, i) => { setDragIdx(i); e.dataTransfer.effectAllowed = 'move'; };
+  const handleWfDragOver = (e, i) => { e.preventDefault(); setDragOverIdx(i); };
+  const handleWfDragLeave = () => setDragOverIdx(null);
+  const handleWfDragEnd = () => { setDragIdx(null); setDragOverIdx(null); };
+  const handleWfDrop = (e, i) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
+    const arr = [...wfStages];
+    const [removed] = arr.splice(dragIdx, 1);
+    arr.splice(i, 0, removed);
+    setWfStages(arr);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const typeLabels = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', newsletter: 'Newsletter' };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ width: 580, padding: 0 }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="font-display" style={{ fontSize: 20, color: '#f4f4f5' }}>Settings</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+          {['team', 'workflow'].map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{ padding: '10px 20px', background: 'none', border: 'none', color: tab === t ? '#f59e0b' : '#71717a', borderBottom: tab === t ? '2px solid #f59e0b' : '2px solid transparent', fontSize: 13, fontWeight: 500 }}>
+              {t === 'team' ? 'Team Members' : 'Workflow Editor'}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding: 24 }}>
+          {tab === 'team' && (
+            <div>
+              <div style={{ marginBottom: 16, color: '#71717a', fontSize: 12 }}>Edit display names for each team member. Changes take effect immediately across the app.</div>
+              {['joel', 'anthony', 'tiana'].map(uid => (
+                <div key={uid} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 18, background: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#a1a1aa', flexShrink: 0 }}>
+                    {((names[uid] || uid)[0] || '?').toUpperCase()}
+                  </div>
+                  <input value={names[uid] || ''} onChange={e => setNames(n => ({ ...n, [uid]: e.target.value }))} style={{ flex: 1 }} placeholder={uid} />
+                </div>
+              ))}
+              <button className="btn-amber" onClick={saveNames} style={{ marginTop: 8 }}>
+                {namesSaved ? 'Saved!' : 'Save Names'}
+              </button>
+            </div>
+          )}
+          {tab === 'workflow' && (
+            <div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {Object.keys(typeLabels).map(t => (
+                  <button key={t} onClick={() => setWfType(t)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid', borderColor: wfType === t ? '#f59e0b' : 'rgba(255,255,255,.1)', background: wfType === t ? 'rgba(245,158,11,.1)' : 'transparent', color: wfType === t ? '#f59e0b' : '#a1a1aa', fontSize: 12 }}>
+                    {typeLabels[t]}
+                  </button>
+                ))}
+              </div>
+              <div style={{ marginBottom: 12, color: '#71717a', fontSize: 12 }}>Drag rows to reorder. Assign an owner for each stage.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                {wfStages.map((stage, i) => (
+                  <div key={i}
+                    draggable
+                    onDragStart={e => handleWfDragStart(e, i)}
+                    onDragOver={e => handleWfDragOver(e, i)}
+                    onDragLeave={handleWfDragLeave}
+                    onDragEnd={handleWfDragEnd}
+                    onDrop={e => handleWfDrop(e, i)}
+                    className={`wf-row${dragIdx === i ? ' dragging-source' : ''}${dragOverIdx === i && dragIdx !== i ? (dragIdx !== null && dragIdx < i ? ' drag-target-below' : ' drag-target-above') : ''}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 7 }}>
+                    <span className="drag-handle" style={{ userSelect: 'none', display: 'flex', alignItems: 'center' }}><GrabIcon size={14} /></span>
+                    <input value={stage} onChange={e => renameStage(i, e.target.value)} style={{ flex: 1, padding: '4px 8px', fontSize: 13 }} />
+                    <select value={wfOwners[stage] || 'joel'} onChange={e => setWfOwners(o => ({ ...o, [stage]: e.target.value }))} style={{ width: 100, padding: '4px 6px', fontSize: 12 }}>
+                      <option value="joel">{getTeamName('joel')}</option>
+                      <option value="anthony">{getTeamName('anthony')}</option>
+                      <option value="tiana">{getTeamName('tiana')}</option>
+                    </select>
+                    <input
+                      value={(wfParallel[stage] || []).join(', ')}
+                      onChange={e => setWfParallel(p => ({ ...p, [stage]: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                      placeholder="Also starts…"
+                      title="Comma-separated stages that also activate in parallel"
+                      style={{ width: 120, padding: '4px 6px', fontSize: 11 }}
+                    />
+                    <button onClick={() => removeStage(i)} style={{ background: 'none', border: 'none', color: '#f87171', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>×</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={addStage} style={{ background: 'rgba(255,255,255,.04)', border: '1px dashed rgba(255,255,255,.15)', color: '#a1a1aa', borderRadius: 7, padding: '7px 16px', fontSize: 13, width: '100%', marginBottom: 14 }}>
+                + Add Stage
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-amber" onClick={saveWorkflow}>{wfSaved ? 'Saved!' : 'Save Workflow'}</button>
+                <button className="btn-ghost" onClick={resetWorkflow}>Reset to Default</button>
+              </div>
+              <div style={{ marginTop: 10, color: '#52525b', fontSize: 11 }}>Editing workflows won't change the status of existing projects.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Project Modal ──────────────────────────────────────────────────────────
+function AddProjectModal({ onClose, limitTypes }) {
+  const { addProject, projects } = useContext(AppContext);
+  const allTypes = [{ id: 'youtube', label: 'YouTube' }, { id: 'instagram', label: 'Instagram' }, { id: 'tiktok', label: 'TikTok' }, { id: 'newsletter', label: 'Newsletter' }];
+  const types = limitTypes ? allTypes.filter(t => limitTypes.includes(t.id)) : allTypes;
+  const [form, setForm] = useState({ title: '', type: types[0]?.id || 'youtube', brand: 'Organic', brandName: '', publishDate: '', dropbox: '', notes: '', caption: '' });
+  const [titleError, setTitleError] = useState('');
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const driveLabel = (form.type === 'instagram' || form.type === 'tiktok') ? 'Google Drive Link' : 'Dropbox Link';
+  const drivePlaceholder = (form.type === 'instagram' || form.type === 'tiktok') ? 'https://drive.google.com/...' : 'https://dropbox.com/...';
+
+  const handleSubmit = () => {
+    if (!form.title.trim()) return;
+    const titleLower = form.title.trim().toLowerCase();
+    const isDupe = projects.some(p => p.type === form.type && p.title.trim().toLowerCase() === titleLower);
+    if (isDupe) { setTitleError(`A ${TYPE_LABELS[form.type]} project named "${form.title.trim()}" already exists.`); return; }
+    const brandVal = form.brand === 'Brand Deal' ? (form.brandName.trim() || 'Brand Deal') : 'Organic';
+    const wf = WORKFLOWS[form.type] || [];
+    const firstStage = wf[0] || 'Drafting';
+    addProject({ ...form, brand: brandVal, status: firstStage, scheduledTime: null, videoBreakdown: '', thumbnails: [], script: '', scriptLastSaved: null, asanaLink: '', shotList: [], activeStages: [] });
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ width: 520, padding: 28 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="font-display" style={{ fontSize: 20, color: '#f4f4f5' }}>New Project</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 22 }}>×</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#71717a', marginBottom: 6, display: 'block' }}>Content Type</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {types.map(t => (
+                <button key={t.id} onClick={() => { set('type', t.id); setTitleError(''); }} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px solid', borderColor: form.type === t.id ? '#f59e0b' : 'rgba(255,255,255,.1)', background: form.type === t.id ? 'rgba(245,158,11,.1)' : 'transparent', color: form.type === t.id ? '#f59e0b' : '#a1a1aa', fontSize: 13 }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#71717a', marginBottom: 6, display: 'block' }}>Title</label>
+            <input value={form.title} onChange={e => { set('title', e.target.value); setTitleError(''); }} placeholder="Project title..." style={titleError ? { borderColor: 'rgba(248,113,113,.5)' } : {}} />
+            {titleError && <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>{titleError}</div>}
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#71717a', marginBottom: 6, display: 'block' }}>Brand</label>
+            <select value={form.brand} onChange={e => set('brand', e.target.value)} style={{ marginBottom: form.brand === 'Brand Deal' ? 8 : 0 }}>
+              <option value="Organic">Organic</option>
+              <option value="Brand Deal">Brand Deal</option>
+            </select>
+            {form.brand === 'Brand Deal' && (
+              <input value={form.brandName} onChange={e => set('brandName', e.target.value)} placeholder="Brand name (e.g. Nike)" />
+            )}
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#71717a', marginBottom: 6, display: 'block' }}>Publish Date</label>
+            <input type="date" value={form.publishDate} onChange={e => set('publishDate', e.target.value)} />
+          </div>
+          {form.type !== 'newsletter' && (
+            <div>
+              <label style={{ fontSize: 12, color: '#71717a', marginBottom: 6, display: 'block' }}>{driveLabel}</label>
+              <input value={form.dropbox} onChange={e => set('dropbox', e.target.value)} placeholder={drivePlaceholder} />
+            </div>
+          )}
+          <div>
+            <label style={{ fontSize: 12, color: '#71717a', marginBottom: 6, display: 'block' }}>Notes</label>
+            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Internal notes..." />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button className="btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+            <button className="btn-amber" onClick={handleSubmit} style={{ flex: 2 }}>Create Project</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Day Modal ──────────────────────────────────────────────────────────────────
+function DayModal({ date, dayProjects, onClose }) {
+  const { setSelectedProject, getTeamName, getStageOwner } = useContext(AppContext);
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateLabel = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ width: 460, padding: 0 }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontWeight: 600, color: '#f4f4f5' }}>Projects for {dayName}, {dateLabel}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 22 }}>×</button>
+        </div>
+        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+          {dayProjects.length === 0 && <div style={{ color: '#52525b', textAlign: 'center', padding: 20, fontSize: 13 }}>No projects on this day.</div>}
+          {dayProjects.map(p => {
+            const owner = getStageOwner(p.type, p.status);
+            return (
+              <div key={p.id}
+                onClick={() => { setSelectedProject(p); onClose(); }}
+                style={{ padding: '10px 12px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.06)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.03)'}>
+                <PlatformIcon type={p.type} size={16} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f5' }}>{p.title}</div>
+                  <div style={{ fontSize: 11, color: '#71717a', marginTop: 2 }}>{getTeamName(owner)}</div>
+                </div>
+                <StatusBadge status={p.status} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Calendar View ──────────────────────────────────────────────────────────────
+function CalendarView({ filterType }) {
+  const { projects, updateProject, setSelectedProject } = useContext(AppContext);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [dragOverDay, setDragOverDay] = useState(null);
+  const [clickedDay, setClickedDay] = useState(null);
+
+  const allActive = projects.filter(p => p.status !== 'Posted' && p.status !== 'Sent');
+  const activeProjects = filterType ? allActive.filter(p => p.type === filterType) : allActive;
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDow = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+
+  const days = [];
+  for (let i = 0; i < startDow; i++) {
+    days.push({ date: new Date(year, month, 1 - startDow + i), current: false });
+  }
+  for (let i = 1; i <= totalDays; i++) {
+    days.push({ date: new Date(year, month, i), current: true });
+  }
+  while (days.length % 7 !== 0) {
+    const last = days[days.length - 1].date;
+    days.push({ date: new Date(last.getTime() + 86400000), current: false });
+  }
+
+  const projectsForDay = (date) => {
+    const ds = date.toISOString().split('T')[0];
+    return activeProjects.filter(p => p.publishDate === ds);
+  };
+
+  const isToday = (date) => {
+    const t = new Date();
+    return date.getDate() === t.getDate() && date.getMonth() === t.getMonth() && date.getFullYear() === t.getFullYear();
+  };
+
+  const handleDrop = (e, date) => {
+    e.preventDefault();
+    const projectId = e.dataTransfer.getData('projectId');
+    if (!projectId) return;
+    const newDate = date.toISOString().split('T')[0];
+    updateProject(projectId, { publishDate: newDate });
+    setDragOverDay(null);
+  };
+
+  const chipColors = { youtube: 'rgba(239,68,68,.2)', instagram: 'rgba(236,72,153,.2)', tiktok: 'rgba(34,211,238,.2)', newsletter: 'rgba(167,139,250,.2)' };
+  const chipTextColors = { youtube: '#fca5a5', instagram: '#f9a8d4', tiktok: '#a5f3fc', newsletter: '#c4b5fd' };
+
+  // Weekly agenda
+  const today = new Date();
+  const weekDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    weekDays.push(d);
+  }
+
+  const clickedDayProjects = clickedDay ? projectsForDay(clickedDay) : [];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <button onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: 22, padding: '4px 10px' }}>‹</button>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#f4f4f5' }}>
+          {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </div>
+        <button onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: 22, padding: '4px 10px' }}>›</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: 11, color: '#52525b', padding: '4px 0', fontWeight: 600 }}>{d}</div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+        {days.map((day, i) => {
+          const iso = day.date.toISOString();
+          const isDragOver = dragOverDay === iso;
+          const dayPs = projectsForDay(day.date);
+          return (
+            <div key={i}
+              className={`cal-day${!day.current ? ' other-month' : ''}${isToday(day.date) ? ' today' : ''}${isDragOver ? ' drag-over' : ''}`}
+              onClick={() => { if (dayPs.length > 0) setClickedDay(day.date); }}
+              onDragOver={e => { e.preventDefault(); setDragOverDay(iso); }}
+              onDragLeave={() => setDragOverDay(null)}
+              onDrop={e => handleDrop(e, day.date)}
+              style={{ cursor: dayPs.length > 0 ? 'pointer' : 'default' }}>
+              <div style={{ fontSize: 11, color: isToday(day.date) ? '#f59e0b' : '#71717a', fontWeight: isToday(day.date) ? 600 : 400, marginBottom: 3 }}>
+                {day.date.getDate()}
+              </div>
+              {isDragOver && dayPs.length === 0 && (
+                <div style={{ fontSize: 9, color: 'rgba(245,158,11,.7)', marginBottom: 2 }}>Drop here</div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {dayPs.slice(0, 3).map(p => (
+                  <div key={p.id}
+                    draggable
+                    onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('projectId', p.id); }}
+                    onClick={e => { e.stopPropagation(); setSelectedProject(p); }}
+                    style={{ background: chipColors[p.type] || 'rgba(255,255,255,.1)', color: chipTextColors[p.type] || '#d4d4d8', borderRadius: 3, padding: '2px 4px', fontSize: 9, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {p.title}
+                  </div>
+                ))}
+                {dayPs.length > 3 && <div style={{ fontSize: 9, color: '#52525b' }}>+{dayPs.length - 3} more</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Weekly Agenda */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 12 }}>This Week's Schedule</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {weekDays.map((d, i) => {
+            const ds = d.toISOString().split('T')[0];
+            const ps = activeProjects.filter(p => p.publishDate === ds);
+            return (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ width: 80, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, color: i === 0 ? '#f59e0b' : '#71717a', fontWeight: i === 0 ? 600 : 400 }}>
+                    {d.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#52525b' }}>
+                    {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {ps.length === 0
+                    ? <div style={{ fontSize: 12, color: '#3f3f46', padding: '4px 0' }}>—</div>
+                    : ps.map(p => (
+                      <div key={p.id} onClick={() => setSelectedProject(p)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: 'rgba(255,255,255,.03)', borderRadius: 6, cursor: 'pointer' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.05)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.03)'}>
+                        <PlatformIcon type={p.type} size={12} />
+                        <span style={{ fontSize: 12, flex: 1, color: '#d4d4d8' }}>{p.title}</span>
+                        <StatusBadge status={p.status} />
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {clickedDay && (
+        <DayModal date={clickedDay} dayProjects={clickedDayProjects} onClose={() => setClickedDay(null)} />
+      )}
+    </div>
+  );
+}
+
+// ── Project Detail Panel ───────────────────────────────────────────────────────
+function ProjectDetail() {
+  const { selectedProject, setSelectedProject, currentUser, updateProject, advanceStatus, overrideStatus, deleteProject, addNotification, getTeamName, getWorkflow, getStageOwner, projects } = useContext(AppContext);
+  const proj = selectedProject;
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [captionSaved, setCaptionSaved] = useState(false);
+  const captionSavedTimer = useRef(null);
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [breakdownDraft, setBreakdownDraft] = useState('');
+  const [scriptDraft, setScriptDraft] = useState('');
+  const [scriptSavedAt, setScriptSavedAt] = useState(null);
+  const [scriptUnsaved, setScriptUnsaved] = useState(false);
+  const [titleError, setTitleError] = useState('');
+  const [overrideStage, setOverrideStage] = useState('');
+  const [showOverrideConfirm, setShowOverrideConfirm] = useState(false);
+  const scriptTimer = useRef(null);
+  const thumbInputRef = useRef(null);
+
+  useEffect(() => {
+    if (proj) {
+      setCaptionDraft(proj.caption || '');
+      setScheduleTime(proj.scheduledTime || '');
+      setBreakdownDraft(proj.videoBreakdown || '');
+      setScriptDraft(proj.script || '');
+      setScriptSavedAt(proj.scriptLastSaved || null);
+      setScriptUnsaved(false);
+      setConfirmDelete(false);
+      setOverrideStage(proj.status);
+      setShowOverrideConfirm(false);
+      setTitleError('');
+      setCaptionSaved(false);
+    }
+  }, [proj?.id]);
+
+  if (!proj) return null;
+
+  const role = currentUser?.role;
+  const uid = currentUser?.id;
+  const workflow = getWorkflow(proj.type);
+  const currentIdx = workflow.indexOf(proj.status);
+  const nextStage = currentIdx >= 0 && currentIdx < workflow.length - 1 ? workflow[currentIdx + 1] : null;
+
+  const isJoel = role === 'creator';
+  const isAnthony = role === 'editor';
+  const isTiana = role === 'social';
+
+  const canEditCaption = isTiana || (isJoel && ['Caption Needed', 'Caption In Review'].includes(proj.status));
+  const canEditScript = isJoel || (isTiana && ['Caption Needed', 'Caption In Review'].includes(proj.status));
+
+  const handleScriptChange = (val) => {
+    setScriptDraft(val);
+    setScriptUnsaved(true);
+    if (scriptTimer.current) clearTimeout(scriptTimer.current);
+    scriptTimer.current = setTimeout(() => {
+      const now = new Date().toISOString();
+      updateProject(proj.id, { script: val, scriptLastSaved: now });
+      setScriptSavedAt(now);
+      setScriptUnsaved(false);
+    }, 500);
+  };
+
+  const handleBreakdownBlur = () => {
+    updateProject(proj.id, { videoBreakdown: breakdownDraft });
+  };
+
+  const handleSaveCaption = () => {
+    updateProject(proj.id, { caption: captionDraft });
+    if (captionSavedTimer.current) clearTimeout(captionSavedTimer.current);
+    setCaptionSaved(true);
+    captionSavedTimer.current = setTimeout(() => setCaptionSaved(false), 2000);
+    if (isTiana && proj.status === 'Caption Needed') {
+      advanceStatus(proj.id, 'Caption In Review', uid);
+      addNotification({ type: 'caption', message: `${getTeamName(uid)} submitted a caption for "${proj.title}"`, projectId: proj.id, user: 'joel' });
+    }
+  };
+
+  const handleTitleBlur = (e) => {
+    const newTitle = e.target.value.trim();
+    if (!newTitle) { updateProject(proj.id, { title: proj.title }); return; }
+    const isDupe = projects.some(p => p.id !== proj.id && p.type === proj.type && p.title.trim().toLowerCase() === newTitle.toLowerCase());
+    if (isDupe) {
+      setTitleError(`A ${TYPE_LABELS[proj.type]} project with this name already exists.`);
+      updateProject(proj.id, { title: proj.title });
+    } else {
+      setTitleError('');
+    }
+  };
+
+  const handlePDFExport = () => {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) { alert('PDF library not loaded'); return; }
+    const doc = new jsPDF();
+    const slug = proj.title.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(proj.title, 20, 20);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Platform: ${TYPE_LABELS[proj.type] || proj.type}`, 20, 30);
+    doc.text(`Brand: ${proj.brand || 'Organic'}`, 20, 37);
+    doc.text(`Publish: ${proj.publishDate || 'TBD'}`, 20, 44);
+    doc.text(`Status: ${proj.status}`, 20, 51);
+    let y = 62;
+    if (proj.script) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(30);
+      doc.text('Script / Talking Points', 20, y); y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60);
+      const lines = doc.splitTextToSize(proj.script, 170);
+      doc.text(lines, 20, y);
+      y += lines.length * 5 + 10;
+    }
+    const shotList = proj.shotList || [];
+    if (shotList.length > 0) {
+      if (y > 230) { doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(30);
+      doc.text('Shot List', 20, y); y += 4;
+      doc.autoTable({
+        startY: y,
+        head: [['#', 'Description', 'Type', 'Notes']],
+        body: shotList.map((s, i) => [i + 1, s.desc || '', s.type || '', s.notes || '']),
+        theme: 'striped',
+        headStyles: { fillColor: [245, 158, 11], textColor: 20, fontStyle: 'bold' },
+        styles: { fontSize: 9 },
+        margin: { left: 20, right: 20 }
+      });
+      y = doc.lastAutoTable.finalY + 10;
+    }
+    if (proj.caption) {
+      if (y > 230) { doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(30);
+      doc.text('Caption', 20, y); y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60);
+      const captLines = doc.splitTextToSize(proj.caption, 170);
+      doc.text(captLines, 20, y);
+    }
+    doc.save(slug + '_script.pdf');
+  };
+
+  const handleSchedule = () => {
+    if (!scheduleTime) return;
+    updateProject(proj.id, { scheduledTime: scheduleTime });
+    advanceStatus(proj.id, 'Scheduled', uid);
+  };
+
+  const handleThumbnailUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const existing = proj.thumbnails || [];
+    let added = 0;
+    files.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const idx = existing.length + added + i;
+        const newThumb = { id: 't' + Date.now() + i, label: `Version ${letters[idx % 26]}`, data: ev.target.result, filename: file.name };
+        updateProject(proj.id, { thumbnails: [...(proj.thumbnails || []), newThumb] });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const updateThumbLabel = (tid, label) => {
+    const updated = (proj.thumbnails || []).map(t => t.id === tid ? { ...t, label } : t);
+    updateProject(proj.id, { thumbnails: updated });
+  };
+
+  const removeThumb = (tid) => {
+    updateProject(proj.id, { thumbnails: (proj.thumbnails || []).filter(t => t.id !== tid) });
+  };
+
+  const handleDelete = () => {
+    deleteProject(proj.id);
+  };
+
+  const getActionButton = () => {
+    if (isJoel) {
+      if (proj.status === 'Edit Review') return { label: 'Approve Edit → Final Review', next: 'Final Review' };
+      if (proj.status === 'Final Review' && nextStage) return { label: `Approve → ${nextStage}`, next: nextStage };
+      if (proj.status === 'Caption In Review') return { label: 'Approve Caption → Ready to Post', next: 'Ready to Post' };
+      if (proj.status === 'Ready to Post' || proj.status === 'Ready to Send') return null;
+      if (nextStage && JOEL_REVIEW_STAGES.includes(proj.status)) return null;
+      if (nextStage) return { label: `Advance → ${nextStage}`, next: nextStage };
+    }
+    if (isAnthony) {
+      if (proj.status === 'Editing in Progress') return { label: 'Submit for Edit Review', next: 'Edit Review' };
+      if (proj.status === 'Revision Requested') return { label: 'Resubmit for Review', next: 'Edit Review' };
+    }
+    if (isTiana) {
+      if (proj.status === 'Caption Needed') return null;
+      if (proj.status === 'Ready to Post' || proj.status === 'Ready to Send') return { label: 'Mark as Published', next: 'Posted', color: '#22c55e' };
+    }
+    return null;
+  };
+
+  const actionBtn = getActionButton();
+  const typeLabel = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', newsletter: 'Newsletter' }[proj.type] || proj.type;
+
+  return (
+    <div className={`side-panel${proj ? ' open' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,.07)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div style={{ flex: 1, paddingRight: 12 }}>
+            {isJoel ? (
+              <>
+                <input
+                  value={proj.title}
+                  onChange={e => { updateProject(proj.id, { title: e.target.value }); setTitleError(''); }}
+                  onBlur={handleTitleBlur}
+                  style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Playfair Display',serif", color: '#f4f4f5', background: 'transparent', border: 'none', outline: 'none', padding: 0, width: '100%' }}
+                />
+                {titleError && <div style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>{titleError}</div>}
+              </>
+            ) : (
+              <div className="font-display" style={{ fontSize: 17, fontWeight: 600, color: '#f4f4f5' }}>{proj.title}</div>
+            )}
+          </div>
+          <button onClick={() => { setSelectedProject(null); setConfirmDelete(false); }} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: 20, flexShrink: 0 }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <PlatformIcon type={proj.type} size={14} />
+          <span style={{ fontSize: 12, color: '#71717a' }}>{typeLabel}</span>
+          <span style={{ color: '#27272a' }}>·</span>
+          {isJoel ? (
+            <input value={proj.brand} onChange={e => updateProject(proj.id, { brand: e.target.value })}
+              style={{ fontSize: 12, color: '#a1a1aa', background: 'transparent', border: 'none', outline: 'none', padding: 0, width: 90 }} />
+          ) : (
+            <span style={{ fontSize: 12, color: '#a1a1aa' }}>{proj.brand}</span>
+          )}
+          <span style={{ color: '#27272a' }}>·</span>
+          <StatusBadge status={proj.status} />
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+        {/* Workflow Progress */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Workflow</div>
+          {/* Horizontal progress bar */}
+          <div style={{ height: 4, background: 'rgba(255,255,255,.06)', borderRadius: 2, marginBottom: 10, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 2,
+              background: getStatusColor(proj.status),
+              width: workflow.length > 1 ? `${(currentIdx / (workflow.length - 1)) * 100}%` : '100%',
+              transition: 'width 400ms ease'
+            }} />
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {workflow.map((stage, i) => {
+              const done = i < currentIdx;
+              const active = (proj.activeStages && proj.activeStages.length > 0) ? proj.activeStages.includes(stage) : (stage === proj.status);
+              const c = getStatusColor(stage);
+              return (
+                <div key={stage} style={{
+                  padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 500,
+                  background: active ? `${c}20` : done ? 'rgba(255,255,255,.04)' : 'transparent',
+                  color: active ? c : done ? '#52525b' : '#3f3f46',
+                  border: `1px solid ${active ? c + '50' : done ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)'}`
+                }}>
+                  {stage}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Stage Owner — supports parallel activeStages */}
+        {(() => {
+          const stages = (proj.activeStages && proj.activeStages.length > 0) ? proj.activeStages : [proj.status];
+          return stages.map(stage => (
+            <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(255,255,255,.02)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#71717a' }}>
+                {stages.length > 1 ? `${stage} assigned to:` : 'Currently assigned to:'}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#f4f4f5' }}>{getTeamName(getStageOwner(proj.type, stage))}</div>
+            </div>
+          ));
+        })()}
+
+        {/* Admin Override (Joel only) */}
+        {isJoel && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Override Stage</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select value={overrideStage} onChange={e => { setOverrideStage(e.target.value); setShowOverrideConfirm(false); }} style={{ flex: 1, fontSize: 13 }}>
+                {workflow.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {overrideStage !== proj.status && !showOverrideConfirm && (
+                <button onClick={() => setShowOverrideConfirm(true)} style={{ background: 'rgba(245,158,11,.15)', border: '1px solid rgba(245,158,11,.3)', color: '#f59e0b', borderRadius: 7, padding: '6px 10px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                  Override →
+                </button>
+              )}
+            </div>
+            {showOverrideConfirm && overrideStage !== proj.status && (
+              <div style={{ marginTop: 8, background: 'rgba(245,158,11,.07)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 8, padding: 10 }}>
+                <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 8 }}>Force-set to "{overrideStage}"?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => { overrideStatus(proj.id, overrideStage, `Stage overridden → ${overrideStage} by ${getTeamName('joel')}`, uid); setShowOverrideConfirm(false); }} style={{ flex: 1, background: 'rgba(245,158,11,.2)', border: '1px solid rgba(245,158,11,.3)', color: '#f59e0b', borderRadius: 6, padding: '6px', fontSize: 12 }}>Confirm</button>
+                  <button onClick={() => { setShowOverrideConfirm(false); setOverrideStage(proj.status); }} className="btn-ghost" style={{ flex: 1, fontSize: 12 }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Publish Date */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Publish Date</div>
+          {isJoel ? (
+            <input type="date" value={proj.publishDate || ''} onChange={e => updateProject(proj.id, { publishDate: e.target.value })} style={{ fontSize: 13 }} />
+          ) : (
+            <div style={{ fontSize: 13, color: '#d4d4d8' }}>{proj.publishDate ? formatDateStr(proj.publishDate) : 'Not set'}</div>
+          )}
+        </div>
+
+        {/* Dropbox / Drive */}
+        {proj.type !== 'newsletter' && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>
+              {(proj.type === 'instagram' || proj.type === 'tiktok') ? 'Google Drive Link' : 'Dropbox Link'}
+            </div>
+            {isJoel ? (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input value={proj.dropbox || ''} onChange={e => updateProject(proj.id, { dropbox: e.target.value })}
+                  placeholder={(proj.type === 'instagram' || proj.type === 'tiktok') ? 'https://drive.google.com/...' : 'https://dropbox.com/...'}
+                  style={{ flex: 1 }} />
+                {proj.dropbox && (
+                  <a href={proj.dropbox} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#f59e0b', textDecoration: 'none', whiteSpace: 'nowrap', padding: '6px 10px', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.25)', borderRadius: 7 }}>
+                    <ExternalLinkIcon size={11} /> Open
+                  </a>
+                )}
+              </div>
+            ) : proj.dropbox ? (
+              <a href={proj.dropbox} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#f59e0b', textDecoration: 'none' }}>{proj.dropbox}</a>
+            ) : (
+              <div style={{ fontSize: 13, color: '#52525b' }}>No link added</div>
+            )}
+          </div>
+        )}
+
+        {/* Asana Link */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Asana Task</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input value={proj.asanaLink || ''} onChange={e => updateProject(proj.id, { asanaLink: e.target.value })}
+              placeholder="https://app.asana.com/..." style={{ flex: 1 }} />
+            {proj.asanaLink && (
+              <a href={proj.asanaLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#60a5fa', textDecoration: 'none', whiteSpace: 'nowrap', padding: '6px 10px', background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.25)', borderRadius: 7 }}>
+                <ExternalLinkIcon size={11} /> Open
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Video Breakdown (YouTube only) */}
+        {proj.type === 'youtube' && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Video Breakdown</div>
+            {isJoel ? (
+              <textarea
+                value={breakdownDraft}
+                onChange={e => setBreakdownDraft(e.target.value)}
+                onBlur={handleBreakdownBlur}
+                placeholder="Intro → hook, main sections, b-roll notes, outro CTA..."
+                style={{ width: '100%', minHeight: 120, resize: 'vertical', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: '#d4d4d8', borderRadius: 8, padding: '10px 12px', outline: 'none', fontSize: 13, lineHeight: 1.6, fontFamily: "'Inter',sans-serif" }}
+              />
+            ) : (
+              <div style={{ fontSize: 13, color: '#d4d4d8', lineHeight: 1.6, padding: '10px 12px', background: 'rgba(255,255,255,.02)', borderRadius: 8, minHeight: 60 }}>
+                {proj.videoBreakdown || <span style={{ color: '#52525b' }}>No breakdown added.</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Thumbnails (YouTube only) */}
+        {proj.type === 'youtube' && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Thumbnails</div>
+            {isJoel && (
+              <>
+                <input ref={thumbInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleThumbnailUpload} />
+                <button
+                  onClick={() => thumbInputRef.current?.click()}
+                  style={{ background: 'rgba(255,255,255,.04)', border: '1px dashed rgba(255,255,255,.15)', color: '#a1a1aa', borderRadius: 8, padding: '7px 14px', fontSize: 12, marginBottom: 12 }}>
+                  Upload Thumbnails
+                </button>
+              </>
+            )}
+            {(proj.thumbnails || []).length === 0 && <div style={{ fontSize: 12, color: '#52525b' }}>No thumbnails yet.</div>}
+            <div className="thumbnail-grid">
+              {(proj.thumbnails || []).map(thumb => (
+                <div key={thumb.id} style={{ position: 'relative' }}>
+                  <img src={thumb.data} alt={thumb.label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(255,255,255,.08)' }} />
+                  <input
+                    value={thumb.label}
+                    onChange={e => updateThumbLabel(thumb.id, e.target.value)}
+                    style={{ fontSize: 11, padding: '3px 6px', marginTop: 4, textAlign: 'center' }}
+                  />
+                  {isJoel && (
+                    <button onClick={() => removeThumb(thumb.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.8)', border: 'none', color: 'white', borderRadius: 4, width: 20, height: 20, fontSize: 13, lineHeight: '20px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Caption (Instagram / TikTok) */}
+        {(proj.type === 'instagram' || proj.type === 'tiktok') && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Caption</div>
+            {canEditCaption ? (
+              <>
+                <textarea
+                  value={captionDraft}
+                  onChange={e => setCaptionDraft(e.target.value)}
+                  rows={5}
+                  placeholder="Write caption here..."
+                  style={{ width: '100%', resize: 'vertical', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: '#d4d4d8', borderRadius: 8, padding: '10px 12px', outline: 'none', fontSize: 13, lineHeight: 1.6, fontFamily: "'Inter',sans-serif" }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                  <button className="btn-amber" onClick={handleSaveCaption} style={{ fontSize: 12, padding: '6px 14px' }}>
+                    {isTiana && proj.status === 'Caption Needed' ? 'Submit Caption' : 'Save Caption'}
+                  </button>
+                  {captionSaved && <span style={{ fontSize: 12, color: '#4ade80' }}>Saved ✓</span>}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: '#d4d4d8', lineHeight: 1.6, padding: '10px 12px', background: 'rgba(255,255,255,.02)', borderRadius: 8 }}>
+                {proj.caption || <span style={{ color: '#52525b' }}>No caption yet.</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Script + Shot List */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b' }}>Script / Talking Points</div>
+            {isJoel && (
+              <button onClick={handlePDFExport} style={{ fontSize: 11, padding: '3px 9px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: '#a1a1aa', borderRadius: 6 }}>
+                Export PDF ↓
+              </button>
+            )}
+          </div>
+          {canEditScript ? (
+            <>
+              <textarea
+                value={scriptDraft}
+                onChange={e => handleScriptChange(e.target.value)}
+                className="script-area"
+                placeholder="Write your script, key points, or talking points here..."
+                style={{ width: '100%', minHeight: 200, resize: 'vertical', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: '#d4d4d8', borderRadius: 8, padding: '10px 12px', outline: 'none', fontSize: 13 }}
+              />
+              <div style={{ fontSize: 11, color: '#52525b', marginTop: 4 }}>
+                {scriptUnsaved ? 'Unsaved changes...' : scriptSavedAt ? `Last saved ${timeAgo(scriptSavedAt)}` : ''}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: '#d4d4d8', lineHeight: 1.7, padding: '10px 12px', background: 'rgba(255,255,255,.02)', borderRadius: 8, minHeight: 80, fontFamily: "'Inter',monospace" }}>
+              {proj.script || <span style={{ color: '#52525b' }}>No script added.</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Shot List */}
+        {canEditScript && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b' }}>Shot List</div>
+              <button onClick={() => {
+                const newShot = { id: 's' + Date.now(), desc: '', type: 'Wide', notes: '' };
+                updateProject(proj.id, { shotList: [...(proj.shotList || []), newShot] });
+              }} style={{ fontSize: 11, padding: '3px 9px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: '#a1a1aa', borderRadius: 6 }}>
+                + Add Shot
+              </button>
+            </div>
+            {(proj.shotList || []).length === 0 ? (
+              <div style={{ fontSize: 12, color: '#52525b', padding: '8px 0' }}>No shots added yet.</div>
+            ) : (
+              <div style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+                      {['#', 'Description', 'Type', 'Notes', ''].map(h => (
+                        <th key={h} style={{ padding: '7px 8px', textAlign: 'left', color: '#52525b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(proj.shotList || []).map((shot, i) => (
+                      <tr key={shot.id} style={{ borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                        <td style={{ padding: '6px 8px', color: '#52525b', width: 24 }}>{i + 1}</td>
+                        <td style={{ padding: '4px 8px' }}>
+                          <input value={shot.desc} onChange={e => {
+                            const updated = (proj.shotList || []).map(s => s.id === shot.id ? { ...s, desc: e.target.value } : s);
+                            updateProject(proj.id, { shotList: updated });
+                          }} placeholder="Description..." style={{ fontSize: 12, padding: '3px 6px' }} />
+                        </td>
+                        <td style={{ padding: '4px 8px', width: 90 }}>
+                          <select value={shot.type} onChange={e => {
+                            const updated = (proj.shotList || []).map(s => s.id === shot.id ? { ...s, type: e.target.value } : s);
+                            updateProject(proj.id, { shotList: updated });
+                          }} style={{ fontSize: 11, padding: '3px 4px' }}>
+                            {['Wide', 'Medium', 'Close', 'B-Roll'].map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding: '4px 8px' }}>
+                          <input value={shot.notes} onChange={e => {
+                            const updated = (proj.shotList || []).map(s => s.id === shot.id ? { ...s, notes: e.target.value } : s);
+                            updateProject(proj.id, { shotList: updated });
+                          }} placeholder="Notes..." style={{ fontSize: 12, padding: '3px 6px' }} />
+                        </td>
+                        <td style={{ padding: '4px 8px', width: 28 }}>
+                          <button onClick={() => updateProject(proj.id, { shotList: (proj.shotList || []).filter(s => s.id !== shot.id) })}
+                            style={{ background: 'none', border: 'none', color: '#52525b', display: 'flex', alignItems: 'center' }}>
+                            <TrashIcon size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Notes */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Notes</div>
+          <textarea
+            value={proj.notes || ''}
+            onChange={e => updateProject(proj.id, { notes: e.target.value })}
+            rows={3}
+            placeholder="Internal notes..."
+            style={{ width: '100%', resize: 'vertical', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: '#d4d4d8', borderRadius: 8, padding: '10px 12px', outline: 'none', fontSize: 13, lineHeight: 1.6, fontFamily: "'Inter',sans-serif" }}
+          />
+        </div>
+
+        {/* Schedule (Joel, Ready to Post / Ready to Send) */}
+        {isJoel && (proj.status === 'Ready to Post' || proj.status === 'Ready to Send') && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Schedule Post</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="datetime-local" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} style={{ flex: 1, fontSize: 13 }} />
+              <button className="btn-amber" onClick={handleSchedule} style={{ whiteSpace: 'nowrap', fontSize: 12 }}>Schedule</button>
+            </div>
+          </div>
+        )}
+
+        {/* Revision Request (Joel on Edit Review) */}
+        {isJoel && proj.status === 'Edit Review' && (
+          <button
+            onClick={() => advanceStatus(proj.id, 'Revision Requested', uid)}
+            style={{ background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.25)', color: '#f87171', borderRadius: 8, padding: '8px 14px', fontSize: 12 }}>
+            Request Revision
+          </button>
+        )}
+
+        {/* Action Button */}
+        {actionBtn && (
+          <button
+            onClick={() => {
+              advanceStatus(proj.id, actionBtn.next, uid);
+              if (isTiana && (actionBtn.next === 'Posted' || actionBtn.next === 'Sent')) {
+                addNotification({ type: 'posted', message: `${getTeamName(uid)} published "${proj.title}"`, projectId: proj.id, user: 'joel' });
+              }
+            }}
+            style={{ width: '100%', padding: '10px', background: actionBtn.color || '#f59e0b', color: actionBtn.color ? 'white' : '#0c0c0e', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>
+            {actionBtn.label}
+          </button>
+        )}
+
+        {/* Timeline */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>Activity</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(proj.timeline || []).slice().reverse().map((entry, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, fontSize: 12 }}>
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: '#27272a', marginTop: 5, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <span style={{ color: '#d4d4d8' }}>{entry.action}</span>
+                  {entry.user && entry.user !== 'system' && <span style={{ color: '#71717a' }}> by {getTeamName(entry.user)}</span>}
+                  {entry.user === 'system' && <span style={{ color: '#71717a' }}> (auto)</span>}
+                  <div style={{ color: '#52525b', fontSize: 10, marginTop: 2 }}>{timeAgo(entry.date)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Delete (Joel only) */}
+        {isJoel && (
+          <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{ background: 'rgba(239,68,68,.1)', color: '#f87171', border: '1px solid rgba(239,68,68,.25)', borderRadius: 8, padding: '8px 14px', fontSize: 12, width: '100%' }}>
+                Delete Project
+              </button>
+            ) : (
+              <div style={{ background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 8, padding: 12 }}>
+                <div style={{ fontSize: 12, color: '#f87171', marginBottom: 10 }}>This will permanently delete this project.</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleDelete} style={{ flex: 1, background: 'rgba(239,68,68,.2)', color: '#f87171', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '7px', fontSize: 12 }}>Confirm Delete</button>
+                  <button onClick={() => setConfirmDelete(false)} className="btn-ghost" style={{ flex: 1, fontSize: 12 }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Joel Dashboard ─────────────────────────────────────────────────────────────
+function JoelDashboard() {
+  const { projects, setSelectedProject, addProject, advanceStatus, deleteProject, getTeamName, getWorkflow, getStageOwner, currentUser, notifications, markNotifRead, markAllRead, clearNotifications, logout } = useContext(AppContext);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [showAdd, setShowAdd] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const unread = notifications.filter(n => !n.read && (!n.user || n.user === 'joel')).length;
+
+  const kanbanGroups = [
+    { label: 'In Production', statuses: ['Filming', 'Raw Footage Ready', 'Drafting'] },
+    { label: 'Editing', statuses: ['Editing in Progress', 'In Review', 'Revision Requested'] },
+    { label: 'Caption Stage', statuses: ['Edit Review', 'Final Review', 'Caption Needed', 'Caption In Review'] },
+    { label: 'Going Live', statuses: ['Ready to Post', 'Ready to Send', 'Scheduled'] },
+  ];
+
+  const activeProjects = projects.filter(p => p.status !== 'Posted' && p.status !== 'Sent');
+
+  const handleKanbanDrop = (e, group) => {
+    e.preventDefault();
+    const projectId = e.dataTransfer.getData('projectId');
+    if (!projectId) { setDragOverCol(null); return; }
+    const proj = projects.find(p => p.id === projectId);
+    if (!proj) { setDragOverCol(null); return; }
+    const wf = getWorkflow(proj.type);
+    let newStatus = null;
+    for (const gs of group.statuses) {
+      if (wf.includes(gs)) { newStatus = gs; break; }
+    }
+    if (newStatus && newStatus !== proj.status) {
+      advanceStatus(projectId, newStatus, 'joel');
+    }
+    setDragOverCol(null);
+  };
+
+  const readyProjects = projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send');
+  const scheduledProjects = projects.filter(p => p.status === 'Scheduled').sort((a, b) => {
+    const aTime = a.scheduledTime ? new Date(a.scheduledTime) : (a.publishDate ? new Date(a.publishDate + 'T23:59:00') : new Date(9999, 0, 1));
+    const bTime = b.scheduledTime ? new Date(b.scheduledTime) : (b.publishDate ? new Date(b.publishDate + 'T23:59:00') : new Date(9999, 0, 1));
+    return aTime - bTime;
+  });
+
+  const countdownText = (proj) => {
+    const target = proj.scheduledTime ? new Date(proj.scheduledTime) : (proj.publishDate ? new Date(proj.publishDate + 'T12:00:00') : null);
+    if (!target) return null;
+    const diff = target.getTime() - Date.now();
+    if (diff < 0) return { text: 'Should be live now', color: '#f59e0b' };
+    const hours = Math.floor(diff / 3600000);
+    if (hours < 1) return { text: 'Going live today', color: '#4ade80' };
+    if (hours < 24) return { text: `Going live in ${hours}h`, color: '#4ade80' };
+    const days = Math.floor(hours / 24);
+    return { text: `Going live in ${days} day${days === 1 ? '' : 's'}`, color: '#4ade80' };
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0c0c0e' }}>
+      {/* Header */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,.07)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 54, position: 'sticky', top: 0, background: '#0c0c0e', zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div className="font-display" style={{ fontSize: 18, color: '#f59e0b' }}>Storyboard</div>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {[{ id: 'dashboard', label: 'Dashboard' }, { id: 'calendar', label: 'Calendar' }].map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '6px 14px', borderRadius: 6, background: activeTab === t.id ? 'rgba(255,255,255,.07)' : 'transparent', border: 'none', color: activeTab === t.id ? '#f4f4f5' : '#71717a', fontSize: 13, fontWeight: activeTab === t.id ? 500 : 400 }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* User chip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 20 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0c0c0e' }}>
+              {getTeamName('joel')[0]}
+            </div>
+            <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 500 }}>{getTeamName('joel')}</span>
+          </div>
+          <button onClick={() => setShowSettings(true)} title="Settings" style={{ background: 'none', border: 'none', color: '#52525b', padding: '4px 8px', display: 'flex', alignItems: 'center' }}><GearIcon size={17} /></button>
+          <button onClick={() => setShowNotif(s => !s)} style={{ position: 'relative', background: 'none', border: 'none', color: '#52525b', padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
+            <BellIcon size={16} />
+            {unread > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#f59e0b', color: '#0c0c0e', fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 4px', minWidth: 14, textAlign: 'center' }}>{unread}</span>}
+          </button>
+          <button className="btn-amber" onClick={() => setShowAdd(true)} style={{ fontSize: 12, padding: '6px 12px' }}>+ New Project</button>
+          <button onClick={logout} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: 12 }}>Sign out</button>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px', maxWidth: 1400, margin: '0 auto' }}>
+        {activeTab === 'dashboard' && (
+          <>
+            {/* Header */}
+            <div style={{ marginBottom: 20 }}>
+              <div className="font-display" style={{ fontSize: 26, color: '#f4f4f5', marginBottom: 4 }}>
+                Good morning, {getTeamName('joel')}
+              </div>
+              <div style={{ fontSize: 13, color: '#52525b' }}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </div>
+
+            {/* My Review Queue */}
+            {(() => {
+              const reviewItems = projects.filter(p => JOEL_REVIEW_STAGES.includes(p.status));
+              if (reviewItems.length === 0) return null;
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 4, background: '#a78bfa' }} />
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5' }}>My Review Queue</div>
+                    <span style={{ background: 'rgba(167,139,250,.2)', color: '#a78bfa', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '1px 7px' }}>{reviewItems.length}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {reviewItems.map(p => (
+                      <div key={p.id} onClick={() => setSelectedProject(p)} className="card"
+                        style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderColor: 'rgba(167,139,250,.2)', background: 'rgba(167,139,250,.04)' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(167,139,250,.4)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(167,139,250,.2)'}>
+                        <PlatformIcon type={p.type} size={14} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f5' }}>{p.title}</div>
+                          <div style={{ fontSize: 11, color: '#71717a', marginTop: 1 }}>{TYPE_LABELS[p.type]}</div>
+                        </div>
+                        <StatusBadge status={p.status} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+              {[
+                { label: 'Active Projects', value: activeProjects.length, color: '#f59e0b' },
+                { label: 'Ready to Post', value: readyProjects.length, color: '#4ade80' },
+                { label: 'Scheduled', value: scheduledProjects.length, color: '#facc15' },
+                { label: 'Awaiting Review', value: projects.filter(p => JOEL_REVIEW_STAGES.includes(p.status)).length, color: '#a78bfa' },
+              ].map(s => (
+                <div key={s.label} className="card" style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: '#71717a', marginTop: 2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Kanban */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 28 }}>
+              {kanbanGroups.map(group => {
+                const colProjects = activeProjects.filter(p => group.statuses.includes(p.status));
+                return (
+                  <div key={group.label}
+                    className={`kanban-col${dragOverCol === group.label ? ' drag-over' : ''}`}
+                    onDragOver={e => { e.preventDefault(); setDragOverCol(group.label); }}
+                    onDragLeave={() => setDragOverCol(null)}
+                    onDrop={e => handleKanbanDrop(e, group)}
+                    style={{ padding: 10, minHeight: 120, borderRadius: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#52525b', marginBottom: 8 }}>
+                      {group.label} {colProjects.length > 0 && <span style={{ color: '#3f3f46' }}>({colProjects.length})</span>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {colProjects.map(p => (
+                        <div key={p.id}
+                          className="kanban-card"
+                          draggable
+                          onDragStart={e => { e.dataTransfer.setData('projectId', p.id); e.dataTransfer.setData('fromStatus', p.status); }}
+                          onClick={() => { if (deletingId !== p.id) setSelectedProject(p); }}>
+                          {/* Delete button */}
+                          <button
+                            onClick={e => { e.stopPropagation(); setDeletingId(deletingId === p.id ? null : p.id); }}
+                            style={{ position: 'absolute', top: 5, right: 5, background: 'none', border: 'none', color: '#52525b', padding: '0 2px', zIndex: 1, display: 'flex', alignItems: 'center' }}
+                            title="Delete">
+                            <TrashIcon size={12} />
+                          </button>
+                          {/* Inline delete confirm */}
+                          {deletingId === p.id && (
+                            <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#1a1a1e', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, zIndex: 2, padding: 8 }}>
+                              <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center' }}>Delete this project?</div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={e => { e.stopPropagation(); deleteProject(p.id); setDeletingId(null); }} style={{ background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>Yes</button>
+                                <button onClick={e => { e.stopPropagation(); setDeletingId(null); }} style={{ background: 'rgba(255,255,255,.06)', border: 'none', color: '#a1a1aa', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>No</button>
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                            <PlatformIcon type={p.type} size={11} />
+                            <span style={{ fontSize: 10, color: '#52525b' }}>{TYPE_LABELS[p.type]}</span>
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: '#e4e4e7', lineHeight: 1.4, marginBottom: 6, paddingRight: 18 }}>{p.title}</div>
+                          <StatusBadge status={p.status} />
+                          {/* Mini progress bar */}
+                          {(() => {
+                            const wf = getWorkflow(p.type);
+                            const idx = wf.indexOf(p.status);
+                            const pct = wf.length > 1 ? (idx / (wf.length - 1)) * 100 : 100;
+                            return (
+                              <div style={{ height: 2, background: 'rgba(255,255,255,.06)', borderRadius: 1, marginTop: 6, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${pct}%`, background: getStatusColor(p.status), borderRadius: 1 }} />
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ))}
+                      {colProjects.length === 0 && (
+                        <div style={{ fontSize: 11, color: '#3f3f46', textAlign: 'center', padding: '16px 0' }}>Empty</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Ready to Post */}
+            {readyProjects.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, background: '#4ade80' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5' }}>Approved — Ready to Post</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {readyProjects.map(p => (
+                    <div key={p.id} onClick={() => setSelectedProject(p)} className="card"
+                      style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.14)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'}>
+                      <PlatformIcon type={p.type} size={16} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f5' }}>{p.title}</div>
+                        <div style={{ fontSize: 11, color: '#71717a', marginTop: 2 }}>{TYPE_LABELS[p.type]} · {formatDateStr(p.publishDate)}</div>
+                      </div>
+                      <StatusBadge status={p.status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Going Live */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5', marginBottom: 12 }}>Going Live</div>
+              {scheduledProjects.length === 0 ? (
+                <div style={{ fontSize: 13, color: '#52525b', padding: '16px 0' }}>No scheduled posts.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {scheduledProjects.map(p => {
+                    const cd = countdownText(p);
+                    return (
+                      <div key={p.id} onClick={() => setSelectedProject(p)} className="card"
+                        style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.14)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'}>
+                        <PlatformIcon type={p.type} size={16} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f5' }}>{p.title}</div>
+                          <div style={{ fontSize: 11, color: '#71717a', marginTop: 2 }}>
+                            {TYPE_LABELS[p.type]} · {p.scheduledTime ? new Date(p.scheduledTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : formatDateStr(p.publishDate)}
+                          </div>
+                        </div>
+                        {cd && <div style={{ fontSize: 11, fontWeight: 600, color: cd.color, whiteSpace: 'nowrap' }}>{cd.text}</div>}
+                        <StatusBadge status={p.status} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        {activeTab === 'calendar' && <CalendarView />}
+      </div>
+
+      {showNotif && <NotificationPanel onClose={() => setShowNotif(false)} />}
+      {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      <ProjectDetail />
+    </div>
+  );
+}
+
+// ── Anthony Dashboard ──────────────────────────────────────────────────────────
+function AnthonyDashboard() {
+  const { projects, setSelectedProject, advanceStatus, logout, getTeamName, getWorkflow } = useContext(AppContext);
+  const [view, setView] = useState('queue');
+
+  const myProjects = projects.filter(p => ANTHONY_STAGES.includes(p.status) && p.type === 'youtube');
+
+  const getAnthonyAction = (proj) => {
+    if (proj.status === 'Editing in Progress') return 'Submit for Edit Review';
+    if (proj.status === 'Revision Requested') return 'Resubmit for Review';
+    return null;
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0c0c0e' }}>
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,.07)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 54, position: 'sticky', top: 0, background: '#0c0c0e', zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div className="font-display" style={{ fontSize: 18, color: '#60a5fa' }}>Storyboard</div>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {[{ id: 'queue', label: 'Queue' }, { id: 'calendar', label: 'Calendar' }].map(t => (
+              <button key={t.id} onClick={() => setView(t.id)} style={{ padding: '6px 14px', borderRadius: 6, background: view === t.id ? 'rgba(255,255,255,.07)' : 'transparent', border: 'none', color: view === t.id ? '#f4f4f5' : '#71717a', fontSize: 13 }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* User chip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(96,165,250,.08)', border: '1px solid rgba(96,165,250,.2)', borderRadius: 20 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0c0c0e' }}>
+              {getTeamName('anthony')[0]}
+            </div>
+            <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 500 }}>{getTeamName('anthony')}</span>
+          </div>
+          <button onClick={logout} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: 12 }}>Sign out</button>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px', maxWidth: 800, margin: '0 auto' }}>
+        {view === 'queue' && (
+          <>
+            <div style={{ marginBottom: 20 }}>
+              <div className="font-display" style={{ fontSize: 24, color: '#f4f4f5', marginBottom: 4 }}>Your Edit Queue</div>
+              <div style={{ fontSize: 13, color: '#52525b' }}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </div>
+            {/* My Tasks — active editing */}
+            {myProjects.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, background: '#60a5fa' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5' }}>My Active Tasks</div>
+                  <span style={{ background: 'rgba(96,165,250,.2)', color: '#60a5fa', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '1px 7px' }}>
+                    {myProjects.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').length}
+                  </span>
+                </div>
+                {myProjects.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').map(p => (
+                  <div key={p.id} className="card" style={{ padding: '12px 16px', marginBottom: 8, cursor: 'pointer', borderColor: p.status === 'Revision Requested' ? 'rgba(248,113,113,.25)' : 'rgba(96,165,250,.2)', background: p.status === 'Revision Requested' ? 'rgba(248,113,113,.04)' : 'rgba(96,165,250,.04)' }} onClick={() => setSelectedProject(p)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <PlatformIcon type={p.type} size={14} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5' }}>{p.title}</div>
+                        <div style={{ fontSize: 11, color: '#71717a', marginTop: 1 }}>{TYPE_LABELS[p.type]}</div>
+                      </div>
+                      <StatusBadge status={p.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {myProjects.length === 0 ? (
+              <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#f4f4f5', marginBottom: 6 }}>All caught up!</div>
+                <div style={{ fontSize: 13, color: '#71717a' }}>No projects need editing right now.</div>
+              </div>
+            ) : myProjects.map(p => {
+              const action = getAnthonyAction(p);
+              return (
+                <div key={p.id} className="card" style={{ padding: '16px 20px', marginBottom: 12, cursor: 'pointer' }} onClick={() => setSelectedProject(p)}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f5', marginBottom: 4 }}>{p.title}</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <PlatformIcon type={p.type} size={13} />
+                        <span style={{ fontSize: 12, color: '#71717a' }}>{TYPE_LABELS[p.type]}</span>
+                        <span style={{ color: '#27272a' }}>·</span>
+                        <span style={{ fontSize: 12, color: '#71717a' }}>{formatDateStr(p.publishDate)}</span>
+                      </div>
+                    </div>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  {p.status === 'Revision Requested' && p.notes && (
+                    <div style={{ background: 'rgba(248,113,113,.07)', border: '1px solid rgba(248,113,113,.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#fca5a5', lineHeight: 1.5 }}>
+                      <span style={{ fontWeight: 600 }}>Notes: </span>{p.notes}
+                    </div>
+                  )}
+                  {p.dropbox && (
+                    <a href={p.dropbox} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: '#f59e0b', display: 'block', marginBottom: 8 }}>Open in Dropbox →</a>
+                  )}
+                  {action && (
+                    <button className="btn-amber" onClick={e => { e.stopPropagation(); advanceStatus(p.id, 'Edit Review', 'anthony'); }} style={{ fontSize: 12 }}>
+                      {action}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        )}
+        {view === 'calendar' && <CalendarView filterType="youtube" />}
+      </div>
+      <ProjectDetail />
+    </div>
+  );
+}
+
+// ── Tiana Dashboard ────────────────────────────────────────────────────────────
+function TianaDashboard() {
+  const { projects, setSelectedProject, advanceStatus, addNotification, logout, getTeamName } = useContext(AppContext);
+  const [view, setView] = useState('queue');
+  const [showAdd, setShowAdd] = useState(false);
+
+  const captionProjects = projects.filter(p => TIANA_STAGES.includes(p.status));
+  const readyToPost = projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send');
+  const scheduled = projects.filter(p => p.status === 'Scheduled');
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0c0c0e' }}>
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,.07)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 54, position: 'sticky', top: 0, background: '#0c0c0e', zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div className="font-display" style={{ fontSize: 18, color: '#34d399' }}>Storyboard</div>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {[{ id: 'queue', label: 'Queue' }, { id: 'calendar', label: 'Calendar' }].map(t => (
+              <button key={t.id} onClick={() => setView(t.id)} style={{ padding: '6px 14px', borderRadius: 6, background: view === t.id ? 'rgba(255,255,255,.07)' : 'transparent', border: 'none', color: view === t.id ? '#f4f4f5' : '#71717a', fontSize: 13 }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* User chip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(52,211,153,.08)', border: '1px solid rgba(52,211,153,.2)', borderRadius: 20 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0c0c0e' }}>
+              {getTeamName('tiana')[0]}
+            </div>
+            <span style={{ fontSize: 12, color: '#34d399', fontWeight: 500 }}>{getTeamName('tiana')}</span>
+          </div>
+          <button className="btn-amber" onClick={() => setShowAdd(true)} style={{ fontSize: 12, padding: '6px 12px' }}>+ New Project</button>
+          <button onClick={logout} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: 12 }}>Sign out</button>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px', maxWidth: 800, margin: '0 auto' }}>
+        {view === 'queue' && (
+          <>
+            <div style={{ marginBottom: 20 }}>
+              <div className="font-display" style={{ fontSize: 24, color: '#f4f4f5', marginBottom: 4 }}>Caption & Social Queue</div>
+              <div style={{ fontSize: 13, color: '#52525b' }}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </div>
+
+            {/* Caption Needed — My Tasks */}
+            {captionProjects.filter(p => p.status === 'Caption Needed').length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, background: '#34d399' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 12 }}>Needs Caption</div>
+                  <span style={{ background: 'rgba(52,211,153,.2)', color: '#34d399', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '1px 7px' }}>
+                    {captionProjects.filter(p => p.status === 'Caption Needed').length}
+                  </span>
+                </div>
+                {captionProjects.filter(p => p.status === 'Caption Needed').map(p => (
+                  <div key={p.id} className="card" style={{ padding: '14px 16px', marginBottom: 8, cursor: 'pointer' }} onClick={() => setSelectedProject(p)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <PlatformIcon type={p.type} size={14} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5', flex: 1 }}>{p.title}</span>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#71717a' }}>{TYPE_LABELS[p.type]} · Due {formatDateStr(p.publishDate)}</div>
+                    {p.notes && <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 8, lineHeight: 1.5 }}>{p.notes}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Caption In Review */}
+            {captionProjects.filter(p => p.status === 'Caption In Review').length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#2dd4bf', marginBottom: 10 }}>In Review</div>
+                {captionProjects.filter(p => p.status === 'Caption In Review').map(p => (
+                  <div key={p.id} className="card" style={{ padding: '14px 16px', marginBottom: 8, cursor: 'pointer' }} onClick={() => setSelectedProject(p)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <PlatformIcon type={p.type} size={14} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5', flex: 1 }}>{p.title}</span>
+                      <StatusBadge status={p.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Ready to Post */}
+            {readyToPost.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#4ade80', marginBottom: 10 }}>Ready to Publish</div>
+                {readyToPost.map(p => (
+                  <div key={p.id} className="card" style={{ padding: '14px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', gap: 8 }} onClick={() => setSelectedProject(p)}>
+                      <PlatformIcon type={p.type} size={14} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5' }}>{p.title}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        advanceStatus(p.id, 'Posted', 'tiana');
+                        addNotification({ type: 'posted', message: `${getTeamName('tiana')} published "${p.title}"`, projectId: p.id, user: 'joel' });
+                      }}
+                      style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', color: '#4ade80', borderRadius: 7, padding: '6px 12px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      Mark as Published
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Scheduled */}
+            {scheduled.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#facc15', marginBottom: 10 }}>Scheduled</div>
+                {scheduled.map(p => (
+                  <div key={p.id} className="card" style={{ padding: '14px 16px', marginBottom: 8, cursor: 'pointer' }} onClick={() => setSelectedProject(p)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <PlatformIcon type={p.type} size={14} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f5', flex: 1 }}>{p.title}</span>
+                      <span style={{ fontSize: 11, color: '#71717a' }}>
+                        {p.scheduledTime ? new Date(p.scheduledTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : formatDateStr(p.publishDate)}
+                      </span>
+                      <StatusBadge status={p.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {captionProjects.length === 0 && readyToPost.length === 0 && scheduled.length === 0 && (
+              <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#f4f4f5', marginBottom: 6 }}>All caught up!</div>
+                <div style={{ fontSize: 13, color: '#71717a' }}>No items in your queue right now.</div>
+              </div>
+            )}
+          </>
+        )}
+        {view === 'calendar' && <CalendarView />}
+      </div>
+      {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} limitTypes={['instagram', 'tiktok', 'newsletter']} />}
+      <ProjectDetail />
+    </div>
+  );
+}
+
+// ── Banner system ──────────────────────────────────────────────────────────────
+function BannerContainer() {
+  const { banners } = useContext(AppContext);
+  if (!banners || banners.length === 0) return null;
+  const bannerColors = { success: '#4ade80', error: '#f87171', warning: '#f59e0b', info: '#60a5fa' };
+  return (
+    <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 200, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+      {banners.map(b => (
+        <div key={b.id} className="banner" style={{
+          background: '#1a1a1e',
+          border: `1px solid ${(bannerColors[b.type] || '#a1a1aa')}40`,
+          borderLeft: `3px solid ${bannerColors[b.type] || '#a1a1aa'}`,
+          color: '#f4f4f5',
+          padding: '10px 20px',
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 500,
+          boxShadow: '0 8px 32px rgba(0,0,0,.4)',
+          whiteSpace: 'nowrap'
+        }}>
+          {b.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── App ────────────────────────────────────────────────────────────────────────
+function App() {
+  const { currentUser } = useContext(AppContext);
+  return (
+    <>
+      <BannerContainer />
+      {!currentUser && <Login />}
+      {currentUser?.role === 'creator' && <JoelDashboard />}
+      {currentUser?.role === 'editor' && <AnthonyDashboard />}
+      {currentUser?.role === 'social' && <TianaDashboard />}
+      {currentUser && !['creator','editor','social'].includes(currentUser.role) && <Login />}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <AppProvider><App /></AppProvider>
+);
+</script>
+</body>
+</html>
