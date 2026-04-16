@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { CheckCircle2, Clock, Plus } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { CheckCircle2, Clock, Plus, Camera } from 'lucide-react'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import StatusBadge from '../shared/StatusBadge'
@@ -66,9 +66,36 @@ function ProjectCard({ project, onClick, highlight }) {
 }
 
 export default function TianaDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow, teamMembers, updateTeamMember } = useApp()
   const [showAdd, setShowAdd] = useState(false)
+  const photoInputRef = useRef(null)
   const now = new Date()
+
+  const mySelf = teamMembers.find(m => m.role === 'social_manager')
+
+  function handlePhotoUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file || !mySelf) return
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = async () => {
+      const MAX = 300
+      let { naturalWidth: w, naturalHeight: h } = img
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round((h / w) * MAX); w = MAX }
+        else        { w = Math.round((w / h) * MAX); h = MAX }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      const base64 = canvas.toDataURL('image/jpeg', 0.82)
+      URL.revokeObjectURL(objectUrl)
+      await updateTeamMember(mySelf.id, { avatar_url: base64 })
+    }
+    img.onerror = () => URL.revokeObjectURL(objectUrl)
+    img.src = objectUrl
+    e.target.value = ''
+  }
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
 
@@ -119,13 +146,38 @@ export default function TianaDashboard() {
             {format(now, 'EEEE, MMMM d')} · Here's your content queue
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
-        >
-          <Plus size={15} />
-          New Project
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Profile photo */}
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            className="relative w-9 h-9 rounded-full overflow-hidden shrink-0 group"
+            style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+            title="Update your profile photo"
+          >
+            {mySelf?.avatar_url ? (
+              <img src={mySelf.avatar_url} alt={mySelf.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-sm font-bold"
+                style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
+                {(mySelf?.name || 'T')[0].toUpperCase()}
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: 'rgba(0,0,0,0.55)' }}>
+              <Camera size={12} style={{ color: '#fff' }} />
+            </div>
+          </button>
+          <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+
+          <button
+            onClick={() => setShowAdd(true)}
+            className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+          >
+            <Plus size={15} />
+            New Project
+          </button>
+        </div>
       </div>
 
       {showAdd && (

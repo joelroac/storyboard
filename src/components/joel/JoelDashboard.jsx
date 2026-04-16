@@ -34,7 +34,8 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
   const days        = daysLabel(project.publishDate)
   const workflow    = getWorkflow ? getWorkflow(project.type) : []
   const idx         = workflow.indexOf(project.status)
-  const pct         = workflow.length > 1 ? (idx / (workflow.length - 1)) * 100 : 100
+  const safeIdx     = Math.max(0, idx)
+  const pct         = workflow.length > 1 ? ((safeIdx + 1) / workflow.length) * 100 : 100
   const [editingDate, setEditingDate] = useState(false)
 
   return (

@@ -17,14 +17,16 @@ const PLATFORM_COLORS = {
 }
 
 export default function Calendar() {
-  const { projects, setSelectedProject, updateProject, currentUser } = useApp()
+  const { projects, setSelectedProject, updateProject, currentUser, permissions } = useApp()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [view, setView]                 = useState('month') // 'month' | 'week'
   const [selectedDay, setSelectedDay]   = useState(null)
   const [draggedId, setDraggedId]       = useState(null)
   const [dragOverDate, setDragOverDate] = useState(null)
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'creator'
+  const isAdmin      = currentUser?.role === 'admin' || currentUser?.role === 'creator'
+  const isTiana      = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
+  const canReschedule = isAdmin || (isTiana && permissions?.socialManager?.canEditCalendar)
 
   // Projects with a publish date; editor (Anthony) sees YouTube only
   const isEditor = currentUser?.role === 'editor'
@@ -58,14 +60,14 @@ export default function Calendar() {
 
   // ── Drag-to-reschedule ────────────────────────────────────────────────────
   function handleChipDragStart(e, projectId) {
-    if (!isAdmin) return
+    if (!canReschedule) return
     setDraggedId(projectId)
     e.dataTransfer.effectAllowed = 'move'
     e.stopPropagation()
   }
 
   function handleDayCellDragOver(e, date) {
-    if (!isAdmin || !draggedId) return
+    if (!canReschedule || !draggedId) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     setDragOverDate(date.toISOString())
@@ -122,7 +124,7 @@ export default function Calendar() {
           {dayProjects.slice(0, 3).map((p) => (
             <button
               key={p.id}
-              draggable={isAdmin}
+              draggable={canReschedule}
               onDragStart={(e) => { handleChipDragStart(e, p.id) }}
               onDragEnd={handleDragEnd}
               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
@@ -161,7 +163,7 @@ export default function Calendar() {
           <h1 className="font-editorial text-3xl font-semibold text-white">Content Calendar</h1>
           <p className="text-zinc-500 text-sm mt-1">
             {format(currentMonth, 'MMMM yyyy')}
-            {isAdmin && <span className="ml-2 text-zinc-600 text-xs">· Drag chips to reschedule</span>}
+            {canReschedule && <span className="ml-2 text-zinc-600 text-xs">· Drag chips to reschedule</span>}
           </p>
         </div>
 
@@ -270,12 +272,12 @@ export default function Calendar() {
                         dayProjects.map((p) => (
                           <button
                             key={p.id}
-                            draggable={isAdmin}
+                            draggable={canReschedule}
                             onDragStart={(e) => handleChipDragStart(e, p.id)}
                             onDragEnd={handleDragEnd}
                             onClick={() => setSelectedProject(p)}
                             className="flex items-center gap-2 text-left w-full rounded-lg px-3 py-2 transition-colors hover:bg-white/5"
-                            style={{ border: '1px solid rgba(255,255,255,0.07)', cursor: isAdmin ? 'grab' : 'pointer' }}
+                            style={{ border: '1px solid rgba(255,255,255,0.07)', cursor: canReschedule ? 'grab' : 'pointer' }}
                           >
                             <PlatformIcon type={p.type} size={13} />
                             <span className="text-sm text-white font-medium flex-1 truncate">{p.title}</span>

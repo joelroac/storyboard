@@ -17,9 +17,16 @@ export default function SettingsModal({ onClose }) {
   const {
     teamMembers, updateTeamMember,
     workflowSettings, saveWorkflowSettings,
+    permissions, updatePermissions,
   } = useApp()
 
   const [tab, setTab] = useState('team')
+
+  const PERMISSION_TOGGLES = [
+    { key: 'canEditCalendar', label: 'Adjust Calendar & Dates',  desc: 'Can drag projects to reschedule and change publish dates on the calendar' },
+    { key: 'canAddCaptions',  label: 'Write & Edit Captions',    desc: 'Can add and edit captions on any project at any stage' },
+    { key: 'canEditLinks',    label: 'Edit Project Links',        desc: 'Can add and edit Dropbox, Google Drive, and Asana links' },
+  ]
 
   // ── Team names + passcodes + photos ───────────────────────────────────────
   const [names, setNames]         = useState({})
@@ -182,7 +189,7 @@ export default function SettingsModal({ onClose }) {
 
         {/* Tabs */}
         <div className="flex" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          {[['team', 'Team Members'], ['workflow', 'Workflow Editor']].map(([t, label]) => (
+          {[['team', 'Team Members'], ['workflow', 'Workflow Editor'], ['permissions', 'Permissions']].map(([t, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -389,6 +396,53 @@ export default function SettingsModal({ onClose }) {
               <p className="text-xs text-zinc-600 mt-3">
                 Editing workflows won't change the status of existing projects.
               </p>
+            </div>
+          )}
+
+          {/* ── Permissions ── */}
+          {tab === 'permissions' && (
+            <div>
+              <p className="text-xs text-zinc-500 mb-5">
+                Control what the Social Media Manager can do across the app.
+              </p>
+
+              <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold mb-3">
+                Social Media Manager
+              </p>
+
+              <div className="flex flex-col gap-3">
+                {PERMISSION_TOGGLES.map(({ key, label, desc }) => {
+                  const enabled = permissions?.socialManager?.[key] ?? false
+                  return (
+                    <div key={key}
+                      className="flex items-start gap-4 px-4 py-3 rounded-xl"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{label}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">{desc}</p>
+                      </div>
+                      {/* Toggle */}
+                      <button
+                        onClick={() => updatePermissions('socialManager', { [key]: !enabled })}
+                        className="shrink-0 mt-0.5 w-10 h-5 rounded-full relative transition-all"
+                        style={{
+                          background: enabled ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+                          border: enabled ? '1px solid rgba(245,158,11,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                        }}
+                      >
+                        <span
+                          className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+                          style={{
+                            left:       enabled ? '1.25rem' : '0.125rem',
+                            background: enabled ? '#0c0c0e' : '#52525b',
+                          }}
+                        />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 

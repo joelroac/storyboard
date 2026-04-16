@@ -114,6 +114,20 @@ function attachHistory(projects, activityLogs) {
   }))
 }
 
+// ── Default permissions ────────────────────────────────────────────────────────
+const DEFAULT_PERMISSIONS = {
+  socialManager: {
+    canEditCalendar: false,
+    canAddCaptions:  false,
+    canEditLinks:    false,
+  },
+}
+
+function loadPermissions() {
+  try { return JSON.parse(localStorage.getItem('storyboard_permissions')) || DEFAULT_PERMISSIONS }
+  catch { return DEFAULT_PERMISSIONS }
+}
+
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }) {
@@ -126,6 +140,7 @@ export function AppProvider({ children }) {
   const [selectedProject, setSelectedProject] = useState(null)
   const [activeTab, setActiveTab]             = useState('dashboard')
   const [loading, setLoading]                 = useState(true)
+  const [permissions, setPermissions]         = useState(loadPermissions)
 
   // ── Initial data load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -622,6 +637,15 @@ export function AppProvider({ children }) {
     return true
   }, [])
 
+  // ── Permissions ───────────────────────────────────────────────────────────
+  const updatePermissions = useCallback((group, updates) => {
+    setPermissions((prev) => {
+      const next = { ...prev, [group]: { ...prev[group], ...updates } }
+      localStorage.setItem('storyboard_permissions', JSON.stringify(next))
+      return next
+    })
+  }, [])
+
   // ── Context value ──────────────────────────────────────────────────────────
 
   return (
@@ -657,6 +681,8 @@ export function AppProvider({ children }) {
         updateTeamMember,
         changePlatform,
         saveWorkflowSettings,
+        permissions,
+        updatePermissions,
       }}
     >
       {children}

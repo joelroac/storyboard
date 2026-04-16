@@ -13,7 +13,8 @@ const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
 
 function ProgressBar({ stages, status }) {
   const currentIdx = stages.indexOf(status)
-  const pct        = stages.length > 1 ? (currentIdx / (stages.length - 1)) * 100 : 100
+  const safeIdx    = Math.max(0, currentIdx)
+  const pct        = stages.length > 1 ? ((safeIdx + 1) / stages.length) * 100 : 100
 
   return (
     <div>
@@ -70,6 +71,7 @@ export default function ProjectDetail() {
     currentUser, updateProject, advanceStatus, overrideStatus, changePlatform,
     addNotification, deleteProject, addBanner,
     projects, teamMembers, getTeamName, getMemberByRole, getWorkflow, getStageOwner,
+    permissions,
   } = useApp()
 
   const [proj, setProj]                           = useState(null)
@@ -640,7 +642,8 @@ export default function ProjectDetail() {
     return null
   }
 
-  const canEditCaption = isTiana && proj.status === 'Caption Needed'
+  const canEditCaption = isTiana && (proj.status === 'Caption Needed' || permissions?.socialManager?.canAddCaptions)
+  const canEditLinks   = isJoel || (isTiana && permissions?.socialManager?.canEditLinks)
   const canEditScript  = isJoel
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -902,7 +905,7 @@ export default function ProjectDetail() {
           {storageLabel && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">{storageLabel}</p>
-              {isJoel ? (
+              {canEditLinks ? (
                 <div>
                   <input
                     value={editDropbox}
@@ -933,22 +936,31 @@ export default function ProjectDetail() {
           {/* ── Asana Link ── */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Asana Task</p>
-            <div className="flex items-center gap-2">
-              <input
-                value={editAsana}
-                onChange={(e) => setEditAsana(e.target.value)}
-                onBlur={() => saveEdits()}
-                placeholder="https://app.asana.com/…"
-                className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-              />
-              {editAsana && (
-                <a href={editAsana} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1">
-                  <ExternalLink size={11} /> Open
-                </a>
-              )}
-            </div>
+            {canEditLinks ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={editAsana}
+                  onChange={(e) => setEditAsana(e.target.value)}
+                  onBlur={() => saveEdits()}
+                  placeholder="https://app.asana.com/…"
+                  className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                />
+                {editAsana && (
+                  <a href={editAsana} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1">
+                    <ExternalLink size={11} /> Open
+                  </a>
+                )}
+              </div>
+            ) : proj.asanaLink ? (
+              <a href={proj.asanaLink} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                <ExternalLink size={13} /> {proj.asanaLink}
+              </a>
+            ) : (
+              <span className="text-sm text-zinc-600">No link added</span>
+            )}
           </div>
 
           {/* ── Video Breakdown (YouTube only) ── */}
