@@ -246,41 +246,61 @@ export default function ProjectDetail() {
   // ── Advance / notifications ─────────────────────────────────────────────────
 
   function handleAdvance(toStatus, note = null) {
+    if (!toStatus) return
     advanceStatus(proj.id, toStatus, currentUser.id, note)
 
     const joelId    = getMemberByRole('admin')?.id
     const anthonyId = getMemberByRole('editor')?.id
     const tianaId   = getMemberByRole('social_manager')?.id
 
+    // Known stage-specific messages (preserve existing wording)
     if (toStatus === 'Edit Review') {
       const msg = `${getTeamName(currentUser.id)} marked "${proj.title}" as done — ready for your review`
       addNotification({ message: msg, projectId: proj.id, forUser: joelId })
       addBanner(msg, 'info')
+      return
     }
     if (toStatus === 'Caption In Review') {
       const msg = `${getTeamName(currentUser.id)} submitted a caption for "${proj.title}"`
       addNotification({ message: msg, projectId: proj.id, forUser: joelId })
       addBanner(msg, 'info')
+      return
     }
     if (toStatus === 'Revision Requested') {
       const msg = `Joel requested revisions on "${proj.title}"`
       addNotification({ message: msg, projectId: proj.id, forUser: anthonyId })
       addBanner(msg, 'warning')
+      return
     }
     if (toStatus === 'Caption Needed') {
       const msg = `"${proj.title}" is ready for a caption`
       addNotification({ message: msg, projectId: proj.id, forUser: tianaId })
       addBanner(msg, 'info')
+      return
     }
     if (toStatus === 'Ready to Post') {
       const msg = `Joel approved the caption for "${proj.title}" — ready to post`
       addNotification({ message: msg, projectId: proj.id, forUser: tianaId })
       addBanner(msg, 'success')
+      return
     }
     if (toStatus === 'Posted' || toStatus === 'Sent') {
       const msg = `${getTeamName(currentUser.id)} published "${proj.title}"`
       addNotification({ message: msg, projectId: proj.id, forUser: joelId })
       addBanner(msg, 'success')
+      return
+    }
+
+    // Generic routing for custom/renamed stages: notify whoever owns the new stage
+    const newOwner = getStageOwner(proj.type, toStatus)
+    const notifyId = newOwner === 'joel'    ? joelId
+                   : newOwner === 'anthony' ? anthonyId
+                   : newOwner === 'tiana'   ? tianaId
+                   : null
+    if (notifyId && notifyId !== currentUser.id) {
+      const msg = `"${proj.title}" moved to ${toStatus}`
+      addNotification({ message: msg, projectId: proj.id, forUser: notifyId })
+      addBanner(msg, 'info')
     }
   }
 
@@ -312,10 +332,17 @@ export default function ProjectDetail() {
     setShowOverrideConfirm(false)
   }
 
-  // Recall submission — return to previous in-progress stage (Feature 5)
+  // Recall submission — return to the previous stage the recalling user owns
   function handleRecall() {
-    const prevStatus = proj.status === 'Edit Review' ? 'Editing in Progress' : 'Caption Needed'
-    const note = `${getTeamName(currentUser.id)} recalled submission`
+    const myOwnerKey  = isAnthony ? 'anthony' : 'tiana'
+    const currentIdx  = workflow.indexOf(proj.status)
+    // Walk backwards through the workflow to find the last stage this user owns
+    const myPrevStage = [...workflow.slice(0, currentIdx)].reverse()
+      .find((stage) => getStageOwner(proj.type, stage) === myOwnerKey)
+    // Hardcoded fallbacks for safety if the workflow has changed
+    const fallback    = isAnthony ? 'Editing in Progress' : 'Caption Needed'
+    const prevStatus  = myPrevStage || fallback
+    const note        = `${getTeamName(currentUser.id)} recalled submission`
     advanceStatus(proj.id, prevStatus, currentUser.id, note)
     addBanner(note, 'info')
   }
@@ -483,16 +510,21 @@ export default function ProjectDetail() {
   // ── Action button ───────────────────────────────────────────────────────────
 
   function renderActionButton() {
-    const s = proj.status
+    const s          = proj.status
+    const currentIdx = workflow.indexOf(s)
+    const nextStage  = (currentIdx >= 0 && currentIdx < workflow.length - 1)
+      ? workflow[currentIdx + 1]
+      : null
+    const currentOwner = getStageOwner(proj.type, s)
 
     if (isJoel) {
       if (s === 'Filming')
-        return <ActionBtn color="amber" onClick={() => handleAdvance('Raw Footage Ready')}>Mark Raw Footage Ready</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Raw Footage Ready')}>Mark Raw Footage Ready</ActionBtn>
       if (s === 'Raw Footage Ready')
-        return <ActionBtn color="amber" onClick={() => handleAdvance('Editing in Progress')}>Send to Anthony for Editing</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Editing in Progress')}>Send to Anthony for Editing</ActionBtn>
       if (s === 'Edit Review') return (
         <div className="flex flex-col gap-2">
-          <ActionBtn color="amber" onClick={() => handleAdvance('Final Review')}>Approve Edit → Final Review</ActionBtn>
+          <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Final Review')}>Approve Edit → Final Review</ActionBtn>
           <button className="btn-ghost px-4 py-2.5 text-sm w-full" onClick={() => setShowRevisionInput((v) => !v)}>
             Request Revision ↩
           </button>
@@ -512,9 +544,9 @@ export default function ProjectDetail() {
         </div>
       )
       if (s === 'Final Review')
-        return <ActionBtn color="amber" onClick={() => handleAdvance('Caption Needed')}>Approve → Assign Caption</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Caption Needed')}>Approve → Assign Caption</ActionBtn>
       if (s === 'Caption In Review')
-        return <ActionBtn color="amber" onClick={() => handleAdvance('Ready to Post')}>Approve Caption → Ready to Post</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Ready to Post')}>Approve Caption → Ready to Post</ActionBtn>
       if (s === 'Ready to Post') return (
         <div className="flex flex-col gap-2">
           <ActionBtn color="amber" onClick={() => setShowScheduleInput((v) => !v)}>Schedule Post</ActionBtn>
@@ -530,38 +562,45 @@ export default function ProjectDetail() {
               <ActionBtn color="amber" onClick={handleSchedule}>Confirm Schedule</ActionBtn>
             </div>
           )}
-          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
+          <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
         </div>
       )
       if (s === 'Scheduled')
-        return <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
+        return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
       if (s === 'Drafting')
-        return <ActionBtn color="amber" onClick={() => handleAdvance('In Review')}>Move to In Review</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'In Review')}>Move to In Review</ActionBtn>
       if (s === 'In Review')
-        return <ActionBtn color="amber" onClick={() => handleAdvance('Ready to Send')}>Mark Ready to Send</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Ready to Send')}>Mark Ready to Send</ActionBtn>
       if (s === 'Ready to Send')
-        return <ActionBtn color="green" onClick={() => handleAdvance('Sent')}>Mark as Sent</ActionBtn>
+        return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Sent')}>Mark as Sent</ActionBtn>
       if (s === 'Editing in Progress' && (proj.type === 'instagram' || proj.type === 'tiktok'))
-        return <ActionBtn color="amber" onClick={() => handleAdvance('Caption Needed')}>Editing Done → Send to Tiana</ActionBtn>
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Caption Needed')}>Editing Done → Send to Tiana</ActionBtn>
+      // Fallback for any custom stage Joel owns
+      if (nextStage && (currentOwner === 'joel' || !currentOwner))
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage)}>Advance to Next Stage</ActionBtn>
       return null
     }
 
-    if (isAnthony && proj.type === 'youtube') {
-      if (s === 'Editing in Progress' || s === 'Revision Requested') {
-        return (
-          <ActionBtn color="blue" onClick={() => handleAdvance('Edit Review')}>
-            Mark as Done — Send to Joel for Review
-          </ActionBtn>
-        )
+    if (isAnthony) {
+      if (currentOwner === 'anthony' && nextStage) {
+        // Check if this is a "waiting for review" stage (next stage is Joel's)
+        const nextOwner = getStageOwner(proj.type, nextStage)
+        if (nextOwner === 'joel') {
+          return (
+            <ActionBtn color="blue" onClick={() => handleAdvance(nextStage)}>
+              Mark as Done — Send to Joel for Review
+            </ActionBtn>
+          )
+        }
+        return <ActionBtn color="blue" onClick={() => handleAdvance(nextStage)}>Mark as Done</ActionBtn>
       }
-      if (s === 'Edit Review') {
+      // Waiting for Joel's review (Anthony submitted, now in Joel's stage)
+      const prevOwner = currentIdx > 0 ? getStageOwner(proj.type, workflow[currentIdx - 1]) : null
+      if (prevOwner === 'anthony') {
         return (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-zinc-500 text-center">Waiting for Joel's review…</p>
-            <button
-              onClick={handleRecall}
-              className="btn-ghost w-full text-sm py-2.5"
-            >
+            <button onClick={handleRecall} className="btn-ghost w-full text-sm py-2.5">
               ↩ Recall Submission
             </button>
           </div>
@@ -570,34 +609,30 @@ export default function ProjectDetail() {
     }
 
     if (isTiana) {
-      if (s === 'Caption Needed') {
-        return (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-zinc-500">Write your caption above, then submit for Joel's review.</p>
-            <ActionBtn color="purple" onClick={() => { saveCaption(); handleAdvance('Caption In Review') }}>
-              Submit Caption for Review
-            </ActionBtn>
-          </div>
-        )
+      if (currentOwner === 'tiana' && nextStage) {
+        const nextOwner = getStageOwner(proj.type, nextStage)
+        if (nextOwner === 'joel') {
+          return (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-zinc-500">Write your caption above, then submit for Joel's review.</p>
+              <ActionBtn color="purple" onClick={() => { saveCaption(); handleAdvance(nextStage) }}>
+                Submit Caption for Review
+              </ActionBtn>
+            </div>
+          )
+        }
+        return <ActionBtn color="purple" onClick={() => handleAdvance(nextStage)}>Mark as Published</ActionBtn>
       }
-      if (s === 'Caption In Review') {
+      // Waiting for Joel's review (Tiana submitted)
+      const prevOwner = currentIdx > 0 ? getStageOwner(proj.type, workflow[currentIdx - 1]) : null
+      if (prevOwner === 'tiana') {
         return (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-zinc-500 text-center">Caption submitted — waiting for Joel's review</p>
-            <button
-              onClick={handleRecall}
-              className="btn-ghost w-full text-sm py-2.5"
-            >
+            <button onClick={handleRecall} className="btn-ghost w-full text-sm py-2.5">
               ↩ Recall Submission
             </button>
           </div>
-        )
-      }
-      if (s === 'Ready to Post') {
-        return (
-          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>
-            Mark as Published
-          </ActionBtn>
         )
       }
     }

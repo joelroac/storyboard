@@ -2,7 +2,6 @@ import React from 'react'
 import { ExternalLink, CheckCircle2 } from 'lucide-react'
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
-import { ANTHONY_STAGES } from '../../data/seedData'
 import StatusBadge from '../shared/StatusBadge'
 import { YoutubeIcon } from '../shared/Icons'
 
@@ -18,24 +17,38 @@ function daysLabel(dateStr) {
 }
 
 export default function AnthonyDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getStageOwner, getWorkflow } = useApp()
 
-  const myActive = projects.filter(
-    p => p.type === 'youtube' && ANTHONY_STAGES.includes(p.status)
-  )
-  const myDone = projects.filter(
-    p => p.type === 'youtube' && ['Posted', 'Final Review', 'Caption Needed', 'Caption In Review', 'Ready to Post', 'Scheduled'].includes(p.status)
-  )
+  // Active: any project where Anthony owns the current stage
+  const myActive = projects.filter(p => getStageOwner(p.type, p.status) === 'anthony')
+
+  // Done: projects that have passed through Anthony's stages
+  const myDone = projects.filter(p => {
+    if (getStageOwner(p.type, p.status) === 'anthony') return false
+    const wf = getWorkflow(p.type)
+    const idx = wf.indexOf(p.status)
+    return idx > 0 && wf.slice(0, idx).some(stage => getStageOwner(p.type, stage) === 'anthony')
+  })
 
   function handleMarkDone(project) {
-    advanceStatus(project.id, 'Edit Review', currentUser.id)
-    const joelId = getMemberByRole('admin')?.id
+    const wf = getWorkflow(project.type)
+    const currentIdx = wf.indexOf(project.status)
+    const nextStage  = currentIdx >= 0 ? wf[currentIdx + 1] : null
+    const joelId     = getMemberByRole('admin')?.id
+    advanceStatus(project.id, nextStage || 'Edit Review', currentUser.id)
     const msg = `Anthony marked "${project.title}" as done — ready for your review`
     addNotification({ message: msg, projectId: project.id, forUser: joelId })
     addBanner(msg, 'info')
   }
 
-  const canMarkDone = (p) => p.status === 'Editing in Progress' || p.status === 'Revision Requested'
+  // Can mark done when Anthony owns the stage and the next stage is Joel's
+  const canMarkDone = (p) => {
+    if (getStageOwner(p.type, p.status) !== 'anthony') return false
+    const wf  = getWorkflow(p.type)
+    const idx = wf.indexOf(p.status)
+    const next = idx >= 0 ? wf[idx + 1] : null
+    return next != null
+  }
 
   return (
     <div className="px-6 py-6 max-w-4xl mx-auto">
@@ -62,17 +75,17 @@ export default function AnthonyDashboard() {
         </div>
 
         {/* My Active Tasks highlight */}
-        {myActive.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').length > 0 && (
+        {myActive.filter(p => canMarkDone(p)).length > 0 && (
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-blue-400" />
               <span className="text-xs font-semibold text-white">My Active Tasks</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-bold"
                 style={{ background: 'rgba(96,165,250,0.2)', color: '#60a5fa' }}>
-                {myActive.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').length}
+                {myActive.filter(p => canMarkDone(p)).length}
               </span>
             </div>
-            {myActive.filter(p => p.status === 'Editing in Progress' || p.status === 'Revision Requested').map(p => (
+            {myActive.filter(p => canMarkDone(p)).map(p => (
               <div key={p.id}
                 className="rounded-xl p-3 mb-2 flex items-center gap-3 cursor-pointer transition-all"
                 style={{

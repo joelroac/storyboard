@@ -266,8 +266,13 @@ export default function JoelDashboard() {
         </div>
         <div className="kanban-scroll">
           <div className="grid gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', minWidth: 800 }}>
-            {KANBAN_GROUPS.map((group) => {
-              const groupProjects = kanbanProjects.filter(p => group.statuses.includes(p.status))
+            {KANBAN_GROUPS.map((group, groupIdx) => {
+              const allGroupedStatuses = KANBAN_GROUPS.flatMap(g => g.statuses)
+              const groupProjects = kanbanProjects.filter(p =>
+                group.statuses.includes(p.status) ||
+                // Custom stages not in any group fall into the first column
+                (groupIdx === 0 && !allGroupedStatuses.includes(p.status))
+              )
               const isDragOver = dragOverCol === group.label
               return (
                 <div

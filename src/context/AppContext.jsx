@@ -381,7 +381,9 @@ export function AppProvider({ children }) {
   // ── Projects ───────────────────────────────────────────────────────────────
 
   const addProject = useCallback(async (data, createdBy) => {
-    const workflow = WORKFLOWS[data.type]
+    // Use saved custom workflow so new projects start at the correct first stage
+    const customWf = workflowSettings[data.type]
+    const workflow  = (customWf?.stages?.length > 0) ? customWf.stages : (WORKFLOWS[data.type] || [])
     const firstStatus = workflow[0]
 
     const { data: inserted, error: projErr } = await supabase
@@ -424,7 +426,7 @@ export function AppProvider({ children }) {
     if (logErr) console.error('Error creating initial activity log entry:', logErr)
 
     return newProject
-  }, [])
+  }, [workflowSettings])
 
   const updateProject = useCallback(async (projectId, updates) => {
     // Optimistic
@@ -547,7 +549,9 @@ export function AppProvider({ children }) {
   // ── Platform / content-type change ────────────────────────────────────────
 
   const changePlatform = useCallback(async (projectId, newType, changedBy) => {
-    const newWorkflow   = WORKFLOWS[newType] || []
+    // Use saved custom workflow so the reset lands on the correct first stage
+    const customWf      = workflowSettings[newType]
+    const newWorkflow   = (customWf?.stages?.length > 0) ? customWf.stages : (WORKFLOWS[newType] || [])
     const newFirstStage = newWorkflow[0] || 'Filming'
     const dbPlatform    = PLATFORM_TO_DB[newType] || newType
 
@@ -575,7 +579,7 @@ export function AppProvider({ children }) {
 
     if (projErr) console.error('Error changing platform:', projErr)
     if (logErr)  console.error('Error logging platform change:', logErr)
-  }, [])
+  }, [workflowSettings])
 
   // ── Workflow settings save ─────────────────────────────────────────────────
 
