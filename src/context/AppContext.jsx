@@ -11,12 +11,14 @@ const PLATFORM_TO_DB = {
   instagram:  'Instagram',
   tiktok:     'TikTok',
   newsletter: 'Newsletter',
+  patreon:    'Patreon',
 }
 const PLATFORM_FROM_DB = {
   YouTube:    'youtube',
   Instagram:  'instagram',
   TikTok:     'tiktok',
   Newsletter: 'newsletter',
+  Patreon:    'patreon',
 }
 
 // Maps between DB assignedRole values and frontend owner keys
@@ -646,6 +648,26 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  // ── Relevant Links ────────────────────────────────────────────────────────
+  const [relevantLinks, setRelevantLinks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('storyboard_relevant_links')) || { editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] } }
+    catch { return { editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] } }
+  })
+
+  const updateRelevantLinks = useCallback((role, links) => {
+    setRelevantLinks((prev) => {
+      const next = { ...prev, [role]: links }
+      localStorage.setItem('storyboard_relevant_links', JSON.stringify(next))
+      return next
+    })
+  }, [])
+
+  // ── Clear Notifications ───────────────────────────────────────────────────
+  const clearNotifications = useCallback(async (userId) => {
+    setNotifications((prev) => prev.filter((n) => n.forUser !== userId && n.forUser !== null))
+    await supabase.from('notifications').delete().eq('user_id', userId)
+  }, [])
+
   // ── Context value ──────────────────────────────────────────────────────────
 
   return (
@@ -683,6 +705,9 @@ export function AppProvider({ children }) {
         saveWorkflowSettings,
         permissions,
         updatePermissions,
+        relevantLinks,
+        updateRelevantLinks,
+        clearNotifications,
       }}
     >
       {children}

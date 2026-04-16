@@ -6,6 +6,7 @@ export const TYPE_LABELS = {
   instagram:  'Instagram',
   tiktok:     'TikTok',
   newsletter: 'Newsletter',
+  patreon:    'Patreon',
 }
 
 /**
@@ -28,6 +29,7 @@ export function getStatusColor(status) {
     'Scheduled':           '#facc15',
     'Posted':              '#9ca3af',
     'Sent':                '#9ca3af',
+    'Inactive':            '#52525b',
   }
   return map[status] || '#71717a'
 }
@@ -68,6 +70,7 @@ export const CONTENT_TYPES = {
   instagram: { id: 'instagram', label: 'Instagram Reel', icon: 'camera', color: '#a855f7' },
   tiktok: { id: 'tiktok', label: 'TikTok Video', icon: 'music', color: '#14b8a6' },
   newsletter: { id: 'newsletter', label: 'Newsletter', icon: 'mail', color: '#f59e0b' },
+  patreon: { id: 'patreon', label: 'Patreon Post', icon: 'patreon', color: '#ff424d' },
 }
 
 export const WORKFLOWS = {
@@ -103,6 +106,16 @@ export const WORKFLOWS = {
     'Posted',
   ],
   newsletter: ['Drafting', 'In Review', 'Ready to Send', 'Sent'],
+  patreon: [
+    'Filming',
+    'Editing in Progress',
+    'Edit Review',
+    'Revision Requested',
+    'Final Review',
+    'Ready to Post',
+    'Scheduled',
+    'Posted',
+  ],
 }
 
 export const STAGE_OWNER = {
@@ -142,6 +155,16 @@ export const STAGE_OWNER = {
     'In Review': 'joel',
     'Ready to Send': 'joel',
     Sent: 'joel',
+  },
+  patreon: {
+    Filming: 'joel',
+    'Editing in Progress': 'anthony',
+    'Edit Review': 'joel',
+    'Revision Requested': 'anthony',
+    'Final Review': 'joel',
+    'Ready to Post': 'joel',
+    Scheduled: 'joel',
+    Posted: 'joel',
   },
 }
 

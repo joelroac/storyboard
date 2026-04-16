@@ -11,6 +11,7 @@ const TYPE_LABELS = {
   instagram:  'Instagram',
   tiktok:     'TikTok',
   newsletter: 'Newsletter',
+  patreon:    'Patreon',
 }
 
 export default function SettingsModal({ onClose }) {
@@ -18,6 +19,7 @@ export default function SettingsModal({ onClose }) {
     teamMembers, updateTeamMember,
     workflowSettings, saveWorkflowSettings,
     permissions, updatePermissions,
+    relevantLinks, updateRelevantLinks,
   } = useApp()
 
   const [tab, setTab] = useState('team')
@@ -89,6 +91,46 @@ export default function SettingsModal({ onClose }) {
   function getOwnerLabel(key) {
     const member = teamMembers.find((m) => m.role === OWNER_ROLE[key])
     return member?.name || key
+  }
+
+  // ── Team Links ────────────────────────────────────────────────────────────
+  const [localLinks, setLocalLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] })
+  const [linksSaved, setLinksSaved] = useState(false)
+
+  useEffect(() => {
+    setLocalLinks({
+      editor:                 [...(relevantLinks?.editor                 || [])],
+      socialManager:          [...(relevantLinks?.socialManager          || [])],
+      editorPasswords:        [...(relevantLinks?.editorPasswords        || [])],
+      socialManagerPasswords: [...(relevantLinks?.socialManagerPasswords || [])],
+    })
+  }, [relevantLinks])
+
+  function addLink(role) {
+    setLocalLinks(prev => ({ ...prev, [role]: [...(prev[role] || []), { label: '', url: '' }] }))
+  }
+  function removeLink(role, i) {
+    setLocalLinks(prev => ({ ...prev, [role]: prev[role].filter((_, idx) => idx !== i) }))
+  }
+  function updateLocalLink(role, i, field, val) {
+    setLocalLinks(prev => ({ ...prev, [role]: prev[role].map((l, idx) => idx === i ? { ...l, [field]: val } : l) }))
+  }
+  function addPassword(pwKey) {
+    setLocalLinks(prev => ({ ...prev, [pwKey]: [...(prev[pwKey] || []), { label: '', username: '', password: '' }] }))
+  }
+  function removePassword(pwKey, i) {
+    setLocalLinks(prev => ({ ...prev, [pwKey]: prev[pwKey].filter((_, idx) => idx !== i) }))
+  }
+  function updateLocalPassword(pwKey, i, field, val) {
+    setLocalLinks(prev => ({ ...prev, [pwKey]: prev[pwKey].map((p, idx) => idx === i ? { ...p, [field]: val } : p) }))
+  }
+  function handleSaveLinks() {
+    updateRelevantLinks('editor', localLinks.editor)
+    updateRelevantLinks('socialManager', localLinks.socialManager)
+    updateRelevantLinks('editorPasswords', localLinks.editorPasswords)
+    updateRelevantLinks('socialManagerPasswords', localLinks.socialManagerPasswords)
+    setLinksSaved(true)
+    setTimeout(() => setLinksSaved(false), 2000)
   }
 
   // ── Workflow editor ────────────────────────────────────────────────────────
@@ -189,7 +231,7 @@ export default function SettingsModal({ onClose }) {
 
         {/* Tabs */}
         <div className="flex" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          {[['team', 'Team Members'], ['workflow', 'Workflow Editor'], ['permissions', 'Permissions']].map(([t, label]) => (
+          {[['team', 'Team Members'], ['workflow', 'Workflow Editor'], ['permissions', 'Permissions'], ['links', 'Team Links']].map(([t, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -443,6 +485,63 @@ export default function SettingsModal({ onClose }) {
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* ── Team Links ── */}
+          {tab === 'links' && (
+            <div>
+              <p className="text-xs text-zinc-500 mb-5">Add links visible to your editor and social media manager in their dashboards.</p>
+
+              {[
+                { role: 'editor',        pwKey: 'editorPasswords',        label: 'For Editor' },
+                { role: 'socialManager', pwKey: 'socialManagerPasswords',  label: 'For Social Manager' },
+              ].map(({ role, pwKey, label }) => (
+                <div key={role} className="mb-8">
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold mb-3">{label}</p>
+
+                  {/* Links */}
+                  <p className="text-[10px] text-zinc-700 uppercase tracking-widest mb-2">Links</p>
+                  <div className="flex flex-col gap-2 mb-2">
+                    {(localLinks[role] || []).map((link, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input value={link.label} onChange={(e) => updateLocalLink(role, i, 'label', e.target.value)}
+                          placeholder="Label" className="text-sm rounded-lg px-3 py-2 text-zinc-300 w-28"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                        <input value={link.url} onChange={(e) => updateLocalLink(role, i, 'url', e.target.value)}
+                          placeholder="https://…" className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                        <button onClick={() => removeLink(role, i)} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => addLink(role)} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mb-4">+ Add Link</button>
+
+                  {/* Passwords */}
+                  <p className="text-[10px] text-zinc-700 uppercase tracking-widest mb-2 mt-3">Passwords</p>
+                  <div className="flex flex-col gap-2 mb-2">
+                    {(localLinks[pwKey] || []).map((entry, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input value={entry.label} onChange={(e) => updateLocalPassword(pwKey, i, 'label', e.target.value)}
+                          placeholder="Label" className="text-sm rounded-lg px-3 py-2 text-zinc-300 w-28"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                        <input value={entry.username} onChange={(e) => updateLocalPassword(pwKey, i, 'username', e.target.value)}
+                          placeholder="Username / email" className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                        <input value={entry.password} onChange={(e) => updateLocalPassword(pwKey, i, 'password', e.target.value)}
+                          placeholder="Password" className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                        <button onClick={() => removePassword(pwKey, i)} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => addPassword(pwKey)} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">+ Add Password</button>
+                </div>
+              ))}
+
+              <button onClick={handleSaveLinks} className="btn-amber px-5 py-2.5 text-sm mt-2">
+                {linksSaved ? 'Saved ✓' : 'Save Links'}
+              </button>
             </div>
           )}
 

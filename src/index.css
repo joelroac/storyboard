@@ -234,16 +234,19 @@ textarea {
 .platform-instagram { color: #a855f7; }
 .platform-tiktok { color: #14b8a6; }
 .platform-newsletter { color: #f59e0b; }
+.platform-patreon { color: #ff424d; }
 
 .bg-platform-youtube { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.25); }
 .bg-platform-instagram { background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.25); }
 .bg-platform-tiktok { background: rgba(20, 184, 166, 0.15); border-color: rgba(20, 184, 166, 0.25); }
 .bg-platform-newsletter { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.25); }
+.bg-platform-patreon { background: rgba(255, 66, 77, 0.15); border-color: rgba(255, 66, 77, 0.25); }
 
 .dot-youtube { background: #ef4444; }
 .dot-instagram { background: #a855f7; }
 .dot-tiktok { background: #14b8a6; }
 .dot-newsletter { background: #f59e0b; }
+.dot-patreon { background: #ff424d; }
 
 /* Banner slide-down animation */
 @keyframes slideDown {

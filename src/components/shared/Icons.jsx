@@ -34,12 +34,21 @@ export function NewsletterIcon({ size = 16, className = '' }) {
   )
 }
 
+export function PatreonIcon({ size = 16, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M14.82 2.41C10.28 2.41 6.58 6.11 6.58 10.65c0 4.53 3.7 8.22 8.24 8.22 4.53 0 8.22-3.69 8.22-8.22 0-4.54-3.69-8.24-8.22-8.24zM1.18 21.59h3.5V2.41h-3.5v19.18z"/>
+    </svg>
+  )
+}
+
 export function PlatformIcon({ type, size = 16, className = '' }) {
   const map = {
     youtube: <YoutubeIcon size={size} className={`platform-youtube ${className}`} />,
     instagram: <InstagramIcon size={size} className={`platform-instagram ${className}`} />,
     tiktok: <TikTokIcon size={size} className={`platform-tiktok ${className}`} />,
     newsletter: <NewsletterIcon size={size} className={`platform-newsletter ${className}`} />,
+    patreon: <PatreonIcon size={size} className={`platform-patreon ${className}`} />,
   }
   return map[type] || null
 }
@@ -50,6 +59,7 @@ export function PlatformDot({ type, size = 8 }) {
     instagram: '#a855f7',
     tiktok: '#14b8a6',
     newsletter: '#f59e0b',
+    patreon: '#ff424d',
   }
   return (
     <span

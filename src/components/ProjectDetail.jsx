@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2 } from 'lucide-react'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
@@ -63,6 +63,20 @@ function TimelineEntry({ entry, getTeamName }) {
   )
 }
 
+// ── Local project meta (localStorage) ────────────────────────────────────────
+
+const PROJ_META_KEY = (id) => `storyboard_proj_meta_${id}`
+
+function getLocalProjMeta(id) {
+  try { return JSON.parse(localStorage.getItem(PROJ_META_KEY(id))) || {} }
+  catch { return {} }
+}
+
+function saveLocalProjMeta(id, updates) {
+  const current = getLocalProjMeta(id)
+  localStorage.setItem(PROJ_META_KEY(id), JSON.stringify({ ...current, ...updates }))
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ProjectDetail() {
@@ -104,6 +118,16 @@ export default function ProjectDetail() {
   // Change content type (Feature 6)
   const [editType, setEditType]                   = useState('')
   const [showTypeConfirm, setShowTypeConfirm]     = useState(false)
+  // Expand to fullscreen
+  const [expanded, setExpanded]                   = useState(false)
+  // Relevant Notes
+  const [editRelevantNotes, setEditRelevantNotes] = useState('')
+  // Brand deal links
+  const [brandLinks, setBrandLinks]               = useState([])
+  // Script hide toggle
+  const [hideScript, setHideScript]               = useState(false)
+  // Asana hide toggle
+  const [hideAsana, setHideAsana]                 = useState(false)
 
   const captionTimerRef  = useRef(null)
   const scriptTimerRef   = useRef(null)
@@ -158,6 +182,12 @@ export default function ProjectDetail() {
     setConfirmDelete(false)
     setCaptionSaved(false)
     setTitleError('')
+    // localStorage-backed per-project meta
+    const meta = getLocalProjMeta(fresh.id)
+    setEditRelevantNotes(meta.relevantNotes || '')
+    setBrandLinks(meta.brandLinks || [])
+    setHideScript(meta.hideScript || false)
+    setHideAsana(meta.hideAsana || false)
   }, [selectedProject, projects])
 
   if (!selectedProject || !proj) return null
@@ -520,10 +550,15 @@ export default function ProjectDetail() {
     const currentOwner = getStageOwner(proj.type, s)
 
     if (isJoel) {
-      if (s === 'Filming')
-        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Raw Footage Ready')}>Mark Raw Footage Ready</ActionBtn>
-      if (s === 'Raw Footage Ready')
-        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Editing in Progress')}>Send to Anthony for Editing</ActionBtn>
+      if (s === 'Filming') {
+        const label = workflow.includes('Raw Footage Ready') ? 'Mark Raw Footage Ready' : `Advance → ${nextStage || 'Next Stage'}`
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Raw Footage Ready')}>{label}</ActionBtn>
+      }
+      if (s === 'Raw Footage Ready') {
+        const hasEditing = workflow.includes('Editing in Progress')
+        const label = hasEditing ? 'Send to Editing' : `Advance → ${nextStage || 'Next Stage'}`
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Editing in Progress')}>{label}</ActionBtn>
+      }
       if (s === 'Edit Review') return (
         <div className="flex flex-col gap-2">
           <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Final Review')}>Approve Edit → Final Review</ActionBtn>
@@ -655,7 +690,7 @@ export default function ProjectDetail() {
       onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null) }}
     >
       <div
-        className="modal-panel h-full w-full max-w-2xl overflow-y-auto flex flex-col"
+        className={`modal-panel h-full w-full ${expanded ? 'max-w-full' : 'max-w-2xl'} overflow-y-auto flex flex-col`}
         style={{ background: '#111115', borderLeft: '1px solid rgba(255,255,255,0.08)' }}
       >
         {/* ── Header ── */}
@@ -690,13 +725,23 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setSelectedProject(null)}
-            className="ml-4 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors hover:bg-white/10"
-            style={{ color: '#52525b' }}
-          >
-            <X size={16} />
-          </button>
+          <div className="ml-4 flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
+              style={{ color: '#52525b' }}
+              title={expanded ? 'Collapse' : 'Expand'}
+            >
+              {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
+              style={{ color: '#52525b' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 px-6 py-5 flex flex-col gap-6">
@@ -851,7 +896,7 @@ export default function ProjectDetail() {
               )}
             </Field>
 
-            <Field label="Content Type" className="col-span-2">
+            <Field label="Content Type" className={proj.type === 'instagram' ? 'col-span-1' : 'col-span-2'}>
               {isJoel ? (
                 <div>
                   <div className="flex items-center gap-2">
@@ -899,6 +944,43 @@ export default function ProjectDetail() {
                 </div>
               )}
             </Field>
+            {/* Instagram Account */}
+            {proj.type === 'instagram' && (
+              <Field label="Instagram Account">
+                {isJoel ? (
+                  <select
+                    value={editVideoBreakdown}
+                    onChange={(e) => { setEditVideoBreakdown(e.target.value); updateProject(proj.id, { videoBreakdown: e.target.value }) }}
+                    style={{ background: 'transparent', border: 'none', color: '#a1a1aa', fontSize: 13, outline: 'none' }}
+                  >
+                    <option value="">Select account</option>
+                    <option value="joelroac">joelroac</option>
+                    <option value="joelleroa">joelleroa</option>
+                  </select>
+                ) : (
+                  <span className="text-sm text-white">{proj.videoBreakdown || '—'}</span>
+                )}
+              </Field>
+            )}
+
+            {/* Substack Account */}
+            {proj.type === 'newsletter' && (
+              <Field label="Substack Account" className="col-span-2">
+                {isJoel ? (
+                  <select
+                    value={editVideoBreakdown}
+                    onChange={(e) => { setEditVideoBreakdown(e.target.value); updateProject(proj.id, { videoBreakdown: e.target.value }) }}
+                    style={{ background: 'transparent', border: 'none', color: '#a1a1aa', fontSize: 13, outline: 'none' }}
+                  >
+                    <option value="">Select account</option>
+                    <option value="joelroac">joelroac</option>
+                    <option value="Creative Minds">Creative Minds</option>
+                  </select>
+                ) : (
+                  <span className="text-sm text-white">{proj.videoBreakdown || '—'}</span>
+                )}
+              </Field>
+            )}
           </div>
 
           {/* ── Storage link ── */}
@@ -934,34 +1016,98 @@ export default function ProjectDetail() {
           )}
 
           {/* ── Asana Link ── */}
+          {proj.type !== 'youtube' && (
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Asana Task</p>
-            {canEditLinks ? (
-              <div className="flex items-center gap-2">
-                <input
-                  value={editAsana}
-                  onChange={(e) => setEditAsana(e.target.value)}
-                  onBlur={() => saveEdits()}
-                  placeholder="https://app.asana.com/…"
-                  className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                />
-                {editAsana && (
-                  <a href={editAsana} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1">
-                    <ExternalLink size={11} /> Open
-                  </a>
-                )}
-              </div>
-            ) : proj.asanaLink ? (
-              <a href={proj.asanaLink} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                <ExternalLink size={13} /> {proj.asanaLink}
-              </a>
-            ) : (
-              <span className="text-sm text-zinc-600">No link added</span>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Asana Task</p>
+              {isJoel && (
+                <button onClick={() => { const v = !hideAsana; setHideAsana(v); saveLocalProjMeta(proj.id, { hideAsana: v }) }}
+                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors ml-2">
+                  {hideAsana ? 'Show' : 'Hide'}
+                </button>
+              )}
+            </div>
+            {!hideAsana && (
+              canEditLinks ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={editAsana}
+                    onChange={(e) => setEditAsana(e.target.value)}
+                    onBlur={() => saveEdits()}
+                    placeholder="https://app.asana.com/…"
+                    className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  />
+                  {editAsana && (
+                    <a href={editAsana} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1">
+                      <ExternalLink size={11} /> Open
+                    </a>
+                  )}
+                </div>
+              ) : proj.asanaLink ? (
+                <a href={proj.asanaLink} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                  <ExternalLink size={13} /> {proj.asanaLink}
+                </a>
+              ) : (
+                <span className="text-sm text-zinc-600">No link added</span>
+              )
             )}
           </div>
+          )}
+
+          {/* ── Brand Deal Links ── */}
+          {editBrandType === 'Brand Deal' && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Brand Deal Links</p>
+              <div className="flex flex-col gap-2">
+                {brandLinks.map((link, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      value={link.label}
+                      onChange={(e) => {
+                        const updated = brandLinks.map((l, idx) => idx === i ? { ...l, label: e.target.value } : l)
+                        setBrandLinks(updated)
+                        saveLocalProjMeta(proj.id, { brandLinks: updated })
+                      }}
+                      placeholder="Label (e.g. Brief, Assets)"
+                      className="text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700 w-28"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                    <input
+                      value={link.url}
+                      onChange={(e) => {
+                        const updated = brandLinks.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l)
+                        setBrandLinks(updated)
+                        saveLocalProjMeta(proj.id, { brandLinks: updated })
+                      }}
+                      placeholder="https://…"
+                      className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                    {link.url && <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-500 hover:text-amber-400"><ExternalLink size={11} /></a>}
+                    {isJoel && (
+                      <button onClick={() => {
+                        const updated = brandLinks.filter((_, idx) => idx !== i)
+                        setBrandLinks(updated)
+                        saveLocalProjMeta(proj.id, { brandLinks: updated })
+                      }} style={{ color: '#52525b', background: 'none', border: 'none', cursor: 'pointer' }}><X size={12} /></button>
+                    )}
+                  </div>
+                ))}
+                {isJoel && (
+                  <button onClick={() => {
+                    const updated = [...brandLinks, { label: '', url: '' }]
+                    setBrandLinks(updated)
+                    saveLocalProjMeta(proj.id, { brandLinks: updated })
+                  }} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+                    + Add Link
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── Video Breakdown (YouTube only) ── */}
           {proj.type === 'youtube' && (
@@ -986,7 +1132,30 @@ export default function ProjectDetail() {
             </div>
           )}
 
+          {/* ── Relevant Notes (Joel internal notes) ── */}
+          {(isJoel || editRelevantNotes) && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Relevant Notes</p>
+            {isJoel ? (
+              <textarea
+                value={editRelevantNotes}
+                onChange={(e) => {
+                  setEditRelevantNotes(e.target.value)
+                  saveLocalProjMeta(proj.id, { relevantNotes: e.target.value })
+                }}
+                placeholder="Internal notes, context, production details…"
+                className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-300 placeholder-zinc-700"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                rows={3}
+              />
+            ) : (
+              editRelevantNotes && <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{editRelevantNotes}</p>
+            )}
+          </div>
+          )}
+
           {/* ── Script / Notes (Feature 8: structured two-column template) ── */}
+          {proj.type !== 'youtube' && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
@@ -1000,18 +1169,29 @@ export default function ProjectDetail() {
                   </span>
                 )}
               </div>
-              {isJoel && (
-                <button
-                  onClick={handlePDFExport}
-                  className="text-xs px-2 py-1 rounded flex items-center gap-1"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
-                >
-                  <Download size={11} /> Export PDF
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {isJoel && (
+                  <button
+                    onClick={() => { const v = !hideScript; setHideScript(v); saveLocalProjMeta(proj.id, { hideScript: v }) }}
+                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                    title={hideScript ? 'Show script' : 'Hide script'}
+                  >
+                    {hideScript ? 'Show' : 'Hide'}
+                  </button>
+                )}
+                {isJoel && (
+                  <button
+                    onClick={handlePDFExport}
+                    className="text-xs px-2 py-1 rounded flex items-center gap-1"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}
+                  >
+                    <Download size={11} /> Export PDF
+                  </button>
+                )}
+              </div>
             </div>
 
-            {canEditScript ? (
+            {hideScript ? null : canEditScript ? (
               /* Joel: editable script blocks (Script Line | Shot Note) */
               <div>
                 {/* Column headers */}
@@ -1082,7 +1262,7 @@ export default function ProjectDetail() {
                           background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
                         }}
                       >
-                        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                           {block.scriptLine || <span className="text-zinc-700">—</span>}
                         </p>
                         <p className="text-xs text-zinc-500 italic leading-relaxed">
@@ -1097,7 +1277,7 @@ export default function ProjectDetail() {
               </div>
             )}
           </div>
-
+          )}
 
           {/* ── Caption ── */}
           <div>
@@ -1220,17 +1400,36 @@ export default function ProjectDetail() {
             </div>
           </div>
 
-          {/* ── Delete (Joel only) ── */}
+          {/* ── Delete / Inactive (Joel only) ── */}
           {isJoel && (
             <div className="mt-2 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               {!confirmDelete ? (
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="w-full py-2 text-sm rounded-lg flex items-center justify-center gap-2"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
-                >
-                  <Trash2 size={13} /> Delete Project
-                </button>
+                <div className="flex gap-2">
+                  {proj.status !== 'Inactive' ? (
+                    <button
+                      onClick={() => { overrideStatus(proj.id, 'Inactive', 'Marked inactive', currentUser.id); setSelectedProject(null) }}
+                      className="flex-1 py-2 text-sm rounded-lg flex items-center justify-center gap-2"
+                      style={{ background: 'rgba(82,82,91,0.15)', color: '#a1a1aa', border: '1px solid rgba(82,82,91,0.3)' }}
+                    >
+                      Mark Inactive
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => overrideStatus(proj.id, getWorkflow(proj.type)[0], 'Reactivated', currentUser.id)}
+                      className="flex-1 py-2 text-sm rounded-lg flex items-center justify-center gap-2"
+                      style={{ background: 'rgba(82,82,91,0.15)', color: '#a1a1aa', border: '1px solid rgba(82,82,91,0.3)' }}
+                    >
+                      Reactivate
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex-1 py-2 text-sm rounded-lg flex items-center justify-center gap-2"
+                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                  >
+                    <Trash2 size={13} /> Delete Project
+                  </button>
+                </div>
               ) : (
                 <div className="rounded-lg p-3" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
                   <p className="text-xs text-red-400 mb-3">This will permanently delete this project.</p>

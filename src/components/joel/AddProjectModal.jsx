@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { X } from 'lucide-react'
+import { addDays, format } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import { CONTENT_TYPES, TYPE_LABELS } from '../../data/seedData'
 import { PlatformIcon } from '../shared/Icons'
@@ -15,7 +16,7 @@ export default function AddProjectModal({ onClose, limitTypes = null }) {
     type:        types[0]?.id || 'youtube',
     brand:       'Organic',
     brandName:   '',
-    publishDate: '',
+    publishDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
     dropboxLink: '',
   })
   const [titleError, setTitleError] = useState('')

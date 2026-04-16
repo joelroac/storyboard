@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react'
-import { CheckCircle2, Clock, Plus, Camera } from 'lucide-react'
+import React, { useState } from 'react'
+import { CheckCircle2, Clock, Plus, ExternalLink } from 'lucide-react'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import StatusBadge from '../shared/StatusBadge'
@@ -66,36 +66,9 @@ function ProjectCard({ project, onClick, highlight }) {
 }
 
 export default function TianaDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow, teamMembers, updateTeamMember } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow } = useApp()
   const [showAdd, setShowAdd] = useState(false)
-  const photoInputRef = useRef(null)
   const now = new Date()
-
-  const mySelf = teamMembers.find(m => m.role === 'social_manager')
-
-  function handlePhotoUpload(e) {
-    const file = e.target.files?.[0]
-    if (!file || !mySelf) return
-    const img = new Image()
-    const objectUrl = URL.createObjectURL(file)
-    img.onload = async () => {
-      const MAX = 300
-      let { naturalWidth: w, naturalHeight: h } = img
-      if (w > MAX || h > MAX) {
-        if (w > h) { h = Math.round((h / w) * MAX); w = MAX }
-        else        { w = Math.round((w / h) * MAX); h = MAX }
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = w; canvas.height = h
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      const base64 = canvas.toDataURL('image/jpeg', 0.82)
-      URL.revokeObjectURL(objectUrl)
-      await updateTeamMember(mySelf.id, { avatar_url: base64 })
-    }
-    img.onerror = () => URL.revokeObjectURL(objectUrl)
-    img.src = objectUrl
-    e.target.value = ''
-  }
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
 
@@ -141,43 +114,18 @@ export default function TianaDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-editorial text-3xl font-semibold text-white">Caption & Social Queue</h1>
+          <h1 className="font-editorial text-3xl font-semibold text-white">Social Queue</h1>
           <p className="text-zinc-500 text-sm mt-1">
             {format(now, 'EEEE, MMMM d')} · Here's your content queue
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Profile photo */}
-          <button
-            type="button"
-            onClick={() => photoInputRef.current?.click()}
-            className="relative w-9 h-9 rounded-full overflow-hidden shrink-0 group"
-            style={{ border: '1px solid rgba(255,255,255,0.12)' }}
-            title="Update your profile photo"
-          >
-            {mySelf?.avatar_url ? (
-              <img src={mySelf.avatar_url} alt={mySelf.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-sm font-bold"
-                style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
-                {(mySelf?.name || 'T')[0].toUpperCase()}
-              </div>
-            )}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ background: 'rgba(0,0,0,0.55)' }}>
-              <Camera size={12} style={{ color: '#fff' }} />
-            </div>
-          </button>
-          <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
-
-          <button
-            onClick={() => setShowAdd(true)}
-            className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
-          >
-            <Plus size={15} />
-            New Project
-          </button>
-        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+        >
+          <Plus size={15} />
+          New Project
+        </button>
       </div>
 
       {showAdd && (
@@ -236,7 +184,7 @@ export default function TianaDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{p.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {p.brand && p.brand !== 'Organic' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                           style={{ background: 'rgba(255,255,255,0.07)', color: '#71717a' }}>
@@ -246,15 +194,24 @@ export default function TianaDashboard() {
                       <span className="text-xs text-zinc-500">
                         {p.publishDate ? format(parseISO(p.publishDate), 'MMM d') : ''}
                       </span>
+                      {p.asanaLink && (
+                        <a href={p.asanaLink} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-0.5 text-[10px] text-zinc-500 hover:text-amber-400 transition-colors">
+                          <ExternalLink size={10} /> Asana
+                        </a>
+                      )}
+                      {p.dropboxLink && (
+                        <a href={p.dropboxLink} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-0.5 text-[10px] text-zinc-500 hover:text-blue-400 transition-colors">
+                          <ExternalLink size={10} /> {p.type === 'instagram' || p.type === 'tiktok' ? 'Drive' : 'Dropbox'}
+                        </a>
+                      )}
                     </div>
                   </div>
                   <div className="text-xs font-semibold text-orange-400 shrink-0">Write Caption →</div>
                 </div>
-                {p.notes && (
-                  <div className="px-4 pb-3">
-                    <p className="text-xs text-zinc-500 italic leading-relaxed">{p.notes}</p>
-                  </div>
-                )}
               </button>
             ))}
           </div>
@@ -378,6 +335,7 @@ export default function TianaDashboard() {
           <p className="text-sm text-zinc-500">No items in your queue right now.</p>
         </div>
       )}
+
     </div>
   )
 }

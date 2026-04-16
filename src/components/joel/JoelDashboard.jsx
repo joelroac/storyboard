@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, AlertCircle, CalendarDays, CheckCircle2, Trash2 } from 'lucide-react'
+import { Plus, AlertCircle, CheckCircle2, Trash2, ChevronDown } from 'lucide-react'
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import { JOEL_REVIEW_STAGES, TYPE_LABELS, getStatusColor } from '../../data/seedData'
@@ -8,10 +8,10 @@ import { PlatformIcon } from '../shared/Icons'
 import AddProjectModal from './AddProjectModal'
 
 const KANBAN_GROUPS = [
-  { label: 'In Production', statuses: ['Filming', 'Raw Footage Ready', 'Drafting'] },
-  { label: 'Editing',       statuses: ['Editing in Progress', 'Edit Review', 'Revision Requested', 'Final Review', 'In Review'] },
-  { label: 'Caption Stage', statuses: ['Caption Needed', 'Caption In Review'] },
-  { label: 'Going Live',    statuses: ['Ready to Post', 'Scheduled', 'Ready to Send'] },
+  { label: 'In Production',     statuses: ['Filming', 'Raw Footage Ready', 'Drafting'] },
+  { label: 'Editing',           statuses: ['Editing in Progress', 'Edit Review', 'Revision Requested', 'Final Review', 'In Review'] },
+  { label: 'Caption Stage',     statuses: ['Caption Needed', 'Caption In Review'] },
+  { label: 'Social Production', statuses: [], special: 'social' },
 ]
 
 function daysLabel(dateStr) {
@@ -181,12 +181,23 @@ export default function JoelDashboard() {
   const [showAdd, setShowAdd]           = useState(false)
   const [dragOverCol, setDragOverCol]   = useState(null)
   const [deletingId, setDeletingId]     = useState(null)
+  const [showInactive, setShowInactive] = useState(false)
+  const [expandedCols, setExpandedCols] = useState({})
 
-  const active         = projects.filter(p => !['Posted', 'Sent'].includes(p.status))
+  const active         = projects.filter(p => !['Posted', 'Sent', 'Inactive'].includes(p.status))
+  const inactiveProjects = projects.filter(p => p.status === 'Inactive')
   const reviewQueue    = active.filter(p => JOEL_REVIEW_STAGES.includes(p.status))
+  const byDate = (a, b) => {
+    if (!a.publishDate && !b.publishDate) return 0
+    if (!a.publishDate) return 1
+    if (!b.publishDate) return -1
+    return new Date(a.publishDate) - new Date(b.publishDate)
+  }
+  const tianaProjects  = active.filter(p => getStageOwner(p.type, p.status) === 'tiana').sort(byDate)
   const kanbanProjects = active.filter(
-    p => !['Ready to Post', 'Scheduled', 'Ready to Send'].includes(p.status)
-  )
+    p => !['Ready to Post', 'Scheduled', 'Ready to Send', 'Inactive'].includes(p.status)
+       && getStageOwner(p.type, p.status) !== 'tiana'
+  ).sort(byDate)
   const readyProjects  = projects
     .filter(p => ['Ready to Post', 'Ready to Send'].includes(p.status))
     .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate))
@@ -294,13 +305,73 @@ export default function JoelDashboard() {
         <div className="kanban-scroll">
           <div className="grid gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', minWidth: 800 }}>
             {KANBAN_GROUPS.map((group, groupIdx) => {
-              const allGroupedStatuses = KANBAN_GROUPS.flatMap(g => g.statuses)
-              const groupProjects = kanbanProjects.filter(p =>
-                group.statuses.includes(p.status) ||
-                // Custom stages not in any group fall into the first column
-                (groupIdx === 0 && !allGroupedStatuses.includes(p.status))
-              )
               const isDragOver = dragOverCol === group.label
+
+              const CAP = 5
+              const colKey = group.special === 'social' ? 'Social Production' : group.label
+              const isExpanded = !!expandedCols[colKey]
+              const toggleExpand = () => setExpandedCols(prev => ({ ...prev, [colKey]: !prev[colKey] }))
+
+              // Social Production column — render tianaProjects directly
+              if (group.special === 'social') {
+                const visible = isExpanded ? tianaProjects : tianaProjects.slice(0, CAP)
+                const hidden  = tianaProjects.length - CAP
+                return (
+                  <div key="Social Production" className="rounded-xl p-3"
+                    style={{ minHeight: 120, background: 'transparent', border: '1px solid transparent' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Social Production</p>
+                      {tianaProjects.length > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                          style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                          {tianaProjects.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {tianaProjects.length === 0 ? (
+                        <div className="rounded-xl py-8 flex items-center justify-center"
+                          style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
+                          <span className="text-xs text-zinc-700">Empty</span>
+                        </div>
+                      ) : (
+                        <>
+                          {visible.map(p => (
+                            <ProjectMiniCard key={p.id} project={p} onClick={() => openProject(p)}
+                              onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
+                              showDelete={deletingId === p.id}
+                              onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
+                              teamMembers={teamMembers} getWorkflow={getWorkflow}
+                              getStageOwner={getStageOwner} updateProject={updateProject} />
+                          ))}
+                          {!isExpanded && hidden > 0 && (
+                            <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">
+                              +{hidden} more
+                            </button>
+                          )}
+                          {isExpanded && tianaProjects.length > CAP && (
+                            <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">
+                              Show less
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              }
+
+              const allGroupedStatuses = KANBAN_GROUPS.filter(g => !g.special).flatMap(g => g.statuses)
+              // In Production: real production stages first, then catch-all (Ideation etc.)
+              const mainProjects     = groupIdx === 0 ? kanbanProjects.filter(p => group.statuses.includes(p.status)) : []
+              const catchAllProjects = groupIdx === 0 ? kanbanProjects.filter(p => !allGroupedStatuses.includes(p.status)) : []
+              const groupProjects    = groupIdx === 0
+                ? [...mainProjects, ...catchAllProjects]
+                : kanbanProjects.filter(p => group.statuses.includes(p.status))
+
+              const visible = isExpanded ? groupProjects : groupProjects.slice(0, CAP)
+              const hidden  = groupProjects.length - CAP
+
               return (
                 <div
                   key={group.label}
@@ -315,9 +386,7 @@ export default function JoelDashboard() {
                     transition: 'background 0.15s, border-color 0.15s',
                   }}>
                   <div className="flex items-center gap-2 mb-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                      {group.label}
-                    </p>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{group.label}</p>
                     {groupProjects.length > 0 && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
                         style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
@@ -332,20 +401,26 @@ export default function JoelDashboard() {
                         <span className="text-xs text-zinc-700">Empty</span>
                       </div>
                     ) : (
-                      groupProjects.map(p => (
-                        <ProjectMiniCard
-                          key={p.id}
-                          project={p}
-                          onClick={() => openProject(p)}
-                          onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
-                          showDelete={deletingId === p.id}
-                          onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
-                          teamMembers={teamMembers}
-                          getWorkflow={getWorkflow}
-                          getStageOwner={getStageOwner}
-                          updateProject={updateProject}
-                        />
-                      ))
+                      <>
+                        {visible.map(p => (
+                          <ProjectMiniCard key={p.id} project={p} onClick={() => openProject(p)}
+                            onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
+                            showDelete={deletingId === p.id}
+                            onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
+                            teamMembers={teamMembers} getWorkflow={getWorkflow}
+                            getStageOwner={getStageOwner} updateProject={updateProject} />
+                        ))}
+                        {!isExpanded && hidden > 0 && (
+                          <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">
+                            +{hidden} more
+                          </button>
+                        )}
+                        {isExpanded && groupProjects.length > CAP && (
+                          <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">
+                            Show less
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -355,78 +430,36 @@ export default function JoelDashboard() {
         </div>
       </section>
 
-      {/* Ready to Post */}
-      {readyProjects.length > 0 && (
+      {/* Going Live — horizontal bar */}
+      {(readyProjects.length > 0 || scheduledProjects.length > 0) && (
         <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Approved — Ready to Post</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Going Live</h2>
+            <span className="text-xs text-zinc-600">{readyProjects.length + scheduledProjects.length} projects</span>
           </div>
-          <div className="flex flex-col gap-3">
-            {readyProjects.map(p => {
-              const days = daysLabel(p.publishDate)
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => openProject(p)}
-                  className="card card-hover w-full text-left p-4 flex items-center gap-4 cursor-pointer"
-                >
-                  <PlatformIcon type={p.type} size={16} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white truncate">{p.title}</span>
+          <div className="kanban-scroll">
+            <div className="flex gap-3" style={{ minWidth: 'max-content' }}>
+              {[...readyProjects, ...scheduledProjects].map(p => {
+                const cd = countdownText(p)
+                return (
+                  <div key={p.id} onClick={() => openProject(p)}
+                    className="cursor-pointer w-52 rounded-xl p-3 shrink-0"
+                    style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <PlatformIcon type={p.type} size={11} />
+                      <span className="text-[10px] text-zinc-500">{TYPE_LABELS[p.type]}</span>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-zinc-500">{TYPE_LABELS[p.type]}</span>
-                      {p.publishDate && <span className="text-xs text-zinc-600">· {format(parseISO(p.publishDate), 'MMM d')}</span>}
-                    </div>
+                    <p className="text-xs font-medium text-white leading-snug mb-2">{p.title}</p>
+                    <StatusBadge status={p.status} />
+                    {cd && <p className="text-[10px] mt-2" style={{ color: cd.color }}>{cd.text}</p>}
                   </div>
-                  <StatusBadge status={p.status} />
-                </button>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </section>
       )}
-
-      {/* Going Live / Scheduled */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarDays size={15} className="text-emerald-400" />
-          <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Going Live</h2>
-        </div>
-        {scheduledProjects.length === 0 ? (
-          <div className="rounded-xl py-10 text-center"
-            style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
-            <p className="text-zinc-600 text-sm">No scheduled posts</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {scheduledProjects.map(p => {
-              const cd = countdownText(p)
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => openProject(p)}
-                  className="card card-hover w-full text-left p-4 flex items-center gap-4 cursor-pointer"
-                >
-                  <PlatformIcon type={p.type} size={16} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-semibold text-white">{p.title}</span>
-                    <div className="text-xs text-zinc-500 mt-0.5">
-                      {TYPE_LABELS[p.type]} · {p.scheduledTime
-                        ? new Date(p.scheduledTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : p.publishDate ? format(parseISO(p.publishDate), 'MMM d') : ''}
-                    </div>
-                  </div>
-                  {cd && <span className="text-xs font-semibold shrink-0" style={{ color: cd.color }}>{cd.text}</span>}
-                  <StatusBadge status={p.status} />
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </section>
 
       {/* All Posted */}
       {(() => {
@@ -453,6 +486,33 @@ export default function JoelDashboard() {
           </section>
         )
       })()}
+
+      {/* Inactive / On Hold */}
+      {inactiveProjects.length > 0 && (
+        <section className="mb-8">
+          <button
+            onClick={() => setShowInactive(v => !v)}
+            className="flex items-center gap-2 mb-4 w-full text-left"
+          >
+            <div className="text-xs font-semibold text-zinc-600 uppercase tracking-widest">Inactive / On Hold</div>
+            <span className="text-xs text-zinc-700">{inactiveProjects.length}</span>
+            <ChevronDown size={13} className="text-zinc-700 ml-auto" style={{ transform: showInactive ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+          </button>
+          {showInactive && (
+            <div className="flex flex-col gap-2">
+              {inactiveProjects.map(p => (
+                <button key={p.id} onClick={() => openProject(p)}
+                  className="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/[0.03]"
+                  style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <PlatformIcon type={p.type} size={14} />
+                  <span className="text-sm text-zinc-500 flex-1 truncate">{p.title}</span>
+                  <StatusBadge status={p.status} />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} />}
     </div>

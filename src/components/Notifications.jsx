@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function Notifications() {
-  const { notifications, currentUser, unreadCount, markNotificationsRead, setSelectedProject, projects } = useApp()
+  const { notifications, currentUser, unreadCount, markNotificationsRead, clearNotifications, setSelectedProject, projects } = useApp()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -62,12 +62,22 @@ export default function Notifications() {
           <div className="px-4 py-3 flex items-center justify-between"
             style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <span className="font-semibold text-sm text-white">Notifications</span>
-            {count > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: 'rgba(245,158,11,0.2)', color: '#fbbf24' }}>
-                {count} new
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {count > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'rgba(245,158,11,0.2)', color: '#fbbf24' }}>
+                  {count} new
+                </span>
+              )}
+              {myNotifs.length > 0 && (
+                <button
+                  onClick={() => clearNotifications(currentUser?.id)}
+                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors cursor-pointer"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto">
