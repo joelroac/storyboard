@@ -154,19 +154,22 @@ export function AppProvider({ children }) {
           { data: notifRows,   error: notifErr },
           { data: wfRows,      error: wfErr },
           { data: memberRows,  error: memberErr },
+          { data: settingsRows, error: settingsErr },
         ] = await Promise.all([
           supabase.from('projects').select('*').order('created_at', { ascending: false }),
           supabase.from('activity_log').select('*').order('created_at', { ascending: true }),
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('workflow_settings').select('*'),
           supabase.from('team_members').select('id, name, role, pin, avatar_url'),
+          supabase.from('app_settings').select('*'),
         ])
 
-        if (projErr)   console.error('Projects fetch error:', projErr)
-        if (logErr)    console.error('Activity log fetch error:', logErr)
-        if (notifErr)  console.error('Notifications fetch error:', notifErr)
-        if (wfErr)     console.error('Workflow settings fetch error:', wfErr)
-        if (memberErr) console.error('Team members fetch error:', memberErr)
+        if (projErr)     console.error('Projects fetch error:', projErr)
+        if (logErr)      console.error('Activity log fetch error:', logErr)
+        if (notifErr)    console.error('Notifications fetch error:', notifErr)
+        if (wfErr)       console.error('Workflow settings fetch error:', wfErr)
+        if (memberErr)   console.error('Team members fetch error:', memberErr)
+        if (settingsErr) console.error('App settings fetch error:', settingsErr)
 
         const frontendProjects = attachHistory(
           (projectRows || []).map(dbToProject),
@@ -184,6 +187,14 @@ export function AppProvider({ children }) {
             if (parsed) wfMap[parsed.type] = parsed
           }
           setWorkflowSettings(wfMap)
+        }
+
+        // Load relevant links from Supabase
+        if (settingsRows && settingsRows.length > 0) {
+          const linksRow = settingsRows.find(r => r.key === 'relevant_links')
+          if (linksRow?.value) {
+            setRelevantLinks(linksRow.value)
+          }
         }
       } catch (err) {
         console.error('Error loading initial data:', err)
@@ -649,15 +660,14 @@ export function AppProvider({ children }) {
   }, [])
 
   // ── Relevant Links ────────────────────────────────────────────────────────
-  const [relevantLinks, setRelevantLinks] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('storyboard_relevant_links')) || { editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] } }
-    catch { return { editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] } }
-  })
+  const [relevantLinks, setRelevantLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] })
 
-  const updateRelevantLinks = useCallback((role, links) => {
+  const updateRelevantLinks = useCallback(async (role, links) => {
     setRelevantLinks((prev) => {
       const next = { ...prev, [role]: links }
-      localStorage.setItem('storyboard_relevant_links', JSON.stringify(next))
+      supabase.from('app_settings').upsert({ key: 'relevant_links', value: next }, { onConflict: 'key' }).then(({ error }) => {
+        if (error) console.error('Error saving relevant links:', error)
+      })
       return next
     })
   }, [])
