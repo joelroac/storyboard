@@ -28,13 +28,14 @@ function daysLabel(dateStr) {
 // Maps STAGE_OWNER key → DB role for teamMembers lookup
 const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
 
-function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow, getStageOwner }) {
+function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow, getStageOwner, updateProject }) {
   const ownerKey    = getStageOwner ? getStageOwner(project.type, project.status) : null
   const ownerMember = teamMembers?.find(m => m.role === OWNER_ROLE[ownerKey])
   const days        = daysLabel(project.publishDate)
   const workflow    = getWorkflow ? getWorkflow(project.type) : []
   const idx         = workflow.indexOf(project.status)
   const pct         = workflow.length > 1 ? (idx / (workflow.length - 1)) * 100 : 100
+  const [editingDate, setEditingDate] = useState(false)
 
   return (
     <div
@@ -80,20 +81,45 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
       <span className="text-xs font-medium text-white leading-snug">{project.title}</span>
       <StatusBadge status={project.status} />
 
-      {ownerMember && (
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
-            style={{ background: 'rgba(255,255,255,0.1)', color: '#9ca3af' }}>
-            {ownerMember.avatar || ownerMember.name?.[0]}
-          </div>
-          <span className="text-[10px] text-zinc-500">{ownerMember.name}</span>
-          {days && (
-            <span className={`text-[10px] font-medium ml-auto ${days.urgent ? 'text-amber-400' : 'text-zinc-600'}`}>
-              {days.label}
-            </span>
+      <div className="flex items-center gap-1.5">
+        {ownerMember && (
+          <>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
+              style={{ background: 'rgba(255,255,255,0.1)', color: '#9ca3af' }}>
+              {ownerMember.avatar || ownerMember.name?.[0]}
+            </div>
+            <span className="text-[10px] text-zinc-500">{ownerMember.name}</span>
+          </>
+        )}
+        <div className="ml-auto" onClick={e => e.stopPropagation()}>
+          {editingDate ? (
+            <input
+              type="date"
+              autoFocus
+              defaultValue={project.publishDate || ''}
+              onBlur={e => {
+                if (e.target.value) updateProject(project.id, { publishDate: e.target.value })
+                setEditingDate(false)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.target.blur() }
+                if (e.key === 'Escape') { setEditingDate(false) }
+              }}
+              className="text-[10px] bg-transparent border-b outline-none w-24"
+              style={{ color: '#f59e0b', borderColor: 'rgba(245,158,11,0.4)' }}
+            />
+          ) : (
+            <button
+              onClick={() => setEditingDate(true)}
+              className="text-[10px] font-medium hover:opacity-80 transition-opacity"
+              style={{ color: days?.urgent ? '#f59e0b' : '#52525b' }}
+              title="Click to change date"
+            >
+              {days ? days.label : (project.publishDate ? format(parseISO(project.publishDate), 'MMM d') : 'Set date')}
+            </button>
           )}
         </div>
-      )}
+      </div>
 
       {/* Mini progress bar */}
       <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
@@ -150,7 +176,7 @@ function ReviewCard({ project, onClick, getTeamName }) {
 }
 
 export default function JoelDashboard() {
-  const { projects, setSelectedProject, advanceStatus, deleteProject, getTeamName, getWorkflow, getStageOwner, teamMembers } = useApp()
+  const { projects, setSelectedProject, advanceStatus, deleteProject, updateProject, getTeamName, getWorkflow, getStageOwner, teamMembers } = useApp()
   const [showAdd, setShowAdd]           = useState(false)
   const [dragOverCol, setDragOverCol]   = useState(null)
   const [deletingId, setDeletingId]     = useState(null)
@@ -316,6 +342,7 @@ export default function JoelDashboard() {
                           teamMembers={teamMembers}
                           getWorkflow={getWorkflow}
                           getStageOwner={getStageOwner}
+                          updateProject={updateProject}
                         />
                       ))
                     )}

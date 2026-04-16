@@ -19,8 +19,17 @@ function daysLabel(dateStr) {
 export default function AnthonyDashboard() {
   const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getStageOwner, getWorkflow } = useApp()
 
-  // Active: any project where Anthony owns the current stage
-  const myActive = projects.filter(p => getStageOwner(p.type, p.status) === 'anthony')
+  // Active: Anthony owns current stage, OR he submitted it and Joel is reviewing
+  const myActive = projects.filter(p => {
+    const owner = getStageOwner(p.type, p.status)
+    if (owner === 'anthony') return true
+    if (owner === 'joel') {
+      const wf = getWorkflow(p.type)
+      const idx = wf.indexOf(p.status)
+      return idx > 0 && getStageOwner(p.type, wf[idx - 1]) === 'anthony'
+    }
+    return false
+  })
 
   // Done: projects that have passed through Anthony's stages
   const myDone = projects.filter(p => {

@@ -66,14 +66,26 @@ function ProjectCard({ project, onClick, highlight }) {
 }
 
 export default function TianaDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const now = new Date()
 
-  const needsCaption     = projects.filter(p => p.status === 'Caption Needed')
-  const awaitingApproval = projects.filter(p => p.status === 'Caption In Review')
-  const readyToPost      = projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send')
-  const scheduled        = projects.filter(p => p.status === 'Scheduled')
+  const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
+
+  // Projects where Tiana owns the current stage (excluding terminal/publish-ready stages)
+  const needsCaption = projects.filter(p =>
+    getStageOwner(p.type, p.status) === 'tiana' &&
+    !TERMINAL_STATUSES.includes(p.status)
+  )
+  // Projects where Joel owns the current stage and the previous stage was Tiana's (she submitted)
+  const awaitingApproval = projects.filter(p => {
+    if (getStageOwner(p.type, p.status) !== 'joel') return false
+    const wf = getWorkflow(p.type)
+    const idx = wf.indexOf(p.status)
+    return idx > 0 && getStageOwner(p.type, wf[idx - 1]) === 'tiana'
+  })
+  const readyToPost = projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send')
+  const scheduled   = projects.filter(p => p.status === 'Scheduled')
   const postedThisMonth  = projects.filter(p => {
     if (!['Posted', 'Sent'].includes(p.status)) return false
     const history = p.statusHistory || []

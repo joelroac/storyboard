@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
-  addMonths, subMonths, parseISO,
+  addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -187,7 +187,7 @@ export default function Calendar() {
           {/* Month nav */}
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              onClick={() => setCurrentMonth(view === 'week' ? subWeeks(currentMonth, 1) : subMonths(currentMonth, 1))}
               className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
               style={{ color: '#71717a', border: '1px solid rgba(255,255,255,0.1)' }}
             >
@@ -201,7 +201,7 @@ export default function Calendar() {
               Today
             </button>
             <button
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              onClick={() => setCurrentMonth(view === 'week' ? addWeeks(currentMonth, 1) : addMonths(currentMonth, 1))}
               className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
               style={{ color: '#71717a', border: '1px solid rgba(255,255,255,0.1)' }}
             >
