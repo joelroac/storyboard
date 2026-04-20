@@ -129,10 +129,13 @@ export default function ProjectDetail() {
   // Asana hide toggle
   const [hideAsana, setHideAsana]                 = useState(false)
 
-  const captionTimerRef  = useRef(null)
-  const scriptTimerRef   = useRef(null)
-  const shotTimerRef     = useRef(null)
-  const thumbInputRef    = useRef(null)
+  const captionTimerRef    = useRef(null)
+  const scriptTimerRef     = useRef(null)
+  const shotTimerRef       = useRef(null)
+  const thumbInputRef      = useRef(null)
+  const loadedProjectIdRef = useRef(null)  // tracks which project is currently loaded
+  const scriptDirtyRef     = useRef(false) // true while user has unsaved script changes
+  const shotDirtyRef       = useRef(false) // true while user has unsaved shot list changes
 
   // Parse legacy plain-text script or JSON blocks (Feature 8 backward compat)
   function parseScriptBlocks(notesStr) {
@@ -150,44 +153,62 @@ export default function ProjectDetail() {
     if (!selectedProject) return
     const fresh = projects.find((p) => p.id === selectedProject.id) || selectedProject
     setProj(fresh)
-    setEditTitle(fresh.title)
-    setEditType(fresh.type)
-    setShowTypeConfirm(false)
 
-    // Parse brand field into type + name
-    if (!fresh.brand || fresh.brand === 'Organic') {
-      setEditBrandType('Organic')
-      setEditBrandName('')
+    const isNewProject = loadedProjectIdRef.current !== fresh.id
+    if (isNewProject) {
+      // Full reset — new project opened
+      loadedProjectIdRef.current = fresh.id
+      scriptDirtyRef.current = false
+      shotDirtyRef.current   = false
+      setEditTitle(fresh.title)
+      setEditType(fresh.type)
+      setShowTypeConfirm(false)
+      if (!fresh.brand || fresh.brand === 'Organic') {
+        setEditBrandType('Organic')
+        setEditBrandName('')
+      } else {
+        setEditBrandType('Brand Deal')
+        setEditBrandName(fresh.brand)
+      }
+      setEditDate(fresh.publishDate || '')
+      setEditDropbox(fresh.dropboxLink || '')
+      setEditAsana(fresh.asanaLink || '')
+      setEditVideoBreakdown(fresh.videoBreakdown || '')
+      setEditCaption(fresh.caption || '')
+      setScriptBlocks(parseScriptBlocks(fresh.notes))
+      setScriptSavedAt(null)
+      setScriptUnsaved(false)
+      setShotListDraft(fresh.shotList || [])
+      setShotListSavedAt(null)
+      setScheduledTime(fresh.scheduledTime || '')
+      setOverrideStage(fresh.status)
+      setShowRevisionInput(false)
+      setShowScheduleInput(false)
+      setShowOverrideConfirm(false)
+      setRevisionNote('')
+      setConfirmDelete(false)
+      setCaptionSaved(false)
+      setTitleError('')
+      const meta = getLocalProjMeta(fresh.id)
+      setEditRelevantNotes(meta.relevantNotes || '')
+      setBrandLinks(meta.brandLinks || [])
+      setHideScript(meta.hideScript || false)
+      setHideAsana(meta.hideAsana || false)
     } else {
-      setEditBrandType('Brand Deal')
-      setEditBrandName(fresh.brand)
+      // Same project updated (e.g. title/date save) — only sync non-editing fields
+      setEditTitle(fresh.title)
+      setOverrideStage(fresh.status)
+      // Only reset script/shot if the user has no pending edits
+      if (!scriptDirtyRef.current) {
+        setScriptBlocks(parseScriptBlocks(fresh.notes))
+        setScriptSavedAt(null)
+        setScriptUnsaved(false)
+      }
+      if (!shotDirtyRef.current) {
+        setShotListDraft(fresh.shotList || [])
+        setShotListSavedAt(null)
+      }
     }
-
-    setEditDate(fresh.publishDate || '')
-    setEditDropbox(fresh.dropboxLink || '')
-    setEditAsana(fresh.asanaLink || '')
-    setEditVideoBreakdown(fresh.videoBreakdown || '')
-    setEditCaption(fresh.caption || '')
-    setScriptBlocks(parseScriptBlocks(fresh.notes))
-    setScriptSavedAt(null)
-    setScriptUnsaved(false)
-    setShotListDraft(fresh.shotList || [])
-    setShotListSavedAt(null)
-    setScheduledTime(fresh.scheduledTime || '')
-    setOverrideStage(fresh.status)
-    setShowRevisionInput(false)
-    setShowScheduleInput(false)
-    setShowOverrideConfirm(false)
-    setRevisionNote('')
-    setConfirmDelete(false)
-    setCaptionSaved(false)
-    setTitleError('')
-    // localStorage-backed per-project meta
-    const meta = getLocalProjMeta(fresh.id)
-    setEditRelevantNotes(meta.relevantNotes || '')
-    setBrandLinks(meta.brandLinks || [])
-    setHideScript(meta.hideScript || false)
-    setHideAsana(meta.hideAsana || false)
   }, [selectedProject, projects])
 
   if (!selectedProject || !proj) return null
@@ -249,26 +270,30 @@ export default function ProjectDetail() {
     captionTimerRef.current = setTimeout(() => setCaptionSaved(false), 2000)
   }
 
-  // Script blocks auto-save with 500ms debounce (Feature 8)
+  // Script blocks auto-save with 800ms debounce
   function handleScriptBlocksChange(newBlocks) {
     setScriptBlocks(newBlocks)
     setScriptUnsaved(true)
+    scriptDirtyRef.current = true
     if (scriptTimerRef.current) clearTimeout(scriptTimerRef.current)
     scriptTimerRef.current = setTimeout(() => {
       updateProject(proj.id, { notes: JSON.stringify(newBlocks) })
       setScriptSavedAt(new Date().toISOString())
       setScriptUnsaved(false)
-    }, 500)
+      scriptDirtyRef.current = false
+    }, 800)
   }
 
-  // Shot list debounced save (Feature 7)
+  // Shot list debounced save
   function handleShotListChange(newList) {
     setShotListDraft(newList)
+    shotDirtyRef.current = true
     if (shotTimerRef.current) clearTimeout(shotTimerRef.current)
     shotTimerRef.current = setTimeout(() => {
       updateProject(proj.id, { shotList: newList })
       setShotListSavedAt(new Date().toISOString())
-    }, 500)
+      shotDirtyRef.current = false
+    }, 800)
   }
 
   function saveVideoBreakdown() {
@@ -1218,15 +1243,16 @@ export default function ProjectDetail() {
                         className="text-sm text-zinc-300 placeholder-zinc-700 rounded-lg px-3 py-2 w-full"
                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', resize: 'vertical' }}
                       />
-                      <input
+                      <textarea
                         value={block.shotNote}
                         onChange={(e) => {
                           const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
                           handleScriptBlocksChange(updated)
                         }}
+                        rows={2}
                         placeholder={proj.type === 'newsletter' ? 'Section note…' : 'Shot / visual description…'}
                         className="text-sm text-zinc-400 placeholder-zinc-700 rounded-lg px-3 py-2"
-                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 1 }}
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 1, resize: 'vertical' }}
                       />
                       <button
                         onClick={() => handleScriptBlocksChange(scriptBlocks.filter((b) => b.id !== block.id))}
