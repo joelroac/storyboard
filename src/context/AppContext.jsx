@@ -135,10 +135,28 @@ export function AppProvider({ children }) {
   const [banners, setBanners]                 = useState([])
   const [workflowSettings, setWorkflowSettings] = useState({})
   const [selectedProject, setSelectedProject] = useState(null)
-  const [activeTab, setActiveTab]             = useState('dashboard')
+  const VALID_TABS = ['dashboard', 'calendar', 'links', 'ideas']
+  const [activeTab, setActiveTab]             = useState(() => {
+    const hash = window.location.hash.slice(1)
+    return VALID_TABS.includes(hash) ? hash : 'dashboard'
+  })
   const [loading, setLoading]                 = useState(true)
   const [permissions, setPermissions]         = useState(DEFAULT_PERMISSIONS)
   const [previewRole, setPreviewRole]         = useState(null)   // null | 'editor' | 'social_manager'
+
+  // ── Persist active tab in URL hash ────────────────────────────────────────
+  useEffect(() => {
+    window.location.hash = activeTab
+  }, [activeTab])
+
+  useEffect(() => {
+    function onHashChange() {
+      const hash = window.location.hash.slice(1)
+      if (VALID_TABS.includes(hash)) setActiveTab(hash)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   // ── Initial data load ──────────────────────────────────────────────────────
   useEffect(() => {

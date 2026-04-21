@@ -56,11 +56,12 @@ function BannerContainer() {
 }
 
 function LinksPage() {
-  const { currentUser, relevantLinks } = useApp()
+  const { currentUser, relevantLinks, previewRole } = useApp()
   const [showPasswords, setShowPasswords] = React.useState({})
-  const isAdmin   = currentUser?.role === 'admin' || currentUser?.role === 'creator'
-  const isSocial  = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
-  const isEditor  = currentUser?.role === 'editor'
+  const effectiveRole = previewRole || currentUser?.role
+  const isAdmin   = effectiveRole === 'admin' || effectiveRole === 'creator'
+  const isSocial  = effectiveRole === 'social_manager' || effectiveRole === 'social'
+  const isEditor  = effectiveRole === 'editor'
 
   const sections = []
   if (isAdmin || isSocial) sections.push({ title: 'Social Media', links: relevantLinks?.socialManager || [], passwords: relevantLinks?.socialManagerPasswords || [] })

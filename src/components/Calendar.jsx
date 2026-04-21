@@ -65,19 +65,22 @@ const PLATFORM_COLORS = {
 }
 
 export default function Calendar() {
-  const { projects, setSelectedProject, updateProject, currentUser, permissions, postingGoals } = useApp()
+  const { projects, setSelectedProject, updateProject, currentUser, permissions, postingGoals, previewRole } = useApp()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [view, setView]                 = useState('month') // 'month' | 'week'
   const [selectedDay, setSelectedDay]   = useState(null)
   const [draggedId, setDraggedId]       = useState(null)
   const [dragOverDate, setDragOverDate] = useState(null)
 
-  const isAdmin      = currentUser?.role === 'admin' || currentUser?.role === 'creator'
-  const isTiana      = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
+  // When Joel is previewing another user, use that role for filtering/permissions
+  const effectiveRole = previewRole || currentUser?.role
+
+  const isAdmin      = effectiveRole === 'admin' || effectiveRole === 'creator'
+  const isTiana      = effectiveRole === 'social_manager' || effectiveRole === 'social'
   const canReschedule = isAdmin || (isTiana && permissions?.socialManager?.canEditCalendar)
 
   // Projects with a publish date; editor (Anthony) sees YouTube only
-  const isEditor = currentUser?.role === 'editor'
+  const isEditor = effectiveRole === 'editor'
   const activeProjects = projects.filter((p) => p.publishDate && (isEditor ? p.type === 'youtube' : true))
 
   function projectsOnDay(date) {

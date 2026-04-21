@@ -172,7 +172,7 @@ export default function Layout({ children }) {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => { setActiveTab(tab.id); setPreviewRole(null) }}
+                    onClick={() => setActiveTab(tab.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={
                       active
