@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { X, GripVertical, RotateCcw, Camera } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { WORKFLOWS, STAGE_OWNER } from '../data/seedData'
+import { PlatformIcon } from './shared/Icons'
 
 // Maps legacy owner key → DB role
 const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
@@ -20,9 +21,31 @@ export default function SettingsModal({ onClose }) {
     workflowSettings, saveWorkflowSettings,
     permissions, updatePermissions,
     relevantLinks, updateRelevantLinks,
+    postingGoals, updatePostingGoals,
   } = useApp()
 
   const [tab, setTab] = useState('team')
+
+  // ── Posting Goals ─────────────────────────────────────────────────────────
+  const [goalDraft, setGoalDraft]   = useState({})
+  const [goalsSaved, setGoalsSaved] = useState(false)
+
+  useEffect(() => {
+    setGoalDraft(
+      Object.fromEntries(
+        Object.keys(TYPE_LABELS).map((p) => [p, postingGoals[p] ?? 0])
+      )
+    )
+  }, [postingGoals])
+
+  async function handleSaveGoals() {
+    const clean = Object.fromEntries(
+      Object.entries(goalDraft).filter(([, v]) => v > 0)
+    )
+    await updatePostingGoals(clean)
+    setGoalsSaved(true)
+    setTimeout(() => setGoalsSaved(false), 2000)
+  }
 
   const PERMISSION_TOGGLES = [
     { key: 'canEditCalendar', label: 'Adjust Calendar & Dates',  desc: 'Can drag projects to reschedule and change publish dates on the calendar' },
@@ -231,7 +254,7 @@ export default function SettingsModal({ onClose }) {
 
         {/* Tabs */}
         <div className="flex" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          {[['team', 'Team Members'], ['workflow', 'Workflow Editor'], ['permissions', 'Permissions'], ['links', 'Team Links']].map(([t, label]) => (
+          {[['team', 'Team Members'], ['workflow', 'Workflow Editor'], ['permissions', 'Permissions'], ['links', 'Team Links'], ['goals', 'Posting Goals']].map(([t, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -499,6 +522,54 @@ export default function SettingsModal({ onClose }) {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Posting Goals ── */}
+          {tab === 'goals' && (
+            <div>
+              <p className="text-xs text-zinc-500 mb-6">
+                Set how many times you want to post on each platform per week.
+                The calendar will track progress and highlight when you hit your target.
+              </p>
+              <div className="flex flex-col gap-3">
+                {Object.entries(TYPE_LABELS).map(([platform, label]) => {
+                  const val = goalDraft[platform] || 0
+                  return (
+                    <div key={platform}
+                      className="flex items-center justify-between rounded-xl px-4 py-3"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <PlatformIcon type={platform} size={14} />
+                        <span className="text-sm font-medium text-white">{label}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setGoalDraft((d) => ({ ...d, [platform]: Math.max(0, (d[platform] || 0) - 1) }))}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-lg leading-none transition-colors"
+                          style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.08)' }}
+                        >−</button>
+                        <span className="text-sm font-semibold text-white w-5 text-center tabular-nums">{val}</span>
+                        <button
+                          onClick={() => setGoalDraft((d) => ({ ...d, [platform]: Math.min(14, (d[platform] || 0) + 1) }))}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-lg leading-none transition-colors"
+                          style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.08)' }}
+                        >+</button>
+                        <span className="text-[10px] w-14 text-right" style={{ color: val === 0 ? '#3f3f46' : '#71717a' }}>
+                          {val === 0 ? 'No goal' : 'per week'}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-end gap-3 mt-6">
+                {goalsSaved && <span className="text-xs text-emerald-400">Saved!</span>}
+                <button onClick={handleSaveGoals} className="btn-amber px-5 py-2.5 text-sm">
+                  Save Goals
+                </button>
               </div>
             </div>
           )}

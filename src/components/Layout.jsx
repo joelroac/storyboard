@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { LayoutDashboard, CalendarDays, Link2, LogOut, Settings, Clapperboard, Camera, X, KeyRound, ChevronRight, ShieldCheck, ShieldOff } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Link2, LogOut, Settings, Clapperboard, Camera, X, KeyRound, ChevronRight, ShieldCheck, ShieldOff, Lightbulb } from 'lucide-react'
 import * as OTPAuth from 'otpauth'
 import QRCode from 'qrcode'
 import { useApp } from '../context/AppContext'
@@ -127,6 +127,7 @@ export default function Layout({ children }) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'calendar',  label: 'Calendar',  icon: CalendarDays },
     { id: 'links',     label: 'Links',     icon: Link2 },
+    ...(isAdmin ? [{ id: 'ideas', label: 'Ideas', icon: Lightbulb }] : []),
   ]
 
   const roleColor = {

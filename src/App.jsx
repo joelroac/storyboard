@@ -8,6 +8,7 @@ import AnthonyDashboard from './components/anthony/AnthonyDashboard'
 import TianaDashboard from './components/tiana/TianaDashboard'
 import Calendar from './components/Calendar'
 import ProjectDetail from './components/ProjectDetail'
+import IdeasBoard from './components/joel/IdeasBoard'
 
 function BannerContainer() {
   const { banners } = useApp()
@@ -143,6 +144,7 @@ function DashboardRouter() {
 
   if (activeTab === 'calendar') return <Calendar />
   if (activeTab === 'links')    return <LinksPage />
+  if (activeTab === 'ideas')    return <IdeasBoard />
 
   if (currentUser.role === 'admin' || currentUser.role === 'creator') return <JoelDashboard />
   if (currentUser.role === 'editor')                                   return <AnthonyDashboard />

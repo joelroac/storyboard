@@ -211,13 +211,19 @@ export function AppProvider({ children }) {
           setWorkflowSettings(wfMap)
         }
 
-        // Load app settings (relevant links + permissions) from Supabase
+        // Load app settings (relevant links + permissions + ideas) from Supabase
         if (settingsRows && settingsRows.length > 0) {
           const linksRow = settingsRows.find(r => r.key === 'relevant_links')
           if (linksRow?.value) setRelevantLinks(linksRow.value)
 
           const permsRow = settingsRows.find(r => r.key === 'permissions')
           if (permsRow?.value) setPermissions(permsRow.value)
+
+          const ideasRow = settingsRows.find(r => r.key === 'ideas')
+          if (ideasRow?.value) setIdeas(ideasRow.value)
+
+          const goalsRow = settingsRows.find(r => r.key === 'posting_goals')
+          if (goalsRow?.value) setPostingGoals(goalsRow.value)
         }
       } catch (err) {
         console.error('Error loading initial data:', err)
@@ -705,6 +711,57 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  // ── Posting Goals ─────────────────────────────────────────────────────────
+  const [postingGoals, setPostingGoals] = useState({})
+
+  const updatePostingGoals = useCallback(async (goals) => {
+    setPostingGoals(goals)
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'posting_goals', value: goals }, { onConflict: 'key' })
+    if (error) console.error('Failed to save posting goals:', error)
+  }, [])
+
+  // ── Ideas ─────────────────────────────────────────────────────────────────
+  const [ideas, setIdeas] = useState([])
+
+  function _saveIdeas(next) {
+    supabase.from('app_settings').upsert({ key: 'ideas', value: next }, { onConflict: 'key' }).then(({ error }) => {
+      if (error) console.error('Error saving ideas:', error)
+    })
+  }
+
+  const addIdea = useCallback((fields) => {
+    const idea = {
+      id:        Date.now().toString(),
+      title:     fields.title || 'Untitled Idea',
+      notes:     fields.notes || '',
+      type:      fields.type  || null,
+      createdAt: new Date().toISOString(),
+    }
+    setIdeas((prev) => {
+      const next = [...prev, idea]
+      _saveIdeas(next)
+      return next
+    })
+  }, [])
+
+  const updateIdea = useCallback((id, updates) => {
+    setIdeas((prev) => {
+      const next = prev.map((idea) => idea.id === id ? { ...idea, ...updates } : idea)
+      _saveIdeas(next)
+      return next
+    })
+  }, [])
+
+  const deleteIdea = useCallback((id) => {
+    setIdeas((prev) => {
+      const next = prev.filter((idea) => idea.id !== id)
+      _saveIdeas(next)
+      return next
+    })
+  }, [])
+
   // ── Relevant Links ────────────────────────────────────────────────────────
   const [relevantLinks, setRelevantLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] })
 
@@ -762,6 +819,12 @@ export function AppProvider({ children }) {
         saveWorkflowSettings,
         permissions,
         updatePermissions,
+        postingGoals,
+        updatePostingGoals,
+        ideas,
+        addIdea,
+        updateIdea,
+        deleteIdea,
         relevantLinks,
         updateRelevantLinks,
         clearNotifications,

@@ -4,10 +4,57 @@ import {
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
   addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
+
+// ── Week Goal Row ─────────────────────────────────────────────────────────────
+
+function WeekGoalRow({ week, projects, goals }) {
+  const activePlatforms = Object.entries(goals).filter(([, g]) => g > 0)
+  if (activePlatforms.length === 0) return null
+
+  const weekStart = week[0]
+  const weekEnd   = week[week.length - 1]
+
+  // Count projects per platform whose publishDate falls within this week
+  const counts = {}
+  for (const p of projects) {
+    if (!p.publishDate) continue
+    const d = new Date(p.publishDate + 'T00:00:00')
+    if (d >= weekStart && d <= weekEnd) {
+      counts[p.type] = (counts[p.type] || 0) + 1
+    }
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 px-3 py-1.5 mb-1 rounded-lg flex-wrap"
+      style={{ background: 'rgba(255,255,255,0.02)' }}
+    >
+      {activePlatforms.map(([platform, goal]) => {
+        const count = counts[platform] || 0
+        const met   = count >= goal
+        return (
+          <span key={platform} className="flex items-center gap-1">
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: PLATFORM_COLORS[platform] || '#9ca3af' }}
+            />
+            <span
+              className="text-[10px] font-semibold tabular-nums"
+              style={{ color: met ? '#4ade80' : '#52525b' }}
+            >
+              {count}/{goal}
+            </span>
+            {met && <CheckCircle2 size={10} style={{ color: '#4ade80' }} />}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
 
 const PLATFORM_COLORS = {
   youtube:    '#ef4444',
@@ -18,7 +65,7 @@ const PLATFORM_COLORS = {
 }
 
 export default function Calendar() {
-  const { projects, setSelectedProject, updateProject, currentUser, permissions } = useApp()
+  const { projects, setSelectedProject, updateProject, currentUser, permissions, postingGoals } = useApp()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [view, setView]                 = useState('month') // 'month' | 'week'
   const [selectedDay, setSelectedDay]   = useState(null)
@@ -232,11 +279,28 @@ export default function Calendar() {
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {(view === 'month' ? days : weekDays).map((day) => (
-              <DayCell key={day.toISOString()} date={day} />
-            ))}
-          </div>
+          {view === 'month' ? (
+            // Chunk days into weeks and inject a goal row after each week
+            (() => {
+              const weeks = []
+              for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
+              return weeks.map((week, wi) => (
+                <React.Fragment key={wi}>
+                  <div className="grid grid-cols-7 gap-1">
+                    {week.map((day) => <DayCell key={day.toISOString()} date={day} />)}
+                  </div>
+                  <WeekGoalRow week={week} projects={activeProjects} goals={postingGoals} />
+                </React.Fragment>
+              ))
+            })()
+          ) : (
+            <>
+              <div className="grid grid-cols-7 gap-1">
+                {weekDays.map((day) => <DayCell key={day.toISOString()} date={day} />)}
+              </div>
+              <WeekGoalRow week={weekDays} projects={activeProjects} goals={postingGoals} />
+            </>
+          )}
 
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 pt-4 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
