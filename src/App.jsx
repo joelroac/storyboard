@@ -140,11 +140,15 @@ function LinksPage() {
 }
 
 function DashboardRouter() {
-  const { currentUser, activeTab } = useApp()
+  const { currentUser, activeTab, previewRole } = useApp()
 
   if (activeTab === 'calendar') return <Calendar />
   if (activeTab === 'links')    return <LinksPage />
   if (activeTab === 'ideas')    return <IdeasBoard />
+
+  // Admin preview mode — render another user's dashboard without switching accounts
+  if (previewRole === 'editor')         return <AnthonyDashboard />
+  if (previewRole === 'social_manager') return <TianaDashboard />
 
   if (currentUser.role === 'admin' || currentUser.role === 'creator') return <JoelDashboard />
   if (currentUser.role === 'editor')                                   return <AnthonyDashboard />

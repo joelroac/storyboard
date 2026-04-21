@@ -184,7 +184,7 @@ export default function TianaDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{p.title}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <div className="flex items-center gap-2 mt-1">
                       {p.brand && p.brand !== 'Organic' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                           style={{ background: 'rgba(255,255,255,0.07)', color: '#71717a' }}>
@@ -194,21 +194,25 @@ export default function TianaDashboard() {
                       <span className="text-xs text-zinc-500">
                         {p.publishDate ? format(parseISO(p.publishDate), 'MMM d') : ''}
                       </span>
-                      {p.asanaLink && (
-                        <a href={p.asanaLink} target="_blank" rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-0.5 text-[10px] text-zinc-500 hover:text-amber-400 transition-colors">
-                          <ExternalLink size={10} /> Asana
-                        </a>
-                      )}
-                      {p.dropboxLink && (
-                        <a href={p.dropboxLink} target="_blank" rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-0.5 text-[10px] text-zinc-500 hover:text-blue-400 transition-colors">
-                          <ExternalLink size={10} /> {p.type === 'instagram' || p.type === 'tiktok' ? 'Drive' : 'Dropbox'}
-                        </a>
-                      )}
                     </div>
+                    {(p.asanaLink || p.dropboxLink) && (
+                      <div className="flex items-center gap-3 mt-1">
+                        {p.asanaLink && (
+                          <a href={p.asanaLink} target="_blank" rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-amber-400 transition-colors">
+                            <ExternalLink size={10} /> Asana
+                          </a>
+                        )}
+                        {p.dropboxLink && (
+                          <a href={p.dropboxLink} target="_blank" rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-blue-400 transition-colors">
+                            <ExternalLink size={10} /> {p.type === 'instagram' || p.type === 'tiktok' ? 'Drive' : 'Dropbox'}
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs font-semibold text-orange-400 shrink-0">Write Caption →</div>
                 </div>

@@ -138,6 +138,7 @@ export function AppProvider({ children }) {
   const [activeTab, setActiveTab]             = useState('dashboard')
   const [loading, setLoading]                 = useState(true)
   const [permissions, setPermissions]         = useState(DEFAULT_PERMISSIONS)
+  const [previewRole, setPreviewRole]         = useState(null)   // null | 'editor' | 'social_manager'
 
   // ── Initial data load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -819,6 +820,8 @@ export function AppProvider({ children }) {
         saveWorkflowSettings,
         permissions,
         updatePermissions,
+        previewRole,
+        setPreviewRole,
         postingGoals,
         updatePostingGoals,
         ideas,

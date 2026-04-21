@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2 } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check } from 'lucide-react'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
@@ -99,6 +99,7 @@ export default function ProjectDetail() {
   const [editVideoBreakdown, setEditVideoBreakdown] = useState('')
   const [editCaption, setEditCaption]             = useState('')
   const [captionSaved, setCaptionSaved]           = useState(false)
+  const [captionCopied, setCaptionCopied]         = useState(false)
   // Script as structured blocks (Feature 8)
   const [scriptBlocks, setScriptBlocks]           = useState([])
   const [scriptUnsaved, setScriptUnsaved]         = useState(false)
@@ -1325,22 +1326,43 @@ export default function ProjectDetail() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Caption</p>
-              {(canEditCaption || isJoel) && (
-                <div className="flex items-center gap-2">
-                  {captionSaved && <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>}
+              <div className="flex items-center gap-2">
+                {/* Copy button — visible to everyone when there's caption content */}
+                {(editCaption || proj.caption) && (
                   <button
-                    onClick={saveCaption}
-                    className="text-xs px-2 py-1 rounded"
+                    onClick={() => {
+                      navigator.clipboard.writeText(editCaption || proj.caption || '')
+                      setCaptionCopied(true)
+                      setTimeout(() => setCaptionCopied(false), 2000)
+                    }}
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded transition-all"
                     style={
-                      canEditCaption
-                        ? { background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }
-                        : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
+                      captionCopied
+                        ? { background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }
+                        : { background: 'rgba(255,255,255,0.05)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }
                     }
+                    title="Copy caption to clipboard"
                   >
-                    Save
+                    {captionCopied ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy</>}
                   </button>
-                </div>
-              )}
+                )}
+                {(canEditCaption || isJoel) && (
+                  <>
+                    {captionSaved && <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>}
+                    <button
+                      onClick={saveCaption}
+                      className="text-xs px-2 py-1 rounded"
+                      style={
+                        canEditCaption
+                          ? { background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }
+                          : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
+                      }
+                    >
+                      Save
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             {canEditCaption || isJoel ? (
               <textarea

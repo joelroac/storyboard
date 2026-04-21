@@ -7,7 +7,7 @@ import Notifications from './Notifications'
 import SettingsModal from './SettingsModal'
 
 export default function Layout({ children }) {
-  const { currentUser, teamMembers, logout, activeTab, setActiveTab, updateTeamMember } = useApp()
+  const { currentUser, teamMembers, logout, activeTab, setActiveTab, updateTeamMember, previewRole, setPreviewRole } = useApp()
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileSettings, setShowProfileSettings] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -172,7 +172,7 @@ export default function Layout({ children }) {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => { setActiveTab(tab.id); setPreviewRole(null) }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={
                       active
@@ -186,6 +186,43 @@ export default function Layout({ children }) {
                 )
               })}
             </nav>
+
+          {/* View As — admin only */}
+          {isAdmin && (
+            <div className="flex items-center gap-1 pl-4 ml-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className="text-[10px] text-zinc-600 mr-1 uppercase tracking-widest">View as</span>
+              {[
+                { role: 'social_manager', label: 'Juliana' },
+                { role: 'editor',         label: 'Anthony' },
+              ].map(({ role, label }) => {
+                const active = previewRole === role
+                return (
+                  <button
+                    key={role}
+                    onClick={() => { setPreviewRole(active ? null : role); setActiveTab('dashboard') }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                    style={
+                      active
+                        ? { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
+                        : { color: '#52525b', border: '1px solid rgba(255,255,255,0.07)' }
+                    }
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              {previewRole && (
+                <button
+                  onClick={() => setPreviewRole(null)}
+                  className="ml-1 w-5 h-5 rounded flex items-center justify-center transition-colors hover:bg-white/10"
+                  style={{ color: '#52525b' }}
+                  title="Exit preview"
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: notifications + user */}
@@ -231,6 +268,24 @@ export default function Layout({ children }) {
           </button>
         </div>
       </header>
+
+      {/* Preview mode banner */}
+      {previewRole && (
+        <div
+          className="flex items-center justify-between px-6 py-2 text-xs font-medium"
+          style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.15)', color: '#fbbf24' }}
+        >
+          <span>
+            Previewing as <strong>{previewRole === 'editor' ? 'Anthony' : 'Juliana'}</strong> — you are still logged in as Joel
+          </span>
+          <button
+            onClick={() => setPreviewRole(null)}
+            className="flex items-center gap-1 hover:text-white transition-colors"
+          >
+            <X size={11} /> Exit Preview
+          </button>
+        </div>
+      )}
 
       {/* Page content */}
       <main className="flex-1 overflow-auto">
