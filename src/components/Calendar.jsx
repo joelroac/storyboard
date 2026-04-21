@@ -14,6 +14,7 @@ const PLATFORM_COLORS = {
   instagram:  '#a855f7',
   tiktok:     '#14b8a6',
   newsletter: '#f59e0b',
+  patreon:    '#ff424d',
 }
 
 export default function Calendar() {
@@ -130,13 +131,19 @@ export default function Calendar() {
               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
               style={{
-                background: `${PLATFORM_COLORS[p.type]}18`,
-                border:     `1px solid ${PLATFORM_COLORS[p.type]}30`,
+                background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}18`,
+                border:     `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}30`,
                 cursor:     isAdmin ? 'grab' : 'pointer',
               }}
             >
               <PlatformDot type={p.type} size={5} />
-              <span className="text-[9px] font-medium truncate" style={{ color: PLATFORM_COLORS[p.type] }}>
+              {p.brand && p.brand !== 'Organic' && (
+                <span
+                  title={`Brand Deal: ${p.brand}`}
+                  style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}
+                >B</span>
+              )}
+              <span className="text-[9px] font-medium truncate" style={{ color: PLATFORM_COLORS[p.type] || '#9ca3af' }}>
                 {p.title}
               </span>
             </button>
@@ -232,7 +239,7 @@ export default function Calendar() {
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-4 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center gap-4 mt-4 pt-4 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             {Object.entries(PLATFORM_COLORS).map(([platform, color]) => (
               <div key={platform} className="flex items-center gap-1.5">
                 <PlatformDot type={platform} size={8} />
@@ -241,6 +248,10 @@ export default function Calendar() {
                 </span>
               </div>
             ))}
+            <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#fbbf24' }}>B</span>
+              <span className="text-xs text-zinc-500">Brand Deal</span>
+            </div>
           </div>
 
           {/* Weekly Agenda */}
@@ -282,7 +293,12 @@ export default function Calendar() {
                             <PlatformIcon type={p.type} size={13} />
                             <span className="text-sm text-white font-medium flex-1 truncate">{p.title}</span>
                             {p.brand && p.brand !== 'Organic' && (
-                              <span className="text-[10px] text-zinc-600">{p.brand}</span>
+                              <span
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                                style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
+                              >
+                                {p.brand}
+                              </span>
                             )}
                             <StatusBadge status={p.status} />
                           </button>
@@ -335,16 +351,24 @@ export default function Calendar() {
                       key={p.id}
                       onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
                       className="w-full text-left rounded-xl p-3 transition-colors hover:bg-white/[0.03]"
-                      style={{ border: `1px solid ${PLATFORM_COLORS[p.type]}25`, background: `${PLATFORM_COLORS[p.type]}08` }}
+                      style={{ border: `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}25`, background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}08` }}
                     >
                       <div className="flex items-center gap-2 mb-1.5">
                         <PlatformIcon type={p.type} size={13} />
                         <span className="text-sm font-semibold text-white truncate flex-1">{p.title}</span>
+                        {p.brand && p.brand !== 'Organic' && (
+                          <span
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                            style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}
+                          >
+                            Brand Deal
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge status={p.status} />
                         {p.brand && p.brand !== 'Organic' && (
-                          <span className="text-[10px] text-zinc-600">{p.brand}</span>
+                          <span className="text-[10px] text-zinc-500">{p.brand}</span>
                         )}
                       </div>
                     </button>

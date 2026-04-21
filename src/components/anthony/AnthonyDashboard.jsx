@@ -84,34 +84,6 @@ export default function AnthonyDashboard() {
           )}
         </div>
 
-        {/* My Active Tasks highlight */}
-        {myActive.filter(p => canMarkDone(p)).length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-blue-400" />
-              <span className="text-xs font-semibold text-white">My Active Tasks</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-                style={{ background: 'rgba(96,165,250,0.2)', color: '#60a5fa' }}>
-                {myActive.filter(p => canMarkDone(p)).length}
-              </span>
-            </div>
-            {myActive.filter(p => canMarkDone(p)).map(p => (
-              <div key={p.id}
-                className="rounded-xl p-3 mb-2 flex items-center gap-3 cursor-pointer transition-all"
-                style={{
-                  background: p.status === 'Revision Requested' ? 'rgba(248,113,113,0.04)' : 'rgba(96,165,250,0.04)',
-                  border: p.status === 'Revision Requested' ? '1px solid rgba(248,113,113,0.25)' : '1px solid rgba(96,165,250,0.2)',
-                }}
-                onClick={() => setSelectedProject(p)}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{p.title}</p>
-                </div>
-                <StatusBadge status={p.status} />
-              </div>
-            ))}
-          </div>
-        )}
-
         {myActive.length === 0 ? (
           <div className="rounded-2xl py-16 text-center"
             style={{ border: '1px dashed rgba(255,255,255,0.08)' }}>
@@ -177,14 +149,6 @@ export default function AnthonyDashboard() {
                       style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
                       <p className="text-xs font-semibold text-orange-400 mb-1">Revision Note from Joel</p>
                       <p className="text-sm text-zinc-300">{revisionNote}</p>
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  {p.notes && (
-                    <div className="mx-5 mb-3">
-                      <p className="text-xs text-zinc-600 font-semibold uppercase tracking-widest mb-1">Notes</p>
-                      <p className="text-sm text-zinc-400 leading-relaxed">{p.notes}</p>
                     </div>
                   )}
 

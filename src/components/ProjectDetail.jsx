@@ -471,6 +471,19 @@ export default function ProjectDetail() {
       doc.setDrawColor(200)
       doc.line(40, y, W - 40, y); y += 16
 
+      // Relevant Notes
+      if (editRelevantNotes && editRelevantNotes.trim()) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.text('Notes', 40, y); y += 16
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        const noteLines = doc.splitTextToSize(editRelevantNotes.trim(), W - 80)
+        doc.text(noteLines, 40, y); y += noteLines.length * 13 + 16
+        doc.setDrawColor(220)
+        doc.line(40, y, W - 40, y); y += 16
+      }
+
       // Script (handle JSON blocks or plain text)
       if (proj.notes) {
         doc.setFont('helvetica', 'bold')
@@ -1008,79 +1021,82 @@ export default function ProjectDetail() {
             )}
           </div>
 
-          {/* ── Storage link ── */}
-          {storageLabel && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">{storageLabel}</p>
-              {canEditLinks ? (
-                <div>
-                  <input
-                    value={editDropbox}
-                    onChange={(e) => setEditDropbox(e.target.value)}
-                    onBlur={() => saveEdits()}
-                    placeholder={storagePlaceholder}
-                    className="w-full text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                  />
-                  {editDropbox && (
-                    <a href={editDropbox} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 mt-1 transition-colors">
-                      <ExternalLink size={11} /> Open link
-                    </a>
-                  )}
-                </div>
-              ) : proj.dropboxLink ? (
-                <a href={proj.dropboxLink} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                  <ExternalLink size={13} /> {proj.dropboxLink}
-                </a>
-              ) : (
-                <span className="text-sm text-zinc-600">No link added</span>
-              )}
-            </div>
-          )}
+          {/* ── Storage link + Asana (side by side when both visible) ── */}
+          <div className={storageLabel && proj.type !== 'youtube' ? 'grid grid-cols-2 gap-4' : ''}>
+            {/* Storage link */}
+            {storageLabel && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">{storageLabel}</p>
+                {canEditLinks ? (
+                  <div>
+                    <input
+                      value={editDropbox}
+                      onChange={(e) => setEditDropbox(e.target.value)}
+                      onBlur={() => saveEdits()}
+                      placeholder={storagePlaceholder}
+                      className="w-full text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                    {editDropbox && (
+                      <a href={editDropbox} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 mt-1 transition-colors">
+                        <ExternalLink size={11} /> Open link
+                      </a>
+                    )}
+                  </div>
+                ) : proj.dropboxLink ? (
+                  <a href={proj.dropboxLink} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                    <ExternalLink size={13} /> {proj.dropboxLink}
+                  </a>
+                ) : (
+                  <span className="text-sm text-zinc-600">No link added</span>
+                )}
+              </div>
+            )}
 
-          {/* ── Asana Link ── */}
-          {proj.type !== 'youtube' && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Asana Task</p>
-              {isJoel && (
-                <button onClick={() => { const v = !hideAsana; setHideAsana(v); saveLocalProjMeta(proj.id, { hideAsana: v }) }}
-                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors ml-2">
-                  {hideAsana ? 'Show' : 'Hide'}
-                </button>
-              )}
-            </div>
-            {!hideAsana && (
-              canEditLinks ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    value={editAsana}
-                    onChange={(e) => setEditAsana(e.target.value)}
-                    onBlur={() => saveEdits()}
-                    placeholder="https://app.asana.com/…"
-                    className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                  />
-                  {editAsana && (
-                    <a href={editAsana} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1">
-                      <ExternalLink size={11} /> Open
-                    </a>
+            {/* Asana link */}
+            {proj.type !== 'youtube' && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Asana Task</p>
+                  {isJoel && (
+                    <button onClick={() => { const v = !hideAsana; setHideAsana(v); saveLocalProjMeta(proj.id, { hideAsana: v }) }}
+                      className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors ml-2">
+                      {hideAsana ? 'Show' : 'Hide'}
+                    </button>
                   )}
                 </div>
-              ) : proj.asanaLink ? (
-                <a href={proj.asanaLink} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                  <ExternalLink size={13} /> {proj.asanaLink}
-                </a>
-              ) : (
-                <span className="text-sm text-zinc-600">No link added</span>
-              )
+                {!hideAsana && (
+                  canEditLinks ? (
+                    <div>
+                      <input
+                        value={editAsana}
+                        onChange={(e) => setEditAsana(e.target.value)}
+                        onBlur={() => saveEdits()}
+                        placeholder="https://app.asana.com/…"
+                        className="w-full text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      />
+                      {editAsana && (
+                        <a href={editAsana} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-amber-500 hover:text-amber-400 mt-1 transition-colors flex items-center gap-1">
+                          <ExternalLink size={11} /> Open
+                        </a>
+                      )}
+                    </div>
+                  ) : proj.asanaLink ? (
+                    <a href={proj.asanaLink} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                      <ExternalLink size={13} /> {proj.asanaLink}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-zinc-600">No link added</span>
+                  )
+                )}
+              </div>
             )}
           </div>
-          )}
 
           {/* ── Brand Deal Links ── */}
           {editBrandType === 'Brand Deal' && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CheckCircle2, Clock, Plus, ExternalLink } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink } from 'lucide-react'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import StatusBadge from '../shared/StatusBadge'
@@ -67,7 +67,8 @@ function ProjectCard({ project, onClick, highlight }) {
 
 export default function TianaDashboard() {
   const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow } = useApp()
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd]             = useState(false)
+  const [showAllProjects, setShowAllProjects] = useState(false)
   const now = new Date()
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
@@ -131,7 +132,6 @@ export default function TianaDashboard() {
       {showAdd && (
         <AddProjectModal
           onClose={() => setShowAdd(false)}
-          limitTypes={['instagram', 'tiktok', 'newsletter']}
         />
       )}
 
@@ -335,6 +335,64 @@ export default function TianaDashboard() {
           <p className="text-sm text-zinc-500">No items in your queue right now.</p>
         </div>
       )}
+
+      {/* All Projects — collapsible overview */}
+      <section className="mt-8 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <button
+          onClick={() => setShowAllProjects(v => !v)}
+          className="w-full flex items-center justify-between py-1 group"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-600 uppercase tracking-widest group-hover:text-zinc-400 transition-colors">
+              All Projects
+            </h2>
+            <span
+              className="text-xs px-1.5 py-0.5 rounded font-semibold"
+              style={{ background: 'rgba(255,255,255,0.05)', color: '#52525b' }}
+            >
+              {projects.length}
+            </span>
+          </div>
+          <ChevronDown
+            size={14}
+            className="text-zinc-600 group-hover:text-zinc-400 transition-all"
+            style={{ transform: showAllProjects ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms ease' }}
+          />
+        </button>
+
+        {showAllProjects && (
+          <div className="flex flex-col gap-1.5 mt-3 animate-fade-in">
+            {[...projects]
+              .sort((a, b) => (a.publishDate || '9999').localeCompare(b.publishDate || '9999'))
+              .map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => open(p)}
+                  className="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/[0.03]"
+                  style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <PlatformIcon type={p.type} size={13} />
+                  <span className="text-sm text-zinc-400 flex-1 truncate">{p.title}</span>
+                  {p.brand && p.brand !== 'Organic' && (
+                    <span
+                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                      style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
+                    >
+                      B
+                    </span>
+                  )}
+                  {p.publishDate && (
+                    <span className="text-[10px] text-zinc-600 shrink-0">
+                      {format(parseISO(p.publishDate), 'MMM d')}
+                    </span>
+                  )}
+                  <StatusBadge status={p.status} />
+                </button>
+              ))
+            }
+          </div>
+        )}
+      </section>
 
     </div>
   )

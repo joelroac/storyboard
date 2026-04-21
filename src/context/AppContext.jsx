@@ -125,11 +125,6 @@ const DEFAULT_PERMISSIONS = {
   },
 }
 
-function loadPermissions() {
-  try { return JSON.parse(localStorage.getItem('storyboard_permissions')) || DEFAULT_PERMISSIONS }
-  catch { return DEFAULT_PERMISSIONS }
-}
-
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }) {
@@ -142,7 +137,7 @@ export function AppProvider({ children }) {
   const [selectedProject, setSelectedProject] = useState(null)
   const [activeTab, setActiveTab]             = useState('dashboard')
   const [loading, setLoading]                 = useState(true)
-  const [permissions, setPermissions]         = useState(loadPermissions)
+  const [permissions, setPermissions]         = useState(DEFAULT_PERMISSIONS)
 
   // ── Initial data load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -160,7 +155,7 @@ export function AppProvider({ children }) {
           supabase.from('activity_log').select('*').order('created_at', { ascending: true }),
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('workflow_settings').select('*'),
-          supabase.from('team_members').select('id, name, role, pin, avatar_url'),
+          supabase.from('team_members').select('id, name, role, pin, avatar_url, totp_secret'),
           supabase.from('app_settings').select('*'),
         ])
 
@@ -179,6 +174,33 @@ export function AppProvider({ children }) {
         setNotifications((notifRows || []).map(dbToNotif))
         setTeamMembers(memberRows || [])
 
+        // Restore session from localStorage (with expiry check)
+        const rawSession = localStorage.getItem('storyboard_session_user')
+        if (rawSession && memberRows) {
+          try {
+            const { userId, expiresAt } = JSON.parse(rawSession)
+            if (userId && expiresAt && Date.now() < expiresAt) {
+              const saved = memberRows.find(m => m.id === userId)
+              if (saved) {
+                setCurrentUser({
+                  id:         saved.id,
+                  name:       saved.name,
+                  role:       saved.role,
+                  pin:        saved.pin,
+                  avatar:     saved.name ? saved.name[0] : saved.id[0].toUpperCase(),
+                  avatar_url: saved.avatar_url || null,
+                })
+              } else {
+                localStorage.removeItem('storyboard_session_user')
+              }
+            } else {
+              localStorage.removeItem('storyboard_session_user') // expired
+            }
+          } catch {
+            localStorage.removeItem('storyboard_session_user') // malformed
+          }
+        }
+
         // Parse workflow_settings: DB uses 'platform' column with stage objects
         if (wfRows && wfRows.length > 0) {
           const wfMap = {}
@@ -189,12 +211,13 @@ export function AppProvider({ children }) {
           setWorkflowSettings(wfMap)
         }
 
-        // Load relevant links from Supabase
+        // Load app settings (relevant links + permissions) from Supabase
         if (settingsRows && settingsRows.length > 0) {
           const linksRow = settingsRows.find(r => r.key === 'relevant_links')
-          if (linksRow?.value) {
-            setRelevantLinks(linksRow.value)
-          }
+          if (linksRow?.value) setRelevantLinks(linksRow.value)
+
+          const permsRow = settingsRows.find(r => r.key === 'permissions')
+          if (permsRow?.value) setPermissions(permsRow.value)
         }
       } catch (err) {
         console.error('Error loading initial data:', err)
@@ -304,6 +327,18 @@ export function AppProvider({ children }) {
 
   // ── Auth ───────────────────────────────────────────────────────────────────
 
+  // completeLogin — called after PIN (no 2FA) or after TOTP success
+  // strips internal-only flags before persisting the user
+  const completeLogin = useCallback((user) => {
+    // eslint-disable-next-line no-unused-vars
+    const { requires2FA, _totpSecret, ...cleanUser } = user
+    setCurrentUser(cleanUser)
+    localStorage.setItem('storyboard_session_user', JSON.stringify({
+      userId:    cleanUser.id,
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    }))
+  }, [])
+
   const login = useCallback(async (userId, pin) => {
     const { data, error } = await supabase
       .from('team_members')
@@ -311,9 +346,9 @@ export function AppProvider({ children }) {
       .eq('id', userId)
       .maybeSingle()
 
-    if (error) { console.error('Login query error:', error); return null }
-    if (!data) { console.warn('No team_member found with id:', userId); return null }
-    if (String(data.pin) !== String(pin)) { console.warn('PIN mismatch for', userId); return null }
+    if (error) { console.error('Login error:', error); return null }
+    if (!data)  { console.warn('No team_member found with id:', userId); return null }
+    if (String(data.pin) !== String(pin)) return null
 
     const user = {
       id:         data.id,
@@ -323,13 +358,22 @@ export function AppProvider({ children }) {
       avatar:     data.name ? data.name[0] : userId[0].toUpperCase(),
       avatar_url: data.avatar_url || null,
     }
-    setCurrentUser(user)
+
+    // If 2FA is configured, return the user object WITHOUT completing login.
+    // The caller (Login.jsx) must verify the TOTP code then call completeLogin().
+    if (data.totp_secret) {
+      return { ...user, requires2FA: true, _totpSecret: data.totp_secret }
+    }
+
+    // No 2FA — complete login immediately
+    completeLogin(user)
     return user
-  }, [])
+  }, [completeLogin])
 
   const logout = useCallback(() => {
     setCurrentUser(null)
     setSelectedProject(null)
+    localStorage.removeItem('storyboard_session_user')
   }, [])
 
   // ── Team helpers ───────────────────────────────────────────────────────────
@@ -549,7 +593,7 @@ export function AppProvider({ children }) {
     // Note: the DB has no 'avatar' column — do not include it in the select.
     const { data: freshMembers, error: fetchErr } = await supabase
       .from('team_members')
-      .select('id, name, role, pin, avatar_url')
+      .select('id, name, role, pin, avatar_url, totp_secret')
     if (fetchErr) {
       console.error('Error re-fetching team members:', fetchErr)
       // Fall back to optimistic patch if re-fetch fails
@@ -654,7 +698,9 @@ export function AppProvider({ children }) {
   const updatePermissions = useCallback((group, updates) => {
     setPermissions((prev) => {
       const next = { ...prev, [group]: { ...prev[group], ...updates } }
-      localStorage.setItem('storyboard_permissions', JSON.stringify(next))
+      supabase.from('app_settings').upsert({ key: 'permissions', value: next }, { onConflict: 'key' }).then(({ error }) => {
+        if (error) console.error('Error saving permissions:', error)
+      })
       return next
     })
   }, [])
@@ -685,6 +731,7 @@ export function AppProvider({ children }) {
       value={{
         currentUser,
         login,
+        completeLogin,
         logout,
         projects,
         setProjects,

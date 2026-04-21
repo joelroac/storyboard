@@ -321,6 +321,21 @@ export default function SettingsModal({ onClose }) {
                             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }}
                           />
                         </div>
+                        {/* 2FA recovery — visible only when that member has 2FA enabled */}
+                        {member?.totp_secret && (
+                          <div className="flex items-center justify-between rounded-lg px-3 py-2"
+                            style={{ background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)' }}>
+                            <span className="text-xs text-emerald-400 font-semibold">2FA Enabled</span>
+                            <button
+                              type="button"
+                              onClick={() => updateTeamMember(member.id, { totp_secret: null })}
+                              className="text-xs px-2 py-1 rounded font-semibold transition-colors"
+                              style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                            >
+                              Disable 2FA
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
