@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink } from 'lucide-react'
+import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import StatusBadge from '../shared/StatusBadge'
@@ -69,24 +70,25 @@ export default function TianaDashboard() {
   const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow } = useApp()
   const [showAdd, setShowAdd]             = useState(false)
   const [showAllProjects, setShowAllProjects] = useState(false)
+  const [sortBy, setSortBy]               = useState('due_date')
   const now = new Date()
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
 
   // Projects where Tiana owns the current stage (excluding terminal/publish-ready stages)
-  const needsCaption = projects.filter(p =>
+  const needsCaption = sortProjects(projects.filter(p =>
     getStageOwner(p.type, p.status) === 'tiana' &&
     !TERMINAL_STATUSES.includes(p.status)
-  )
+  ), sortBy)
   // Projects where Joel owns the current stage and the previous stage was Tiana's (she submitted)
-  const awaitingApproval = projects.filter(p => {
+  const awaitingApproval = sortProjects(projects.filter(p => {
     if (getStageOwner(p.type, p.status) !== 'joel') return false
     const wf = getWorkflow(p.type)
     const idx = wf.indexOf(p.status)
     return idx > 0 && getStageOwner(p.type, wf[idx - 1]) === 'tiana'
-  })
-  const readyToPost = projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send')
-  const scheduled   = projects.filter(p => p.status === 'Scheduled')
+  }), sortBy)
+  const readyToPost = sortProjects(projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send'), sortBy)
+  const scheduled   = sortProjects(projects.filter(p => p.status === 'Scheduled'), sortBy)
   const postedThisMonth  = projects.filter(p => {
     if (!['Posted', 'Sent'].includes(p.status)) return false
     const history = p.statusHistory || []
@@ -120,13 +122,16 @@ export default function TianaDashboard() {
             {format(now, 'EEEE, MMMM d')} · Here's your content queue
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
-        >
-          <Plus size={15} />
-          New Project
-        </button>
+        <div className="flex items-center gap-3">
+          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+          <button
+            onClick={() => setShowAdd(true)}
+            className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+          >
+            <Plus size={15} />
+            New Project
+          </button>
+        </div>
       </div>
 
       {showAdd && (

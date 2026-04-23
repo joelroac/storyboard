@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical } from 'lucide-react'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
@@ -104,6 +104,8 @@ export default function ProjectDetail() {
   const [scriptBlocks, setScriptBlocks]           = useState([])
   const [scriptUnsaved, setScriptUnsaved]         = useState(false)
   const [scriptSavedAt, setScriptSavedAt]         = useState(null)
+  const [draggedScriptIdx, setDraggedScriptIdx]   = useState(null)
+  const [dragOverScriptIdx, setDragOverScriptIdx] = useState(null)
   // Shot list with debounce (Feature 7)
   const [shotListDraft, setShotListDraft]         = useState([])
   const [shotListSavedAt, setShotListSavedAt]     = useState(null)
@@ -1237,7 +1239,8 @@ export default function ProjectDetail() {
               /* Joel: editable script blocks (Script Line | Shot Note) */
               <div>
                 {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: 8, marginBottom: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 24px', gap: 8, marginBottom: 4, paddingLeft: 2 }}>
+                  <span />
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
                     {proj.type === 'newsletter' ? 'Content' : 'Script Line'}
                   </span>
@@ -1246,40 +1249,121 @@ export default function ProjectDetail() {
                   </span>
                   <span />
                 </div>
-                <div className="flex flex-col gap-2">
-                  {scriptBlocks.map((block) => (
-                    <div key={block.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: 8, alignItems: 'start' }}>
-                      <textarea
-                        value={block.scriptLine}
-                        onChange={(e) => {
-                          const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, scriptLine: e.target.value } : b)
-                          handleScriptBlocksChange(updated)
+                <div className="flex flex-col">
+                  {scriptBlocks.map((block, idx) => (
+                    <React.Fragment key={block.id}>
+                      {/* Drop indicator line — shown above a row when dragging over it */}
+                      {dragOverScriptIdx === idx && draggedScriptIdx !== idx && draggedScriptIdx !== idx - 1 && (
+                        <div style={{ height: 2, borderRadius: 1, background: 'rgba(245,158,11,0.5)', margin: '2px 0' }} />
+                      )}
+
+                      {/* Insert-between zone (when not dragging) */}
+                      {idx > 0 && draggedScriptIdx === null && (
+                        <button
+                          onClick={() => {
+                            const next = [...scriptBlocks]
+                            next.splice(idx, 0, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' })
+                            handleScriptBlocksChange(next)
+                          }}
+                          className="group flex items-center gap-2 w-full my-0.5"
+                          title="Insert row here"
+                        >
+                          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                          <span className="text-[10px] text-zinc-800 group-hover:text-amber-500 transition-colors font-medium">+ insert</span>
+                          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                        </button>
+                      )}
+
+                      {/* Block row */}
+                      <div
+                        draggable
+                        onDragStart={() => setDraggedScriptIdx(idx)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(idx) }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          if (draggedScriptIdx === null || draggedScriptIdx === idx) {
+                            setDraggedScriptIdx(null); setDragOverScriptIdx(null); return
+                          }
+                          const next = [...scriptBlocks]
+                          const [removed] = next.splice(draggedScriptIdx, 1)
+                          next.splice(dragOverScriptIdx > draggedScriptIdx ? dragOverScriptIdx - 1 : dragOverScriptIdx, 0, removed)
+                          handleScriptBlocksChange(next)
+                          setDraggedScriptIdx(null); setDragOverScriptIdx(null)
                         }}
-                        rows={2}
-                        placeholder={proj.type === 'newsletter' ? 'Content…' : 'Script line or dialogue…'}
-                        className="text-sm text-zinc-300 placeholder-zinc-700 rounded-lg px-3 py-2 w-full"
-                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', resize: 'vertical' }}
-                      />
-                      <textarea
-                        value={block.shotNote}
-                        onChange={(e) => {
-                          const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
-                          handleScriptBlocksChange(updated)
+                        onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null) }}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '16px 1fr 1fr 24px',
+                          gap: 8,
+                          alignItems: 'start',
+                          marginBottom: 4,
+                          opacity: draggedScriptIdx === idx ? 0.35 : 1,
+                          transition: 'opacity 0.15s',
                         }}
-                        rows={2}
-                        placeholder={proj.type === 'newsletter' ? 'Section note…' : 'Shot / visual description…'}
-                        className="text-sm text-zinc-400 placeholder-zinc-700 rounded-lg px-3 py-2"
-                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 1, resize: 'vertical' }}
-                      />
-                      <button
-                        onClick={() => handleScriptBlocksChange(scriptBlocks.filter((b) => b.id !== block.id))}
-                        style={{ background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', paddingTop: 6 }}
-                        title="Remove row"
                       >
-                        <X size={12} />
-                      </button>
-                    </div>
+                        {/* Drag handle */}
+                        <div
+                          style={{ paddingTop: 8, cursor: 'grab', color: '#3f3f46', display: 'flex', justifyContent: 'center' }}
+                          title="Drag to reorder"
+                        >
+                          <GripVertical size={13} />
+                        </div>
+
+                        <textarea
+                          value={block.scriptLine}
+                          onChange={(e) => {
+                            const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, scriptLine: e.target.value } : b)
+                            handleScriptBlocksChange(updated)
+                          }}
+                          rows={2}
+                          placeholder={proj.type === 'newsletter' ? 'Content…' : 'Script line or dialogue…'}
+                          className="text-sm text-zinc-300 placeholder-zinc-700 rounded-lg px-3 py-2 w-full"
+                          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', resize: 'vertical' }}
+                        />
+                        <textarea
+                          value={block.shotNote}
+                          onChange={(e) => {
+                            const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
+                            handleScriptBlocksChange(updated)
+                          }}
+                          rows={2}
+                          placeholder={proj.type === 'newsletter' ? 'Section note…' : 'Shot / visual description…'}
+                          className="text-sm text-zinc-400 placeholder-zinc-700 rounded-lg px-3 py-2"
+                          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 1, resize: 'vertical' }}
+                        />
+                        <button
+                          onClick={() => handleScriptBlocksChange(scriptBlocks.filter((b) => b.id !== block.id))}
+                          style={{ background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', paddingTop: 8 }}
+                          title="Remove row"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </React.Fragment>
                   ))}
+
+                  {/* Drop zone at the very end */}
+                  {draggedScriptIdx !== null && (
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(scriptBlocks.length) }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        if (draggedScriptIdx === null) return
+                        const next = [...scriptBlocks]
+                        const [removed] = next.splice(draggedScriptIdx, 1)
+                        next.push(removed)
+                        handleScriptBlocksChange(next)
+                        setDraggedScriptIdx(null); setDragOverScriptIdx(null)
+                      }}
+                      style={{
+                        height: 32,
+                        borderRadius: 6,
+                        border: dragOverScriptIdx === scriptBlocks.length ? '1px dashed rgba(245,158,11,0.4)' : '1px dashed rgba(255,255,255,0.06)',
+                        marginTop: 4,
+                        transition: 'border-color 0.15s',
+                      }}
+                    />
+                  )}
                 </div>
                 <button
                   onClick={() => handleScriptBlocksChange([...scriptBlocks, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }])}

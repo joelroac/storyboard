@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Plus, AlertCircle, CheckCircle2, Trash2, ChevronDown } from 'lucide-react'
+import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import { JOEL_REVIEW_STAGES, TYPE_LABELS, getStatusColor } from '../../data/seedData'
@@ -183,21 +184,16 @@ export default function JoelDashboard() {
   const [deletingId, setDeletingId]     = useState(null)
   const [showInactive, setShowInactive] = useState(false)
   const [expandedCols, setExpandedCols] = useState({})
+  const [sortBy, setSortBy]             = useState('due_date')
 
   const active         = projects.filter(p => !['Posted', 'Sent', 'Inactive'].includes(p.status))
   const inactiveProjects = projects.filter(p => p.status === 'Inactive')
   const reviewQueue    = active.filter(p => JOEL_REVIEW_STAGES.includes(p.status))
-  const byDate = (a, b) => {
-    if (!a.publishDate && !b.publishDate) return 0
-    if (!a.publishDate) return 1
-    if (!b.publishDate) return -1
-    return new Date(a.publishDate) - new Date(b.publishDate)
-  }
-  const tianaProjects  = active.filter(p => getStageOwner(p.type, p.status) === 'tiana').sort(byDate)
-  const kanbanProjects = active.filter(
+  const tianaProjects  = sortProjects(active.filter(p => getStageOwner(p.type, p.status) === 'tiana'), sortBy)
+  const kanbanProjects = sortProjects(active.filter(
     p => !['Ready to Post', 'Scheduled', 'Ready to Send', 'Inactive'].includes(p.status)
        && getStageOwner(p.type, p.status) !== 'tiana'
-  ).sort(byDate)
+  ), sortBy)
   const readyProjects  = projects
     .filter(p => ['Ready to Post', 'Ready to Send'].includes(p.status))
     .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate))
@@ -253,13 +249,16 @@ export default function JoelDashboard() {
           </h1>
           <p className="text-zinc-500 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
-        >
-          <Plus size={15} />
-          New Project
-        </button>
+        <div className="flex items-center gap-3">
+          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+          <button
+            onClick={() => setShowAdd(true)}
+            className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+          >
+            <Plus size={15} />
+            New Project
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}

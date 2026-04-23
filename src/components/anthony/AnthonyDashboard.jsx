@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ExternalLink, CheckCircle2 } from 'lucide-react'
+import SortBar, { sortProjects } from '../shared/SortBar'
 
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
@@ -19,9 +20,10 @@ function daysLabel(dateStr) {
 
 export default function AnthonyDashboard() {
   const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getStageOwner, getWorkflow } = useApp()
+  const [sortBy, setSortBy] = useState('due_date')
 
   // Active: Anthony owns current stage, OR he submitted it and Joel is reviewing
-  const myActive = projects.filter(p => {
+  const myActiveRaw = projects.filter(p => {
     const owner = getStageOwner(p.type, p.status)
     if (owner === 'anthony') return true
     if (owner === 'joel') {
@@ -31,6 +33,7 @@ export default function AnthonyDashboard() {
     }
     return false
   })
+  const myActive = sortProjects(myActiveRaw, sortBy)
 
   // Done: projects that have passed through Anthony's stages
   const myDone = projects.filter(p => {
@@ -64,11 +67,14 @@ export default function AnthonyDashboard() {
     <div className="px-6 py-6 max-w-4xl mx-auto">
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-editorial text-3xl font-semibold text-white">Hey, Anthony.</h1>
-        <p className="text-zinc-500 text-sm mt-1">
-          {format(new Date(), 'EEEE, MMMM d')} · Here's what's in your editing queue
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="font-editorial text-3xl font-semibold text-white">Hey, Anthony.</h1>
+          <p className="text-zinc-500 text-sm mt-1">
+            {format(new Date(), 'EEEE, MMMM d')} · Here's what's in your editing queue
+          </p>
+        </div>
+        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
       </div>
 
       {/* Active queue */}
