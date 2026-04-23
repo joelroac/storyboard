@@ -1252,12 +1252,12 @@ export default function ProjectDetail() {
                 <div className="flex flex-col">
                   {scriptBlocks.map((block, idx) => (
                     <React.Fragment key={block.id}>
-                      {/* Drop indicator line — shown above a row when dragging over it */}
-                      {dragOverScriptIdx === idx && draggedScriptIdx !== idx && draggedScriptIdx !== idx - 1 && (
-                        <div style={{ height: 2, borderRadius: 1, background: 'rgba(245,158,11,0.5)', margin: '2px 0' }} />
+                      {/* Amber drop indicator — shown above this row while dragging over it */}
+                      {dragOverScriptIdx === idx && draggedScriptIdx !== null && draggedScriptIdx !== idx && (
+                        <div style={{ height: 2, borderRadius: 1, background: 'rgba(245,158,11,0.6)', margin: '2px 0' }} />
                       )}
 
-                      {/* Insert-between zone (when not dragging) */}
+                      {/* Insert-between — only shown when nothing is being dragged */}
                       {idx > 0 && draggedScriptIdx === null && (
                         <button
                           onClick={() => {
@@ -1274,23 +1274,32 @@ export default function ProjectDetail() {
                         </button>
                       )}
 
-                      {/* Block row */}
+                      {/* Block row — draggable from the grip handle only */}
                       <div
                         draggable
-                        onDragStart={() => setDraggedScriptIdx(idx)}
+                        onDragStart={(e) => {
+                          // Only allow drag when initiated from the grip handle, not from textareas/buttons
+                          if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') { e.preventDefault(); return }
+                          e.dataTransfer.setData('scriptIdx', String(idx))
+                          e.dataTransfer.effectAllowed = 'move'
+                          setDraggedScriptIdx(idx)
+                        }}
+                        onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null) }}
                         onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(idx) }}
                         onDrop={(e) => {
                           e.preventDefault()
-                          if (draggedScriptIdx === null || draggedScriptIdx === idx) {
-                            setDraggedScriptIdx(null); setDragOverScriptIdx(null); return
-                          }
+                          const from = parseInt(e.dataTransfer.getData('scriptIdx'), 10)
+                          const to   = idx
+                          if (isNaN(from) || from === to) { setDraggedScriptIdx(null); setDragOverScriptIdx(null); return }
                           const next = [...scriptBlocks]
-                          const [removed] = next.splice(draggedScriptIdx, 1)
-                          next.splice(dragOverScriptIdx > draggedScriptIdx ? dragOverScriptIdx - 1 : dragOverScriptIdx, 0, removed)
+                          const [removed] = next.splice(from, 1)
+                          // Insert at `to`: if to > from, the target shifted up by 1 after removal,
+                          // so splice(to, ...) correctly places the item after the visual target.
+                          // If to < from, the target didn't shift, splice(to, ...) places it before.
+                          next.splice(to, 0, removed)
                           handleScriptBlocksChange(next)
                           setDraggedScriptIdx(null); setDragOverScriptIdx(null)
                         }}
-                        onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null) }}
                         style={{
                           display: 'grid',
                           gridTemplateColumns: '16px 1fr 1fr 24px',
@@ -1301,12 +1310,12 @@ export default function ProjectDetail() {
                           transition: 'opacity 0.15s',
                         }}
                       >
-                        {/* Drag handle */}
+                        {/* Grip handle — visual affordance for dragging */}
                         <div
                           style={{ paddingTop: 8, cursor: 'grab', color: '#3f3f46', display: 'flex', justifyContent: 'center' }}
                           title="Drag to reorder"
                         >
-                          <GripVertical size={13} />
+                          <GripVertical size={13} style={{ pointerEvents: 'none' }} />
                         </div>
 
                         <textarea
@@ -1342,25 +1351,25 @@ export default function ProjectDetail() {
                     </React.Fragment>
                   ))}
 
-                  {/* Drop zone at the very end */}
+                  {/* End drop zone — accepts a drop to move a row to the very bottom */}
                   {draggedScriptIdx !== null && (
                     <div
                       onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(scriptBlocks.length) }}
                       onDrop={(e) => {
                         e.preventDefault()
-                        if (draggedScriptIdx === null) return
+                        const from = parseInt(e.dataTransfer.getData('scriptIdx'), 10)
+                        if (isNaN(from)) return
                         const next = [...scriptBlocks]
-                        const [removed] = next.splice(draggedScriptIdx, 1)
+                        const [removed] = next.splice(from, 1)
                         next.push(removed)
                         handleScriptBlocksChange(next)
                         setDraggedScriptIdx(null); setDragOverScriptIdx(null)
                       }}
                       style={{
-                        height: 32,
-                        borderRadius: 6,
-                        border: dragOverScriptIdx === scriptBlocks.length ? '1px dashed rgba(245,158,11,0.4)' : '1px dashed rgba(255,255,255,0.06)',
-                        marginTop: 4,
-                        transition: 'border-color 0.15s',
+                        height: 32, borderRadius: 6, marginTop: 4, transition: 'border-color 0.15s',
+                        border: dragOverScriptIdx === scriptBlocks.length
+                          ? '1px dashed rgba(245,158,11,0.5)'
+                          : '1px dashed rgba(255,255,255,0.06)',
                       }}
                     />
                   )}
