@@ -106,6 +106,7 @@ export default function ProjectDetail() {
   const [scriptSavedAt, setScriptSavedAt]         = useState(null)
   const [draggedScriptIdx, setDraggedScriptIdx]   = useState(null)
   const [dragOverScriptIdx, setDragOverScriptIdx] = useState(null)
+  const [hoveredGripIdx, setHoveredGripIdx]       = useState(null)
   // Shot list with debounce (Feature 7)
   const [shotListDraft, setShotListDraft]         = useState([])
   const [shotListSavedAt, setShotListSavedAt]     = useState(null)
@@ -178,7 +179,11 @@ export default function ProjectDetail() {
       setEditAsana(fresh.asanaLink || '')
       setEditVideoBreakdown(fresh.videoBreakdown || '')
       setEditCaption(fresh.caption || '')
-      setScriptBlocks(parseScriptBlocks(fresh.notes))
+      const loadedBlocks = parseScriptBlocks(fresh.notes)
+      setScriptBlocks(loadedBlocks)
+      // If the project already has script content, pre-mark dirty so that any
+      // subsequent save (title, date, brand) can never trigger a script reset.
+      scriptDirtyRef.current = loadedBlocks.some(b => b.scriptLine || b.shotNote)
       setScriptSavedAt(null)
       setScriptUnsaved(false)
       setShotListDraft(fresh.shotList || [])
@@ -283,7 +288,10 @@ export default function ProjectDetail() {
       updateProject(proj.id, { notes: JSON.stringify(newBlocks) })
       setScriptSavedAt(new Date().toISOString())
       setScriptUnsaved(false)
-      scriptDirtyRef.current = false
+      // NOTE: intentionally NOT resetting scriptDirtyRef here.
+      // Resetting it after save created a race window where a title/date save
+      // would immediately re-run parseScriptBlocks and wipe the visible script.
+      // scriptDirtyRef only resets when a brand-new project is opened.
     }, 800)
   }
 
@@ -653,8 +661,8 @@ export default function ProjectDetail() {
         return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Sent')}>Mark as Sent</ActionBtn>
       if (s === 'Editing in Progress' && (proj.type === 'instagram' || proj.type === 'tiktok'))
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Caption Needed')}>Editing Done → Send to Tiana</ActionBtn>
-      // Fallback for any custom stage Joel owns
-      if (nextStage && (currentOwner === 'joel' || !currentOwner))
+      // Fallback — Joel (admin) can always advance any stage
+      if (nextStage)
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage)}>Advance to Next Stage</ActionBtn>
       return null
     }
@@ -1274,17 +1282,8 @@ export default function ProjectDetail() {
                         </button>
                       )}
 
-                      {/* Block row — draggable from the grip handle only */}
+                      {/* Block row — drop target only; drag is initiated exclusively from the grip */}
                       <div
-                        draggable
-                        onDragStart={(e) => {
-                          // Only allow drag when initiated from the grip handle, not from textareas/buttons
-                          if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') { e.preventDefault(); return }
-                          e.dataTransfer.setData('scriptIdx', String(idx))
-                          e.dataTransfer.effectAllowed = 'move'
-                          setDraggedScriptIdx(idx)
-                        }}
-                        onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null) }}
                         onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(idx) }}
                         onDrop={(e) => {
                           e.preventDefault()
@@ -1293,9 +1292,6 @@ export default function ProjectDetail() {
                           if (isNaN(from) || from === to) { setDraggedScriptIdx(null); setDragOverScriptIdx(null); return }
                           const next = [...scriptBlocks]
                           const [removed] = next.splice(from, 1)
-                          // Insert at `to`: if to > from, the target shifted up by 1 after removal,
-                          // so splice(to, ...) correctly places the item after the visual target.
-                          // If to < from, the target didn't shift, splice(to, ...) places it before.
                           next.splice(to, 0, removed)
                           handleScriptBlocksChange(next)
                           setDraggedScriptIdx(null); setDragOverScriptIdx(null)
@@ -1310,9 +1306,32 @@ export default function ProjectDetail() {
                           transition: 'opacity 0.15s',
                         }}
                       >
-                        {/* Grip handle — visual affordance for dragging */}
+                        {/* Grip handle — the ONLY draggable element; blurs any focused textarea
+                            on mousedown so the browser never confuses this with a text-drag */}
                         <div
-                          style={{ paddingTop: 8, cursor: 'grab', color: '#3f3f46', display: 'flex', justifyContent: 'center' }}
+                          draggable
+                          onMouseDown={() => {
+                            if (document.activeElement?.tagName === 'TEXTAREA') {
+                              document.activeElement.blur()
+                            }
+                          }}
+                          onMouseEnter={() => setHoveredGripIdx(idx)}
+                          onMouseLeave={() => setHoveredGripIdx(null)}
+                          onDragStart={(e) => {
+                            e.stopPropagation()
+                            e.dataTransfer.setData('scriptIdx', String(idx))
+                            e.dataTransfer.effectAllowed = 'move'
+                            setDraggedScriptIdx(idx)
+                          }}
+                          onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null); setHoveredGripIdx(null) }}
+                          style={{
+                            paddingTop: 8,
+                            cursor: 'grab',
+                            color: hoveredGripIdx === idx ? '#a1a1aa' : '#3f3f46',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            transition: 'color 0.15s',
+                          }}
                           title="Drag to reorder"
                         >
                           <GripVertical size={13} style={{ pointerEvents: 'none' }} />

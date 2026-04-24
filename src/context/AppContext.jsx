@@ -296,8 +296,10 @@ export function AppProvider({ children }) {
           title:          row.title,
           brand:          brandFromDb(row),
           status:         row.status,
-          notes:          row.script || '',
-          caption:        row.caption || '',
+          // Use ?? so a realtime event that didn't change the script column
+          // (row.script === null) never overwrites existing notes in local state.
+          notes:          row.script ?? p.notes,
+          caption:        row.caption ?? p.caption,
           publishDate:    row.publish_date || '',
           dropboxLink:    row.dropbox_link || '',
           asanaLink:      row.asana_link || '',
