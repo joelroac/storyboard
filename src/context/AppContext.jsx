@@ -210,6 +210,10 @@ export function AppProvider({ children }) {
                   avatar:     saved.name ? saved.name[0] : saved.id[0].toUpperCase(),
                   avatar_url: saved.avatar_url || null,
                 })
+                // Re-identify the user with OneSignal on every page load so their
+                // device stays linked — this is the fix for "session restore never
+                // registers the device" (init promise is awaited inside identifyUser)
+                identifyUser(saved.id, saved.role)
               } else {
                 localStorage.removeItem('storyboard_session_user')
               }
