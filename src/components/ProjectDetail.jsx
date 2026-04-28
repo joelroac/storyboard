@@ -807,20 +807,30 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="ml-4 flex items-center gap-1 shrink-0">
+            {/* Expand/collapse — hidden on mobile, not useful on small screens */}
             <button
               onClick={() => setExpanded(v => !v)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
+              className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center transition-colors hover:bg-white/10"
               style={{ color: '#52525b' }}
               title={expanded ? 'Collapse' : 'Expand'}
             >
               {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
+            {/* Close — hidden on mobile (use the back button below instead) */}
             <button
               onClick={() => setSelectedProject(null)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
+              className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center transition-colors hover:bg-white/10"
               style={{ color: '#52525b' }}
             >
               <X size={16} />
+            </button>
+            {/* Mobile back button — large tap target, visible only on small screens */}
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.1)' }}
+            >
+              ← Back
             </button>
           </div>
         </div>
