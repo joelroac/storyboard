@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink, BarChart2 } from 'lucide-react'
 import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
@@ -66,20 +66,20 @@ function ProjectCard({ project, onClick, highlight }) {
   )
 }
 
-export default function TianaDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow } = useApp()
+export default function SocialMediaManagerDashboard() {
+  const { projects, setSelectedProject, advanceStatus, updateProject, addNotification, addBanner, currentUser, getMemberByRole, getTeamName, getStageOwner, getWorkflow, analyticsLog, submitAnalytics } = useApp()
   const [showAdd, setShowAdd]             = useState(false)
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [sortBy, setSortBy]               = useState('due_date')
+  const [schedulingId, setSchedulingId]   = useState(null)
+  const [scheduleInput, setScheduleInput] = useState('')
+  const [analyticsId, setAnalyticsId]     = useState(null)  // project id being submitted
+  const [analyticsLink, setAnalyticsLink] = useState('')
+  const [analyticsNotes, setAnalyticsNotes] = useState('')
   const now = new Date()
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
 
-  // Projects where Tiana owns the current stage (excluding terminal/publish-ready stages)
-  const needsCaption = sortProjects(projects.filter(p =>
-    getStageOwner(p.type, p.status) === 'tiana' &&
-    !TERMINAL_STATUSES.includes(p.status)
-  ), sortBy)
   // Projects where Joel owns the current stage and the previous stage was Tiana's (she submitted)
   const awaitingApproval = sortProjects(projects.filter(p => {
     if (getStageOwner(p.type, p.status) !== 'joel') return false
@@ -100,6 +100,25 @@ export default function TianaDashboard() {
     })
   })
 
+  // Posted/Sent projects that still need analytics submitted
+  const analyticsDue = projects.filter(p => {
+    if (!['Posted', 'Sent'].includes(p.status)) return false
+    const submitted = analyticsLog.find(a => a.projectId === p.id)
+    return !submitted
+  }).sort((a, b) => (b.publishDate || '').localeCompare(a.publishDate || ''))
+
+  function handleAnalyticsSubmit(p) {
+    if (!analyticsLink.trim()) return
+    submitAnalytics(p, { link: analyticsLink.trim(), notes: analyticsNotes.trim() })
+    const joelId = getMemberByRole('admin')?.id
+    const msg = `${getTeamName(currentUser.id)} submitted analytics for "${p.title}"`
+    addNotification({ message: msg, projectId: p.id, forUser: joelId })
+    addBanner(msg, 'info')
+    setAnalyticsId(null)
+    setAnalyticsLink('')
+    setAnalyticsNotes('')
+  }
+
   function handleMarkPublished(p) {
     const newStatus = p.status === 'Ready to Send' ? 'Sent' : 'Posted'
     advanceStatus(p.id, newStatus, currentUser.id)
@@ -107,6 +126,18 @@ export default function TianaDashboard() {
     const msg = `${getTeamName(currentUser.id)} published "${p.title}"`
     addNotification({ message: msg, projectId: p.id, forUser: joelId })
     addBanner(msg, 'success')
+  }
+
+  function handleScheduleConfirm(p) {
+    if (!scheduleInput) return
+    updateProject(p.id, { scheduledTime: scheduleInput })
+    advanceStatus(p.id, 'Scheduled', currentUser.id)
+    const joelId = getMemberByRole('admin')?.id
+    const msg = `${getTeamName(currentUser.id)} scheduled "${p.title}"`
+    addNotification({ message: msg, projectId: p.id, forUser: joelId })
+    addBanner(msg, 'info')
+    setSchedulingId(null)
+    setScheduleInput('')
   }
 
   function open(p) { setSelectedProject(p) }
@@ -141,9 +172,8 @@ export default function TianaDashboard() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-3 gap-3 mb-8">
         {[
-          { label: 'Needs Caption',     count: needsCaption.length,     color: '#fb923c' },
           { label: 'Awaiting Joel',     count: awaitingApproval.length, color: '#c084fc' },
           { label: 'Ready to Post',     count: readyToPost.length,      color: '#4ade80' },
           { label: 'Posted This Month', count: postedThisMonth.length,  color: '#9ca3af' },
@@ -158,74 +188,6 @@ export default function TianaDashboard() {
           </div>
         ))}
       </div>
-
-      {/* Needs My Attention — Caption Needed */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-orange-400" />
-          <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Needs Caption</h2>
-          {needsCaption.length > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={{ background: 'rgba(249,115,22,0.2)', color: '#fb923c' }}>
-              {needsCaption.length}
-            </span>
-          )}
-        </div>
-        {needsCaption.length === 0 ? (
-          <div className="rounded-xl py-10 text-center"
-            style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
-            <p className="text-zinc-600 text-sm">Nothing needs a caption right now</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {needsCaption.map(p => (
-              <button key={p.id} onClick={() => open(p)}
-                className="w-full text-left rounded-2xl overflow-hidden transition-all card-hover animate-fade-in"
-                style={{ background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)' }}>
-                <div className="p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)' }}>
-                    <PlatformIcon type={p.type} size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white">{p.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {p.brand && p.brand !== 'Organic' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                          style={{ background: 'rgba(255,255,255,0.07)', color: '#71717a' }}>
-                          {p.brand}
-                        </span>
-                      )}
-                      <span className="text-xs text-zinc-500">
-                        {p.publishDate ? format(parseISO(p.publishDate), 'MMM d') : ''}
-                      </span>
-                    </div>
-                    {(p.asanaLink || p.dropboxLink) && (
-                      <div className="flex items-center gap-3 mt-1">
-                        {p.asanaLink && (
-                          <a href={p.asanaLink} target="_blank" rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-amber-400 transition-colors">
-                            <ExternalLink size={10} /> Asana
-                          </a>
-                        )}
-                        {p.dropboxLink && (
-                          <a href={p.dropboxLink} target="_blank" rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-blue-400 transition-colors">
-                            <ExternalLink size={10} /> {p.type === 'instagram' || p.type === 'tiktok' ? 'Drive' : 'Dropbox'}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-xs font-semibold text-orange-400 shrink-0">Write Caption →</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* Awaiting Joel's Approval */}
       <section className="mb-8">
@@ -260,28 +222,85 @@ export default function TianaDashboard() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {readyToPost.map(p => (
-              <div key={p.id}
-                className="rounded-xl p-4 flex items-center gap-4"
-                style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="flex-1 flex items-center gap-3 cursor-pointer" onClick={() => open(p)}>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <PlatformIcon type={p.type} size={16} />
+            {readyToPost.map(p => {
+              const isOrganic  = !p.brand || p.brand === 'Organic'
+              const isScheduling = schedulingId === p.id
+              return (
+                <div key={p.id}
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  {/* Main row */}
+                  <div className="p-4 flex items-center gap-4">
+                    <div className="flex-1 flex items-center gap-3 cursor-pointer min-w-0" onClick={() => open(p)}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <PlatformIcon type={p.type} size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{p.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <StatusBadge status={p.status} />
+                          {!isOrganic && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                              style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}>
+                              Manual post required
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isOrganic && !isScheduling && (
+                        <button
+                          onClick={() => { setSchedulingId(p.id); setScheduleInput('') }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#60a5fa' }}>
+                          Schedule
+                        </button>
+                      )}
+                      {isScheduling && (
+                        <button
+                          onClick={() => { setSchedulingId(null); setScheduleInput('') }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#71717a' }}>
+                          Cancel
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleMarkPublished(p)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                        style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
+                        Mark as Published
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{p.title}</p>
-                    <StatusBadge status={p.status} />
-                  </div>
+                  {/* Inline schedule picker — organic posts only */}
+                  {isScheduling && (
+                    <div className="px-4 pb-4 flex items-center gap-2 animate-fade-in"
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <input
+                        type="datetime-local"
+                        value={scheduleInput}
+                        onChange={e => setScheduleInput(e.target.value)}
+                        className="flex-1 text-sm rounded-lg px-3 py-2 text-white"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark', outline: 'none' }}
+                      />
+                      <button
+                        onClick={() => handleScheduleConfirm(p)}
+                        disabled={!scheduleInput}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+                        style={{
+                          background: scheduleInput ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
+                          border: scheduleInput ? '1px solid rgba(96,165,250,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                          color: scheduleInput ? '#60a5fa' : '#52525b',
+                        }}>
+                        Confirm Schedule
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => handleMarkPublished(p)}
-                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
-                  Mark as Published
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
@@ -337,7 +356,95 @@ export default function TianaDashboard() {
         </section>
       )}
 
-      {needsCaption.length === 0 && awaitingApproval.length === 0 && readyToPost.length === 0 && scheduled.length === 0 && postedThisMonth.length === 0 && (
+      {/* Analytics Due */}
+      {analyticsDue.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 size={13} className="text-blue-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Analytics Due</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+              style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>
+              {analyticsDue.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {analyticsDue.map(p => {
+              const isSubmitting = analyticsId === p.id
+              return (
+                <div key={p.id}
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="p-4 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)' }}>
+                      <PlatformIcon type={p.type} size={15} />
+                    </div>
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedProject(p)}>
+                      <p className="text-sm font-semibold text-white truncate">{p.title}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">
+                        {p.publishDate ? `Posted ${format(parseISO(p.publishDate), 'MMM d')}` : 'Posted'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!isSubmitting && (
+                        <button
+                          onClick={() => { setAnalyticsId(p.id); setAnalyticsLink(''); setAnalyticsNotes('') }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#60a5fa' }}>
+                          Submit Analytics
+                        </button>
+                      )}
+                      {isSubmitting && (
+                        <button
+                          onClick={() => { setAnalyticsId(null); setAnalyticsLink(''); setAnalyticsNotes('') }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#71717a' }}>
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* Inline analytics form */}
+                  {isSubmitting && (
+                    <div className="px-4 pb-4 flex flex-col gap-2 animate-fade-in"
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <input
+                        type="url"
+                        placeholder="Analytics link (e.g. Instagram Insights URL)"
+                        value={analyticsLink}
+                        onChange={e => setAnalyticsLink(e.target.value)}
+                        className="w-full text-sm rounded-lg px-3 py-2 text-white mt-2"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Notes (views, likes, reach…) — optional"
+                        value={analyticsNotes}
+                        onChange={e => setAnalyticsNotes(e.target.value)}
+                        className="w-full text-sm rounded-lg px-3 py-2 text-white"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
+                      />
+                      <button
+                        onClick={() => handleAnalyticsSubmit(p)}
+                        disabled={!analyticsLink.trim()}
+                        className="self-end px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+                        style={{
+                          background: analyticsLink.trim() ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
+                          border: analyticsLink.trim() ? '1px solid rgba(96,165,250,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                          color: analyticsLink.trim() ? '#60a5fa' : '#52525b',
+                        }}>
+                        Submit
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {awaitingApproval.length === 0 && readyToPost.length === 0 && scheduled.length === 0 && postedThisMonth.length === 0 && (
         <div className="card p-8 text-center">
           <div className="text-3xl mb-3">✓</div>
           <p className="text-base font-semibold text-white mb-2">All caught up!</p>

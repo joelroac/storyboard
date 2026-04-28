@@ -41,11 +41,11 @@ export default function SortBar({ sortBy, setSortBy }) {
         <button
           key={opt.id}
           onClick={() => setSortBy(opt.id)}
-          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
           style={
             sortBy === opt.id
               ? { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
-              : { color: '#52525b', border: '1px solid rgba(255,255,255,0.07)' }
+              : { background: 'rgba(255,255,255,0.03)', color: '#52525b', border: '1px solid rgba(255,255,255,0.07)' }
           }
         >
           {opt.label}

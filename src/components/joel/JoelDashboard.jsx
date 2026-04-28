@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, AlertCircle, CheckCircle2, Trash2, ChevronDown } from 'lucide-react'
+import { Plus, AlertCircle, CheckCircle2, Trash2, ChevronDown, DollarSign, ExternalLink } from 'lucide-react'
 import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
@@ -11,8 +11,7 @@ import AddProjectModal from './AddProjectModal'
 const KANBAN_GROUPS = [
   { label: 'In Production',     statuses: ['Filming', 'Raw Footage Ready', 'Drafting'] },
   { label: 'Editing',           statuses: ['Editing in Progress', 'Edit Review', 'Revision Requested', 'Final Review', 'In Review'] },
-  { label: 'Caption Stage',     statuses: ['Caption Needed', 'Caption In Review'] },
-  { label: 'Social Production', statuses: [], special: 'social' },
+{ label: 'Social Production', statuses: [], special: 'social' },
 ]
 
 function daysLabel(dateStr) {
@@ -28,6 +27,13 @@ function daysLabel(dateStr) {
 
 // Maps STAGE_OWNER key → DB role for teamMembers lookup
 const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
+
+// Color per owner for the avatar chip
+const OWNER_COLOR = {
+  joel:    { bg: 'rgba(245,158,11,0.18)',  border: 'rgba(245,158,11,0.35)',  text: '#fbbf24' },
+  anthony: { bg: 'rgba(96,165,250,0.18)',  border: 'rgba(96,165,250,0.35)',  text: '#60a5fa' },
+  tiana:   { bg: 'rgba(192,132,252,0.18)', border: 'rgba(192,132,252,0.35)', text: '#c084fc' },
+}
 
 function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow, getStageOwner, updateProject }) {
   const ownerKey    = getStageOwner ? getStageOwner(project.type, project.status) : null
@@ -81,18 +87,38 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
         <span className="text-[10px] text-zinc-500">{TYPE_LABELS[project.type]}</span>
       </div>
       <span className="text-xs font-medium text-white leading-snug">{project.title}</span>
-      <StatusBadge status={project.status} />
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <StatusBadge status={project.status} />
+        {project.status === 'Ready to Post' && project.brand && project.brand !== 'Organic' && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold"
+            style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
+            Manual
+          </span>
+        )}
+      </div>
 
       <div className="flex items-center gap-1.5">
-        {ownerMember && (
-          <>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
-              style={{ background: 'rgba(255,255,255,0.1)', color: '#9ca3af' }}>
-              {ownerMember.avatar || ownerMember.name?.[0]}
-            </div>
-            <span className="text-[10px] text-zinc-500">{ownerMember.name}</span>
-          </>
-        )}
+        {ownerMember && (() => {
+          const clr = OWNER_COLOR[ownerKey] || { bg: 'rgba(255,255,255,0.1)', border: 'rgba(255,255,255,0.15)', text: '#9ca3af' }
+          return (
+            <>
+              {ownerMember.avatar_url ? (
+                <img
+                  src={ownerMember.avatar_url}
+                  alt={ownerMember.name}
+                  className="w-4 h-4 rounded-full shrink-0 object-cover"
+                  style={{ border: `1px solid ${clr.border}` }}
+                />
+              ) : (
+                <div className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                  style={{ background: clr.bg, border: `1px solid ${clr.border}`, color: clr.text }}>
+                  {ownerMember.name?.[0]}
+                </div>
+              )}
+              <span className="text-[10px] font-medium" style={{ color: clr.text }}>{ownerMember.name}</span>
+            </>
+          )
+        })()}
         <div className="ml-auto" onClick={e => e.stopPropagation()}>
           {editingDate ? (
             <input
@@ -178,7 +204,7 @@ function ReviewCard({ project, onClick, getTeamName }) {
 }
 
 export default function JoelDashboard() {
-  const { projects, setSelectedProject, advanceStatus, deleteProject, updateProject, getTeamName, getWorkflow, getStageOwner, teamMembers } = useApp()
+  const { projects, setSelectedProject, advanceStatus, deleteProject, updateProject, getTeamName, getWorkflow, getStageOwner, teamMembers, payments, markPaymentPaid, addBanner, analyticsLog, acknowledgeAnalytics } = useApp()
   const [showAdd, setShowAdd]           = useState(false)
   const [dragOverCol, setDragOverCol]   = useState(null)
   const [deletingId, setDeletingId]     = useState(null)
@@ -275,6 +301,103 @@ export default function JoelDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Pending Payments */}
+      {payments.filter(p => p.status === 'pending').length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign size={14} className="text-emerald-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Pending Payments</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+              style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>
+              {payments.filter(p => p.status === 'pending').length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {payments.filter(p => p.status === 'pending').map(payment => {
+              const project = projects.find(p => p.id === payment.projectId)
+              return (
+                <div key={payment.id}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl"
+                  style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                  {project && <PlatformIcon type={project.type} size={13} />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{payment.projectTitle}</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      Requested by Anthony · {format(parseISO(payment.requestedAt), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      markPaymentPaid(payment.id)
+                      addBanner(`Payment marked as paid for "${payment.projectTitle}"`, 'success')
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all"
+                    style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
+                    Mark as Paid
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Analytics Received */}
+      {analyticsLog.filter(a => !a.acknowledged).length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign size={14} className="text-blue-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Analytics Received</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+              style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>
+              {analyticsLog.filter(a => !a.acknowledged).length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {analyticsLog.filter(a => !a.acknowledged).map(entry => {
+              const project = projects.find(p => p.id === entry.projectId)
+              return (
+                <div key={entry.id}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl"
+                  style={{ background: 'rgba(96,165,250,0.04)', border: '1px solid rgba(96,165,250,0.15)' }}>
+                  {project && <PlatformIcon type={project.type} size={13} />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{entry.projectTitle}</p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <p className="text-[10px] text-zinc-500">
+                        Submitted {format(parseISO(entry.submittedAt), 'MMM d, yyyy')}
+                      </p>
+                      {entry.notes && (
+                        <p className="text-[10px] text-zinc-400 truncate max-w-[200px]">{entry.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {entry.link && (
+                      <a
+                        href={entry.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                        style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#60a5fa' }}>
+                        <ExternalLink size={11} />
+                        View
+                      </a>
+                    )}
+                    <button
+                      onClick={() => acknowledgeAnalytics(entry.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#71717a' }}>
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Review Queue */}
       {reviewQueue.length > 0 && (
@@ -425,40 +548,63 @@ export default function JoelDashboard() {
                 </div>
               )
             })}
+
+            {/* Going Live column — right of Social Production */}
+            {(() => {
+              const goingLive = [...readyProjects, ...scheduledProjects]
+              const CAP = 5
+              const isExpanded = !!expandedCols['Going Live']
+              const toggleExpand = () => setExpandedCols(prev => ({ ...prev, 'Going Live': !prev['Going Live'] }))
+              const visible = isExpanded ? goingLive : goingLive.slice(0, CAP)
+              const hidden  = goingLive.length - CAP
+              return (
+                <div className="rounded-xl p-3"
+                  style={{ minHeight: 120, background: 'transparent', border: '1px solid transparent' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#4ade80' }}>Going Live</p>
+                    {goingLive.length > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                        style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80' }}>
+                        {goingLive.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {goingLive.length === 0 ? (
+                      <div className="rounded-xl py-8 flex items-center justify-center"
+                        style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
+                        <span className="text-xs text-zinc-700">Empty</span>
+                      </div>
+                    ) : (
+                      <>
+                        {visible.map(p => (
+                          <ProjectMiniCard key={p.id} project={p} onClick={() => openProject(p)}
+                            onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
+                            showDelete={deletingId === p.id}
+                            onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
+                            teamMembers={teamMembers} getWorkflow={getWorkflow}
+                            getStageOwner={getStageOwner} updateProject={updateProject} />
+                        ))}
+                        {!isExpanded && hidden > 0 && (
+                          <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">
+                            +{hidden} more
+                          </button>
+                        )}
+                        {isExpanded && goingLive.length > CAP && (
+                          <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">
+                            Show less
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
       </section>
-
-      {/* Going Live — horizontal bar */}
-      {(readyProjects.length > 0 || scheduledProjects.length > 0) && (
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Going Live</h2>
-            <span className="text-xs text-zinc-600">{readyProjects.length + scheduledProjects.length} projects</span>
-          </div>
-          <div className="kanban-scroll">
-            <div className="flex gap-3" style={{ minWidth: 'max-content' }}>
-              {[...readyProjects, ...scheduledProjects].map(p => {
-                const cd = countdownText(p)
-                return (
-                  <div key={p.id} onClick={() => openProject(p)}
-                    className="cursor-pointer w-52 rounded-xl p-3 shrink-0"
-                    style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.2)' }}>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <PlatformIcon type={p.type} size={11} />
-                      <span className="text-[10px] text-zinc-500">{TYPE_LABELS[p.type]}</span>
-                    </div>
-                    <p className="text-xs font-medium text-white leading-snug mb-2">{p.title}</p>
-                    <StatusBadge status={p.status} />
-                    {cd && <p className="text-[10px] mt-2" style={{ color: cd.color }}>{cd.text}</p>}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* All Posted */}
       {(() => {

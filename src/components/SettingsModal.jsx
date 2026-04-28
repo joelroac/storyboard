@@ -117,7 +117,7 @@ export default function SettingsModal({ onClose }) {
   }
 
   // ── Team Links ────────────────────────────────────────────────────────────
-  const [localLinks, setLocalLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] })
+  const [localLinks, setLocalLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [], admin: [], adminPasswords: [] })
   const [linksSaved, setLinksSaved] = useState(false)
 
   useEffect(() => {
@@ -126,6 +126,8 @@ export default function SettingsModal({ onClose }) {
       socialManager:          [...(relevantLinks?.socialManager          || [])],
       editorPasswords:        [...(relevantLinks?.editorPasswords        || [])],
       socialManagerPasswords: [...(relevantLinks?.socialManagerPasswords || [])],
+      admin:                  [...(relevantLinks?.admin                  || [])],
+      adminPasswords:         [...(relevantLinks?.adminPasswords         || [])],
     })
   }, [relevantLinks])
 
@@ -152,6 +154,8 @@ export default function SettingsModal({ onClose }) {
     updateRelevantLinks('socialManager', localLinks.socialManager)
     updateRelevantLinks('editorPasswords', localLinks.editorPasswords)
     updateRelevantLinks('socialManagerPasswords', localLinks.socialManagerPasswords)
+    updateRelevantLinks('admin', localLinks.admin)
+    updateRelevantLinks('adminPasswords', localLinks.adminPasswords)
     setLinksSaved(true)
     setTimeout(() => setLinksSaved(false), 2000)
   }
@@ -578,6 +582,46 @@ export default function SettingsModal({ onClose }) {
           {tab === 'links' && (
             <div>
               <p className="text-xs text-zinc-500 mb-5">Add links visible to your editor and social media manager in their dashboards.</p>
+
+              {/* ── Admin-only section ── */}
+              <div className="mb-8 rounded-xl p-4" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                <p className="text-[10px] text-amber-500 uppercase tracking-widest font-semibold mb-3">Admin Only (visible only to you)</p>
+
+                <p className="text-[10px] text-zinc-700 uppercase tracking-widest mb-2">Links</p>
+                <div className="flex flex-col gap-2 mb-2">
+                  {(localLinks.admin || []).map((link, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input value={link.label} onChange={(e) => updateLocalLink('admin', i, 'label', e.target.value)}
+                        placeholder="Label" className="text-sm rounded-lg px-3 py-2 text-zinc-300 w-28"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                      <input value={link.url} onChange={(e) => updateLocalLink('admin', i, 'url', e.target.value)}
+                        placeholder="https://…" className="flex-1 text-sm rounded-lg px-3 py-2 text-zinc-300"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                      <button onClick={() => removeLink('admin', i)} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => addLink('admin')} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mb-4">+ Add Link</button>
+
+                <p className="text-[10px] text-zinc-700 uppercase tracking-widest mb-2 mt-3">Passwords</p>
+                <div className="flex flex-col gap-2 mb-2">
+                  {(localLinks.adminPasswords || []).map((entry, i) => (
+                    <div key={i} className="flex items-center gap-2 min-w-0">
+                      <input value={entry.label} onChange={(e) => updateLocalPassword('adminPasswords', i, 'label', e.target.value)}
+                        placeholder="Label" className="text-sm rounded-lg px-3 py-2 text-zinc-300 w-24 shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                      <input value={entry.username} onChange={(e) => updateLocalPassword('adminPasswords', i, 'username', e.target.value)}
+                        placeholder="Username / email" className="flex-1 min-w-0 text-sm rounded-lg px-3 py-2 text-zinc-300"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                      <input value={entry.password} onChange={(e) => updateLocalPassword('adminPasswords', i, 'password', e.target.value)}
+                        placeholder="Password" className="flex-1 min-w-0 text-sm rounded-lg px-3 py-2 text-zinc-300"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
+                      <button onClick={() => removePassword('adminPasswords', i)} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => addPassword('adminPasswords')} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">+ Add Password</button>
+              </div>
 
               {[
                 { role: 'editor',        pwKey: 'editorPasswords',        label: 'For Editor' },

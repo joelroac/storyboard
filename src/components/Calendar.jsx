@@ -9,49 +9,87 @@ import { useApp } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
 
-// ── Week Goal Row ─────────────────────────────────────────────────────────────
+// ── Goals Panel (right sidebar) ───────────────────────────────────────────────
 
-function WeekGoalRow({ week, projects, goals }) {
+function GoalsPanel({ weeks, projects, goals }) {
   const activePlatforms = Object.entries(goals).filter(([, g]) => g > 0)
   if (activePlatforms.length === 0) return null
 
-  const weekStart = week[0]
-  const weekEnd   = week[week.length - 1]
-
-  // Count projects per platform whose publishDate falls within this week
-  const counts = {}
-  for (const p of projects) {
-    if (!p.publishDate) continue
-    const d = new Date(p.publishDate + 'T00:00:00')
-    if (d >= weekStart && d <= weekEnd) {
-      counts[p.type] = (counts[p.type] || 0) + 1
-    }
-  }
+  // Only count posts where the final workflow step is complete
+  const COMPLETED_STATUSES = ['Posted', 'Sent']
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-1.5 mb-1 rounded-lg flex-wrap"
-      style={{ background: 'rgba(255,255,255,0.02)' }}
+      className="w-48 shrink-0 sticky top-24 self-start rounded-2xl overflow-hidden"
+      style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}
     >
-      {activePlatforms.map(([platform, goal]) => {
-        const count = counts[platform] || 0
-        const met   = count >= goal
-        return (
-          <span key={platform} className="flex items-center gap-1">
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: PLATFORM_COLORS[platform] || '#9ca3af' }}
-            />
-            <span
-              className="text-[10px] font-semibold tabular-nums"
-              style={{ color: met ? '#4ade80' : '#52525b' }}
-            >
-              {count}/{goal}
-            </span>
-            {met && <CheckCircle2 size={10} style={{ color: '#4ade80' }} />}
-          </span>
-        )
-      })}
+      <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <p className="text-xs font-semibold text-white uppercase tracking-widest">Posting Goals</p>
+        <p className="text-[10px] text-zinc-600 mt-0.5">per week</p>
+      </div>
+      <div className="p-3 flex flex-col gap-3">
+        {weeks.map((week, wi) => {
+          const weekStart = week[0]
+          const weekEnd   = week[week.length - 1]
+          const label     = format(weekStart, 'MMM d') + ' – ' + format(weekEnd, 'd')
+
+          // Count only fully-completed posts (Posted or Sent) in this week
+          const counts = {}
+          for (const p of projects) {
+            if (!p.publishDate) continue
+            if (!COMPLETED_STATUSES.includes(p.status)) continue
+            const d = new Date(p.publishDate + 'T00:00:00')
+            if (d >= weekStart && d <= weekEnd) {
+              counts[p.type] = (counts[p.type] || 0) + 1
+            }
+          }
+
+          const allMet = activePlatforms.every(([platform, goal]) => (counts[platform] || 0) >= goal)
+
+          return (
+            <div key={wi} className="rounded-xl p-2.5"
+              style={{
+                background: allMet ? 'rgba(74,222,128,0.05)' : 'rgba(255,255,255,0.02)',
+                border: allMet ? '1px solid rgba(74,222,128,0.15)' : '1px solid rgba(255,255,255,0.05)',
+              }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] text-zinc-500 font-medium">{label}</p>
+                {allMet && <CheckCircle2 size={10} style={{ color: '#4ade80' }} />}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {activePlatforms.map(([platform, goal]) => {
+                  const count = counts[platform] || 0
+                  const met   = count >= goal
+                  const pct   = Math.min(count / goal, 1)
+                  return (
+                    <div key={platform}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: PLATFORM_COLORS[platform] || '#9ca3af' }} />
+                          <span className="text-[10px] text-zinc-500 capitalize">{platform}</span>
+                        </div>
+                        <span className="text-[10px] font-semibold tabular-nums"
+                          style={{ color: met ? '#4ade80' : '#52525b' }}>
+                          {count}/{goal}
+                        </span>
+                      </div>
+                      <div className="rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${pct * 100}%`,
+                            background: met ? '#4ade80' : (PLATFORM_COLORS[platform] || '#9ca3af'),
+                            opacity: met ? 1 : 0.5,
+                          }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -283,26 +321,19 @@ export default function Calendar() {
           </div>
 
           {view === 'month' ? (
-            // Chunk days into weeks and inject a goal row after each week
             (() => {
               const weeks = []
               for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
               return weeks.map((week, wi) => (
-                <React.Fragment key={wi}>
-                  <div className="grid grid-cols-7 gap-1">
-                    {week.map((day) => <DayCell key={day.toISOString()} date={day} />)}
-                  </div>
-                  <WeekGoalRow week={week} projects={activeProjects} goals={postingGoals} />
-                </React.Fragment>
+                <div key={wi} className="grid grid-cols-7 gap-1">
+                  {week.map((day) => <DayCell key={day.toISOString()} date={day} />)}
+                </div>
               ))
             })()
           ) : (
-            <>
-              <div className="grid grid-cols-7 gap-1">
-                {weekDays.map((day) => <DayCell key={day.toISOString()} date={day} />)}
-              </div>
-              <WeekGoalRow week={weekDays} projects={activeProjects} goals={postingGoals} />
-            </>
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map((day) => <DayCell key={day.toISOString()} date={day} />)}
+            </div>
           )}
 
           {/* Legend */}
@@ -378,6 +409,14 @@ export default function Calendar() {
             </div>
           </div>
         </div>
+
+        {/* Goals panel — right sidebar */}
+        {(() => {
+          const weeks = view === 'month'
+            ? (() => { const w = []; for (let i = 0; i < days.length; i += 7) w.push(days.slice(i, i + 7)); return w })()
+            : [weekDays]
+          return <GoalsPanel weeks={weeks} projects={projects} goals={postingGoals} />
+        })()}
 
         {/* Side panel — projects on selected day */}
         {selectedDay && (

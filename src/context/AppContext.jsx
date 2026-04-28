@@ -243,6 +243,12 @@ export function AppProvider({ children }) {
 
           const goalsRow = settingsRows.find(r => r.key === 'posting_goals')
           if (goalsRow?.value) setPostingGoals(goalsRow.value)
+
+          const paymentsRow = settingsRows.find(r => r.key === 'payments')
+          if (paymentsRow?.value) setPayments(paymentsRow.value)
+
+          const analyticsRow = settingsRows.find(r => r.key === 'analytics_log')
+          if (analyticsRow?.value) setAnalyticsLog(analyticsRow.value)
         }
       } catch (err) {
         console.error('Error loading initial data:', err)
@@ -695,10 +701,21 @@ export function AppProvider({ children }) {
       assignedRole: OWNER_TO_ROLE[wfData.owners?.[stageName]] || 'admin',
     }))
 
-    const { error } = await supabase
+    // Check whether a row already exists for this platform
+    const { data: existing } = await supabase
       .from('workflow_settings')
-      .update({ stages: dbStages, updated_at: new Date().toISOString() })
+      .select('id')
       .eq('platform', platform)
+      .maybeSingle()
+
+    const { error } = existing
+      ? await supabase
+          .from('workflow_settings')
+          .update({ stages: dbStages, updated_at: new Date().toISOString() })
+          .eq('platform', platform)
+      : await supabase
+          .from('workflow_settings')
+          .insert({ platform, stages: dbStages, updated_at: new Date().toISOString() })
 
     if (error) { console.error('Error saving workflow settings:', error); return false }
 
@@ -743,6 +760,87 @@ export function AppProvider({ children }) {
     if (error) console.error('Failed to save posting goals:', error)
   }, [])
 
+  // ── Analytics ─────────────────────────────────────────────────────────────
+  const [analyticsLog, setAnalyticsLog] = useState([])
+
+  function _saveAnalytics(next) {
+    supabase.from('app_settings').upsert({ key: 'analytics_log', value: next }, { onConflict: 'key' }).then(({ error }) => {
+      if (error) console.error('Error saving analytics log:', error)
+    })
+  }
+
+  const submitAnalytics = useCallback((project, { link, notes }) => {
+    setAnalyticsLog(prev => {
+      const existing = prev.find(a => a.projectId === project.id)
+      let next
+      if (existing) {
+        next = prev.map(a => a.projectId === project.id
+          ? { ...a, link, notes, submittedAt: new Date().toISOString(), acknowledged: false }
+          : a
+        )
+      } else {
+        next = [...prev, {
+          id:           Date.now().toString(),
+          projectId:    project.id,
+          projectTitle: project.title,
+          projectType:  project.type,
+          link,
+          notes,
+          submittedAt:  new Date().toISOString(),
+          acknowledged: false,
+        }]
+      }
+      _saveAnalytics(next)
+      return next
+    })
+  }, [])
+
+  const acknowledgeAnalytics = useCallback((analyticsId) => {
+    setAnalyticsLog(prev => {
+      const next = prev.map(a => a.id === analyticsId ? { ...a, acknowledged: true } : a)
+      _saveAnalytics(next)
+      return next
+    })
+  }, [])
+
+  // ── Payments ──────────────────────────────────────────────────────────────
+  const [payments, setPayments] = useState([])
+
+  function _savePayments(next) {
+    supabase.from('app_settings').upsert({ key: 'payments', value: next }, { onConflict: 'key' }).then(({ error }) => {
+      if (error) console.error('Error saving payments:', error)
+    })
+  }
+
+  const requestPayment = useCallback((project) => {
+    setPayments(prev => {
+      if (prev.some(p => p.projectId === project.id && p.status !== 'paid')) return prev
+      const entry = {
+        id:           Date.now().toString(),
+        projectId:    project.id,
+        projectTitle: project.title,
+        projectType:  project.type,
+        requestedAt:  new Date().toISOString(),
+        status:       'pending',
+        paidAt:       null,
+      }
+      const next = [...prev, entry]
+      _savePayments(next)
+      return next
+    })
+  }, [])
+
+  const markPaymentPaid = useCallback((paymentId) => {
+    setPayments(prev => {
+      const next = prev.map(p => p.id === paymentId
+        ? { ...p, status: 'paid', paidAt: new Date().toISOString() }
+        : p
+      )
+      _savePayments(next)
+      return next
+    })
+  }, [])
+
   // ── Ideas ─────────────────────────────────────────────────────────────────
   const [ideas, setIdeas] = useState([])
 
@@ -784,7 +882,7 @@ export function AppProvider({ children }) {
   }, [])
 
   // ── Relevant Links ────────────────────────────────────────────────────────
-  const [relevantLinks, setRelevantLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [] })
+  const [relevantLinks, setRelevantLinks] = useState({ editor: [], socialManager: [], editorPasswords: [], socialManagerPasswords: [], admin: [], adminPasswords: [] })
 
   const updateRelevantLinks = useCallback(async (role, links) => {
     setRelevantLinks((prev) => {
@@ -851,6 +949,12 @@ export function AppProvider({ children }) {
         relevantLinks,
         updateRelevantLinks,
         clearNotifications,
+        payments,
+        requestPayment,
+        markPaymentPaid,
+        analyticsLog,
+        submitAnalytics,
+        acknowledgeAnalytics,
       }}
     >
       {children}

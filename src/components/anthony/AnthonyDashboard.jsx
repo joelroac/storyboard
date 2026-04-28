@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import { ExternalLink, CheckCircle2 } from 'lucide-react'
+import { ExternalLink, CheckCircle2, DollarSign } from 'lucide-react'
 import SortBar, { sortProjects } from '../shared/SortBar'
 
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
 import StatusBadge from '../shared/StatusBadge'
-import { YoutubeIcon } from '../shared/Icons'
+import { YoutubeIcon, PlatformIcon } from '../shared/Icons'
 
 function daysLabel(dateStr) {
   if (!dateStr) return null
@@ -19,7 +19,7 @@ function daysLabel(dateStr) {
 }
 
 export default function AnthonyDashboard() {
-  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getStageOwner, getWorkflow } = useApp()
+  const { projects, setSelectedProject, advanceStatus, addNotification, addBanner, currentUser, getMemberByRole, getStageOwner, getWorkflow, payments, requestPayment } = useApp()
   const [sortBy, setSortBy] = useState('due_date')
 
   // Active: Anthony owns current stage, OR he submitted it and Joel is reviewing
@@ -42,6 +42,17 @@ export default function AnthonyDashboard() {
     const idx = wf.indexOf(p.status)
     return idx > 0 && wf.slice(0, idx).some(stage => getStageOwner(p.type, stage) === 'anthony')
   })
+
+  // Posted projects where Anthony contributed — eligible for payment
+  const payableProjects = projects.filter(p => {
+    if (!['Posted', 'Sent'].includes(p.status)) return false
+    const wf = getWorkflow(p.type)
+    return wf.some(stage => getStageOwner(p.type, stage) === 'anthony')
+  })
+
+  function getPaymentStatus(projectId) {
+    return payments.find(p => p.projectId === projectId) || null
+  }
 
   function handleMarkDone(project) {
     const wf = getWorkflow(project.type)
@@ -213,7 +224,7 @@ export default function AnthonyDashboard() {
 
       {/* Completed */}
       {myDone.length > 0 && (
-        <section>
+        <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle2 size={14} className="text-zinc-600" />
             <h2 className="text-sm font-semibold text-zinc-600 uppercase tracking-widest">Completed</h2>
@@ -228,6 +239,66 @@ export default function AnthonyDashboard() {
                 <StatusBadge status={p.status} />
               </button>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Payment Log */}
+      {payableProjects.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign size={14} className="text-emerald-500" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Payment Log</h2>
+            {payments.filter(p => p.status === 'pending').length > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>
+                {payments.filter(p => p.status === 'pending').length} pending
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            {payableProjects.map(p => {
+              const payment = getPaymentStatus(p.id)
+              return (
+                <div key={p.id}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl"
+                  style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <PlatformIcon type={p.type} size={13} />
+                  <button onClick={() => setSelectedProject(p)} className="flex-1 min-w-0 text-left">
+                    <span className="text-sm text-zinc-300 truncate block hover:text-white transition-colors">{p.title}</span>
+                    {p.publishDate && (
+                      <span className="text-[10px] text-zinc-600">
+                        Posted {format(parseISO(p.publishDate), 'MMM d, yyyy')}
+                      </span>
+                    )}
+                  </button>
+                  <div className="shrink-0">
+                    {!payment && (
+                      <button
+                        onClick={() => requestPayment(p)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80' }}>
+                        Request Payment
+                      </button>
+                    )}
+                    {payment?.status === 'pending' && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.2)', color: '#facc15' }}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                        Awaiting Payment
+                      </span>
+                    )}
+                    {payment?.status === 'paid' && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#4ade80' }}>
+                        <CheckCircle2 size={11} />
+                        Paid {payment.paidAt ? format(parseISO(payment.paidAt), 'MMM d') : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </section>
       )}
