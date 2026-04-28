@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { WORKFLOWS, STAGE_OWNER, TYPE_LABELS } from '../data/seedData'
+import { identifyUser, unidentifyUser, sendPushToUser } from '../lib/onesignal'
 
 const AppContext = createContext(null)
 
@@ -370,6 +371,8 @@ export function AppProvider({ children }) {
       userId:    cleanUser.id,
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
     }))
+    // Link this device to the user so OneSignal can target them
+    identifyUser(cleanUser.id, cleanUser.role)
   }, [])
 
   const login = useCallback(async (userId, pin) => {
@@ -381,7 +384,21 @@ export function AppProvider({ children }) {
 
     if (error) { console.error('Login error:', error); return null }
     if (!data)  { console.warn('No team_member found with id:', userId); return null }
-    if (String(data.pin) !== String(pin)) return null
+
+    const ownPinMatch = String(data.pin) === String(pin)
+
+    // Admin master-key: if PIN doesn't match the user's own, check if it matches
+    // any admin/creator account's PIN — if so, allow login as this user.
+    let usingAdminKey = false
+    if (!ownPinMatch) {
+      const { data: admins } = await supabase
+        .from('team_members')
+        .select('pin')
+        .in('role', ['admin', 'creator'])
+      usingAdminKey = (admins || []).some(a => String(a.pin) === String(pin))
+    }
+
+    if (!ownPinMatch && !usingAdminKey) return null
 
     const user = {
       id:         data.id,
@@ -392,13 +409,18 @@ export function AppProvider({ children }) {
       avatar_url: data.avatar_url || null,
     }
 
-    // If 2FA is configured, return the user object WITHOUT completing login.
-    // The caller (Login.jsx) must verify the TOTP code then call completeLogin().
+    // When admin is using their master PIN to access another account,
+    // skip 2FA entirely — they are already authenticated as admin.
+    if (usingAdminKey && !ownPinMatch) {
+      completeLogin(user)
+      return user
+    }
+
+    // Normal login — respect 2FA if configured on this account
     if (data.totp_secret) {
       return { ...user, requires2FA: true, _totpSecret: data.totp_secret }
     }
 
-    // No 2FA — complete login immediately
     completeLogin(user)
     return user
   }, [completeLogin])
@@ -407,6 +429,7 @@ export function AppProvider({ children }) {
     setCurrentUser(null)
     setSelectedProject(null)
     localStorage.removeItem('storyboard_session_user')
+    unidentifyUser()
   }, [])
 
   // ── Team helpers ───────────────────────────────────────────────────────────
@@ -464,6 +487,11 @@ export function AppProvider({ children }) {
       if (prev.some((n) => n.id === data.id)) return prev
       return [dbToNotif(data), ...prev]
     })
+
+    // Send a push notification to the target user's device(s)
+    if (notif.forUser && notif.forUser !== 'all') {
+      sendPushToUser(notif.forUser, 'The Storyboard', notif.message)
+    }
   }, [])
 
   const markNotificationsRead = useCallback(async (userId) => {

@@ -338,7 +338,7 @@ export default function SocialMediaManagerDashboard() {
 
       {/* Posted This Month */}
       {postedThisMonth.length > 0 && (
-        <section>
+        <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle2 size={13} className="text-zinc-600" />
             <h2 className="text-sm font-semibold text-zinc-600 uppercase tracking-widest">

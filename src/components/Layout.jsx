@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { LayoutDashboard, CalendarDays, Link2, LogOut, Settings, Clapperboard, Camera, X, KeyRound, ChevronRight, ShieldCheck, ShieldOff, Lightbulb } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Link2, LogOut, Settings, Clapperboard, Camera, X, KeyRound, ChevronRight, ShieldCheck, ShieldOff, Lightbulb, Share } from 'lucide-react'
 import * as OTPAuth from 'otpauth'
 import QRCode from 'qrcode'
 import { useApp } from '../context/AppContext'
@@ -31,6 +31,14 @@ export default function Layout({ children }) {
   useEffect(() => {
     if (currentUser?.name) setNameDraft(currentUser.name)
   }, [currentUser?.name])
+
+  // ── iOS "Add to Home Screen" install banner ───────────────────────────────
+  const isIos       = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
+  const [showIosBanner, setShowIosBanner] = useState(() => {
+    if (!isIos || isStandalone) return false
+    return !sessionStorage.getItem('sb_ios_banner_dismissed')
+  })
 
   // Resolve avatar_url live from teamMembers so it updates without re-login
   const liveMember   = teamMembers.find((m) => m.id === currentUser?.id)
@@ -141,6 +149,29 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex flex-col" style={{ background: '#0c0c0e', minHeight: '100dvh' }}>
+
+      {/* iOS "Add to Home Screen" nudge — only shown on Safari/iOS, dismissed per session */}
+      {showIosBanner && (
+        <div
+          className="flex items-center gap-3 px-4 py-2.5 text-xs"
+          style={{
+            background:   'rgba(245,158,11,0.08)',
+            borderBottom: '1px solid rgba(245,158,11,0.2)',
+          }}
+        >
+          <Share size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+          <span className="text-zinc-400 flex-1">
+            Install the app for push notifications — tap <span className="text-amber-400 font-semibold">Share</span> then <span className="text-amber-400 font-semibold">Add to Home Screen</span>.
+          </span>
+          <button
+            onClick={() => { setShowIosBanner(false); sessionStorage.setItem('sb_ios_banner_dismissed', '1') }}
+            className="text-zinc-600 hover:text-zinc-400 transition-colors shrink-0"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Top nav */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 safe-top"

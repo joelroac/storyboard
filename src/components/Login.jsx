@@ -277,6 +277,11 @@ export default function Login() {
             <p className="text-zinc-600 text-[10px] font-medium uppercase tracking-widest mb-3 text-center">
               Enter passcode
             </p>
+            {selected.role !== 'admin' && selected.role !== 'creator' && (
+              <p className="text-zinc-700 text-[10px] text-center mb-3">
+                Admins may use their own PIN
+              </p>
+            )}
             <input
               type="password"
               inputMode="text"
