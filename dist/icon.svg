@@ -1,25 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Board body -->
-  <rect x="6" y="20" width="52" height="36" rx="4" ry="4" fill="#141418" stroke="#f59e0b" stroke-width="2.5"/>
+  <!-- Dark rounded square background -->
+  <rect width="64" height="64" rx="14" fill="#1c1c1f"/>
 
-  <!-- Clapper top (closed, angled stripes) -->
-  <rect x="6" y="10" width="52" height="12" rx="3" ry="3" fill="#1a1a20" stroke="#f59e0b" stroke-width="2.5"/>
-
-  <!-- Clapper stripe pattern -->
-  <clipPath id="topClip">
-    <rect x="6" y="10" width="52" height="12" rx="3" ry="3"/>
-  </clipPath>
-  <g clip-path="url(#topClip)">
-    <rect x="6"  y="10" width="9"  height="12" fill="#f59e0b"/>
-    <rect x="24" y="10" width="9"  height="12" fill="#f59e0b"/>
-    <rect x="42" y="10" width="9"  height="12" fill="#f59e0b"/>
+  <!-- Clapperboard scaled to fit (Lucide clapperboard, open arm) -->
+  <g transform="translate(10, 10) scale(1.83)" stroke="#f59e0b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8H4Z"/>
+    <path d="m4 11-.88-2.87a2 2 0 0 1 1.33-2.5l11.48-3.5a2 2 0 0 1 2.5 1.32l.87 2.87L4 11.01Z"/>
+    <path d="m6.6 4.99 3.38 4.2"/>
+    <path d="m11.86 3.38 3.38 4.2"/>
   </g>
-
-  <!-- Hinge line between top and body -->
-  <line x1="6" y1="22" x2="58" y2="22" stroke="#f59e0b" stroke-width="2"/>
-
-  <!-- Body lines (scene info) -->
-  <line x1="14" y1="32" x2="50" y2="32" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-  <line x1="14" y1="40" x2="40" y2="40" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
-  <line x1="14" y1="48" x2="34" y2="48" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
 </svg>
