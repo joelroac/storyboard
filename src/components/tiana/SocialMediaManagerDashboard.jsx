@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink, BarChart2 } from 'lucide-react'
+import DateTimePicker from '../shared/DateTimePicker'
 import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
@@ -131,6 +132,17 @@ export default function SocialMediaManagerDashboard() {
   function handleScheduleConfirm(p) {
     if (!scheduleInput) return
     updateProject(p.id, { scheduledTime: scheduleInput })
+    advanceStatus(p.id, 'Scheduled', currentUser.id)
+    const joelId = getMemberByRole('admin')?.id
+    const msg = `${getTeamName(currentUser.id)} scheduled "${p.title}"`
+    addNotification({ message: msg, projectId: p.id, forUser: joelId })
+    addBanner(msg, 'info')
+    setSchedulingId(null)
+    setScheduleInput('')
+  }
+
+  function handleScheduleConfirmWithIso(p, iso) {
+    updateProject(p.id, { scheduledTime: iso })
     advanceStatus(p.id, 'Scheduled', currentUser.id)
     const joelId = getMemberByRole('admin')?.id
     const msg = `${getTeamName(currentUser.id)} scheduled "${p.title}"`
@@ -274,28 +286,20 @@ export default function SocialMediaManagerDashboard() {
                       </button>
                     </div>
                   </div>
-                  {/* Inline schedule picker — organic posts only */}
+                  {/* Calendar date/time picker — organic posts only */}
                   {isScheduling && (
-                    <div className="px-4 pb-4 flex items-center gap-2 animate-fade-in"
+                    <div className="px-4 pb-4 animate-fade-in"
                       style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      <input
-                        type="datetime-local"
-                        value={scheduleInput}
-                        onChange={e => setScheduleInput(e.target.value)}
-                        className="flex-1 text-sm rounded-lg px-3 py-2 text-white"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark', outline: 'none' }}
-                      />
-                      <button
-                        onClick={() => handleScheduleConfirm(p)}
-                        disabled={!scheduleInput}
-                        className="px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-                        style={{
-                          background: scheduleInput ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
-                          border: scheduleInput ? '1px solid rgba(96,165,250,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                          color: scheduleInput ? '#60a5fa' : '#52525b',
-                        }}>
-                        Confirm Schedule
-                      </button>
+                      <div className="mt-3">
+                        <DateTimePicker
+                          value={scheduleInput}
+                          onChange={iso => {
+                            setScheduleInput(iso)
+                            handleScheduleConfirmWithIso(p, iso)
+                          }}
+                          onClose={() => { setSchedulingId(null); setScheduleInput('') }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

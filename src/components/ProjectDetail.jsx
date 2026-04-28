@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical } from 'lucide-react'
+import DateTimePicker from './shared/DateTimePicker'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { CONTENT_TYPES, TYPE_LABELS } from '../data/seedData'
@@ -85,7 +86,7 @@ export default function ProjectDetail() {
     currentUser, updateProject, advanceStatus, overrideStatus, changePlatform,
     addNotification, deleteProject, addBanner,
     projects, teamMembers, getTeamName, getMemberByRole, getWorkflow, getStageOwner,
-    permissions,
+    permissions, previewRole,
   } = useApp()
 
   const [proj, setProj]                           = useState(null)
@@ -221,9 +222,10 @@ export default function ProjectDetail() {
 
   if (!selectedProject || !proj) return null
 
-  const isJoel    = currentUser?.role === 'admin' || currentUser?.role === 'creator'
-  const isAnthony = currentUser?.role === 'editor'
-  const isTiana   = currentUser?.role === 'social_manager' || currentUser?.role === 'social'
+  const effectiveRole = previewRole || currentUser?.role
+  const isJoel    = effectiveRole === 'admin' || effectiveRole === 'creator'
+  const isAnthony = effectiveRole === 'editor'
+  const isTiana   = effectiveRole === 'social_manager' || effectiveRole === 'social'
 
   const workflow        = getWorkflow(proj.type)
   const stageOwnerKey   = getStageOwner(proj.type, proj.status)
@@ -695,6 +697,33 @@ export default function ProjectDetail() {
     }
 
     if (isTiana) {
+      // Ready to post — Tiana can schedule or mark as posted
+      if (s === 'Ready to Post') return (
+        <div className="flex flex-col gap-2">
+          <ActionBtn color="blue" onClick={() => setShowScheduleInput(v => !v)}>Schedule Post</ActionBtn>
+          {showScheduleInput && (
+            <div className="animate-fade-in">
+              <DateTimePicker
+                value={scheduledTime}
+                onChange={iso => {
+                  setScheduledTime(iso)
+                  updateProject(proj.id, { scheduledTime: iso })
+                  advanceStatus(proj.id, 'Scheduled', currentUser.id)
+                  setShowScheduleInput(false)
+                  addBanner(`"${proj.title}" scheduled`, 'info')
+                }}
+                onClose={() => setShowScheduleInput(false)}
+              />
+            </div>
+          )}
+          <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
+        </div>
+      )
+      if (s === 'Ready to Send')
+        return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Sent')}>Mark as Sent</ActionBtn>
+      if (s === 'Scheduled')
+        return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
+
       if (currentOwner === 'tiana' && nextStage) {
         const nextOwner = getStageOwner(proj.type, nextStage)
         if (nextOwner === 'joel') {
