@@ -250,7 +250,7 @@ export default function Calendar() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-3 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -309,8 +309,8 @@ export default function Calendar() {
       </div>
 
       <div className="flex gap-6">
-        {/* Calendar grid */}
-        <div className="flex-1 min-w-0">
+        {/* Calendar grid — takes full width on mobile, shares space on desktop */}
+        <div className="flex-1 min-w-0 w-full">
           {/* Day labels */}
           <div className="grid grid-cols-7 gap-1 mb-1">
             {DAY_LABELS.map((d) => (
@@ -410,17 +410,19 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Goals panel — right sidebar */}
-        {(() => {
-          const weeks = view === 'month'
-            ? (() => { const w = []; for (let i = 0; i < days.length; i += 7) w.push(days.slice(i, i + 7)); return w })()
-            : [weekDays]
-          return <GoalsPanel weeks={weeks} projects={projects} goals={postingGoals} />
-        })()}
+        {/* Goals panel — hidden on mobile, shown on desktop */}
+        <div className="hidden sm:block">
+          {(() => {
+            const weeks = view === 'month'
+              ? (() => { const w = []; for (let i = 0; i < days.length; i += 7) w.push(days.slice(i, i + 7)); return w })()
+              : [weekDays]
+            return <GoalsPanel weeks={weeks} projects={projects} goals={postingGoals} />
+          })()}
+        </div>
 
-        {/* Side panel — projects on selected day */}
+        {/* Side panel — hidden on mobile (shown as bottom sheet below instead) */}
         {selectedDay && (
-          <div className="w-72 shrink-0 animate-fade-in">
+          <div className="hidden sm:block w-72 shrink-0 animate-fade-in">
             <div
               className="sticky top-24 rounded-2xl overflow-hidden"
               style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.1)' }}
@@ -485,6 +487,44 @@ export default function Calendar() {
           </div>
         )}
       </div>
+
+      {/* Mobile-only: selected day bottom sheet */}
+      {selectedDay && (
+        <div className="sm:hidden mt-4 rounded-2xl overflow-hidden animate-fade-in"
+          style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.1)' }}
+        >
+          <div className="px-4 py-3 flex items-center justify-between"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+          >
+            <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">
+              {format(selectedDay, 'EEE, MMM d')} · {projectsOnDay(selectedDay).length === 0 ? 'Nothing scheduled' : `${projectsOnDay(selectedDay).length} project${projectsOnDay(selectedDay).length > 1 ? 's' : ''}`}
+            </p>
+            <button onClick={() => setSelectedDay(null)} className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10" style={{ color: '#52525b' }}>
+              <X size={12} />
+            </button>
+          </div>
+          <div className="p-3 flex flex-col gap-2">
+            {projectsOnDay(selectedDay).length === 0 ? (
+              <p className="text-xs text-zinc-600 text-center py-4">Nothing scheduled for this day</p>
+            ) : (
+              projectsOnDay(selectedDay).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
+                  className="w-full text-left rounded-xl p-3 transition-colors"
+                  style={{ border: `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}25`, background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}08` }}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <PlatformIcon type={p.type} size={13} />
+                    <span className="text-sm font-semibold text-white truncate flex-1">{p.title}</span>
+                  </div>
+                  <StatusBadge status={p.status} />
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
