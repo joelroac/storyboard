@@ -53,6 +53,11 @@ input, textarea, select {
 .safe-left   { padding-left:   env(safe-area-inset-left); }
 .safe-right  { padding-right:  env(safe-area-inset-right); }
 
+/* Project detail panel: sits below the app nav bar (52px) + iOS safe area */
+.project-detail-top {
+  top: calc(52px + env(safe-area-inset-top, 0px));
+}
+
 /* Bottom nav — mobile only */
 .mobile-bottom-nav {
   position: fixed;

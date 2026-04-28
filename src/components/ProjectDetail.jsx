@@ -766,14 +766,8 @@ export default function ProjectDetail() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-50 flex items-start justify-end modal-backdrop"
-      style={{
-        background: 'rgba(0,0,0,0.7)',
-        backdropFilter: 'blur(4px)',
-        // Push down by nav bar height + iOS safe area inset (notch / dynamic island)
-        // env(safe-area-inset-top) is 0 on desktop, ~47-59px on iPhone
-        top: 'calc(52px + env(safe-area-inset-top, 0px))',
-      }}
+      className="fixed inset-x-0 bottom-0 z-50 flex items-start justify-end modal-backdrop project-detail-top"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null) }}
     >
       <div
