@@ -1,25 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Board body -->
-  <rect x="6" y="20" width="52" height="36" rx="4" ry="4" fill="#141418" stroke="#f59e0b" stroke-width="2.5"/>
+  <!-- Dark rounded square background -->
+  <rect width="64" height="64" rx="14" fill="#1a1a1e"/>
 
-  <!-- Clapper top (closed, angled stripes) -->
-  <rect x="6" y="10" width="52" height="12" rx="3" ry="3" fill="#1a1a20" stroke="#f59e0b" stroke-width="2.5"/>
+  <!-- Amber glow behind icon -->
+  <rect x="16" y="16" width="32" height="32" rx="6" fill="rgba(245,158,11,0.12)"/>
 
-  <!-- Clapper stripe pattern -->
-  <clipPath id="topClip">
-    <rect x="6" y="10" width="52" height="12" rx="3" ry="3"/>
-  </clipPath>
-  <g clip-path="url(#topClip)">
-    <rect x="6"  y="10" width="9"  height="12" fill="#f59e0b"/>
-    <rect x="24" y="10" width="9"  height="12" fill="#f59e0b"/>
-    <rect x="42" y="10" width="9"  height="12" fill="#f59e0b"/>
-  </g>
+  <!-- Clapperboard body -->
+  <rect x="18" y="30" width="28" height="18" rx="2" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- Hinge line between top and body -->
-  <line x1="6" y1="22" x2="58" y2="22" stroke="#f59e0b" stroke-width="2"/>
+  <!-- Clapperboard top bar -->
+  <path d="M18 30V26a2 2 0 0 1 2-2h20a2 2 0 0 1 2 2v4" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- Body lines (scene info) -->
-  <line x1="14" y1="32" x2="50" y2="32" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-  <line x1="14" y1="40" x2="40" y2="40" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
-  <line x1="14" y1="48" x2="34" y2="48" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+  <!-- Clapper stripes on top bar -->
+  <line x1="24" y1="24" x2="21" y2="30" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+  <line x1="30" y1="24" x2="27" y2="30" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+  <line x1="36" y1="24" x2="33" y2="30" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+  <line x1="42" y1="24" x2="39" y2="30" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
 </svg>
