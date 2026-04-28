@@ -140,17 +140,18 @@ export default function Layout({ children }) {
   const rc = roleColor[currentUser?.role] || roleColor.admin
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0c0c0e' }}>
+    <div className="flex flex-col" style={{ background: '#0c0c0e', minHeight: '100dvh' }}>
       {/* Top nav */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-6 py-3"
+        className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 safe-top"
         style={{
           background: 'rgba(12,12,14,0.92)',
           backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderBottom: '1px solid rgba(255,255,255,0.07)',
         }}
       >
-        {/* Left: logo + tabs */}
+        {/* Left: logo + tabs (tabs hidden on mobile) */}
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2.5">
             <div
@@ -164,32 +165,32 @@ export default function Layout({ children }) {
             </span>
           </div>
 
-          {/* Tabs — dashboard always + calendar for all roles */}
-          <nav className="flex items-center gap-1">
+          {/* Tabs — hidden on mobile, shown on sm+ */}
+          <nav className="hidden sm:flex items-center gap-1">
             {tabs.map((tab) => {
-                const Icon = tab.icon
-                const active = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                    style={
-                      active
-                        ? { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }
-                        : { color: '#71717a', border: '1px solid transparent' }
-                    }
-                  >
-                    <Icon size={13} />
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </nav>
+              const Icon = tab.icon
+              const active = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={
+                    active
+                      ? { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }
+                      : { color: '#71717a', border: '1px solid transparent' }
+                  }
+                >
+                  <Icon size={13} />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </nav>
 
-          {/* View As — admin only */}
+          {/* View As — admin only, hidden on mobile */}
           {isAdmin && (
-            <div className="flex items-center gap-1 pl-4 ml-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="hidden sm:flex items-center gap-1 pl-4 ml-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
               <span className="text-[10px] text-zinc-600 mr-1 uppercase tracking-widest">View as</span>
               {[
                 { role: 'social_manager', label: 'Juliana' },
@@ -226,22 +227,22 @@ export default function Layout({ children }) {
         </div>
 
         {/* Right: notifications + user */}
-        <div className="flex items-center gap-3">
-          {/* Profile / Settings — all roles */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Profile / Settings */}
           <button
             onClick={() => setShowProfileSettings(true)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
+            className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
             style={{ color: '#52525b', border: '1px solid rgba(255,255,255,0.07)' }}
             title="Profile & Settings"
           >
-            <Settings size={13} />
+            <Settings size={14} />
           </button>
 
           <Notifications />
 
           <div className="flex items-center gap-2.5">
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
+              className="w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
               style={{
                 background: avatarUrl ? 'transparent' : rc.bg,
                 color: rc.color,
@@ -260,7 +261,7 @@ export default function Layout({ children }) {
 
           <button
             onClick={logout}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center transition-colors"
             style={{ color: '#52525b', border: '1px solid rgba(255,255,255,0.07)' }}
             title="Sign out"
           >
@@ -272,25 +273,53 @@ export default function Layout({ children }) {
       {/* Preview mode banner */}
       {previewRole && (
         <div
-          className="flex items-center justify-between px-6 py-2 text-xs font-medium"
+          className="flex items-center justify-between px-4 sm:px-6 py-2 text-xs font-medium"
           style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.15)', color: '#fbbf24' }}
         >
           <span>
-            Previewing as <strong>{previewRole === 'editor' ? 'Anthony' : 'Juliana'}</strong> — you are still logged in as Joel
+            Previewing as <strong>{previewRole === 'editor' ? 'Anthony' : 'Juliana'}</strong>
           </span>
           <button
             onClick={() => setPreviewRole(null)}
             className="flex items-center gap-1 hover:text-white transition-colors"
           >
-            <X size={11} /> Exit Preview
+            <X size={11} /> Exit
           </button>
         </div>
       )}
 
-      {/* Page content */}
-      <main className="flex-1 overflow-auto">
+      {/* Page content — offset on mobile for bottom nav */}
+      <main className="flex-1 overflow-auto mobile-main-offset">
         {children}
       </main>
+
+      {/* ── Bottom tab bar — mobile only ── */}
+      <nav className="mobile-bottom-nav sm:hidden">
+        {tabs.map((tab) => {
+          const Icon = tab.icon
+          const active = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex flex-col items-center justify-center gap-1 flex-1 py-3 transition-all"
+              style={{ color: active ? '#fbbf24' : '#52525b', minHeight: 56 }}
+            >
+              <Icon size={20} />
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>{tab.label}</span>
+            </button>
+          )
+        })}
+        {/* Settings shortcut on mobile */}
+        <button
+          onClick={() => setShowProfileSettings(true)}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-3 transition-all"
+          style={{ color: showProfileSettings ? '#fbbf24' : '#52525b', minHeight: 56 }}
+        >
+          <Settings size={20} />
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>Profile</span>
+        </button>
+      </nav>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 
