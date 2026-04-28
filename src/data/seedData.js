@@ -62,7 +62,7 @@ export function timeAgo(iso) {
 export const USERS = {
   joel: { id: 'joel', name: 'Joel', role: 'creator', pin: '1111', avatar: 'J' },
   anthony: { id: 'anthony', name: 'Anthony', role: 'editor', pin: '2222', avatar: 'A' },
-  tiana: { id: 'tiana', name: 'Tiana', role: 'social', pin: '3333', avatar: 'T' },
+  tiana: { id: 'tiana', name: 'Juliana', role: 'social', pin: '3333', avatar: 'J' },
 }
 
 export const CONTENT_TYPES = {
@@ -278,7 +278,7 @@ export function createSeedNotifications() {
     {
       id: 'notif-2',
       type: 'caption_submitted',
-      message: 'Tiana submitted a caption for "Hot Takes: AI and Creativity"',
+      message: 'Juliana submitted a caption for "Hot Takes: AI and Creativity"',
       projectId: 'proj-3',
       forUser: 'joel',
       read: false,

@@ -661,8 +661,10 @@ export default function ProjectDetail() {
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Ready to Send')}>Mark Ready to Send</ActionBtn>
       if (s === 'Ready to Send')
         return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Sent')}>Mark as Sent</ActionBtn>
-      if (s === 'Editing in Progress' && (proj.type === 'instagram' || proj.type === 'tiktok'))
-        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Caption Needed')}>Editing Done → Send to Tiana</ActionBtn>
+      if (s === 'Editing in Progress' && (proj.type === 'instagram' || proj.type === 'tiktok')) {
+        const socialName = getMemberByRole('social_manager')?.name || getMemberByRole('social')?.name || 'Social Manager'
+        return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'Caption Needed')}>Editing Done → Send to {socialName}</ActionBtn>
+      }
       // Fallback — Joel (admin) can always advance any stage
       if (nextStage)
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage)}>Advance to Next Stage</ActionBtn>
@@ -755,9 +757,10 @@ export default function ProjectDetail() {
     return null
   }
 
-  const canEditCaption = isTiana && (proj.status === 'Caption Needed' || permissions?.socialManager?.canAddCaptions)
-  const canEditLinks   = isJoel || (isTiana && permissions?.socialManager?.canEditLinks)
-  const canEditScript  = isJoel
+  const canEdit        = isJoel || isTiana   // can edit all project fields
+  const canEditCaption = isTiana || isJoel   // caption always editable by tiana or joel
+  const canEditLinks   = canEdit
+  const canEditScript  = isJoel              // script stays joel-only (content direction)
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -779,7 +782,7 @@ export default function ProjectDetail() {
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <PlatformIcon type={proj.type} size={18} />
             <div className="flex-1 min-w-0">
-              {isJoel ? (
+              {canEdit ? (
                 <>
                   <input
                     className="font-editorial text-xl font-semibold text-white bg-transparent border-none outline-none w-full"
@@ -938,7 +941,7 @@ export default function ProjectDetail() {
           {/* ── Project details grid ── */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Publish Date">
-              {isJoel ? (
+              {canEdit ? (
                 <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onBlur={() => saveEdits()}
                   className="text-sm text-white bg-transparent border-none outline-none w-full"
                   style={{ colorScheme: 'dark' }} />
@@ -948,7 +951,7 @@ export default function ProjectDetail() {
             </Field>
 
             <Field label="Brand / Sponsor">
-              {isJoel ? (
+              {canEdit ? (
                 <div className="flex flex-col gap-1">
                   <select
                     value={editBrandType}
@@ -975,7 +978,7 @@ export default function ProjectDetail() {
             </Field>
 
             <Field label="Content Type" className={proj.type === 'instagram' ? 'col-span-1' : 'col-span-2'}>
-              {isJoel ? (
+              {canEdit ? (
                 <div>
                   <div className="flex items-center gap-2">
                     <PlatformIcon type={editType || proj.type} size={14} />
@@ -1025,7 +1028,7 @@ export default function ProjectDetail() {
             {/* Instagram Account */}
             {proj.type === 'instagram' && (
               <Field label="Instagram Account">
-                {isJoel ? (
+                {canEdit ? (
                   <select
                     value={editVideoBreakdown}
                     onChange={(e) => { setEditVideoBreakdown(e.target.value); updateProject(proj.id, { videoBreakdown: e.target.value }) }}
@@ -1044,7 +1047,7 @@ export default function ProjectDetail() {
             {/* Substack Account */}
             {proj.type === 'newsletter' && (
               <Field label="Substack Account" className="col-span-2">
-                {isJoel ? (
+                {canEdit ? (
                   <select
                     value={editVideoBreakdown}
                     onChange={(e) => { setEditVideoBreakdown(e.target.value); updateProject(proj.id, { videoBreakdown: e.target.value }) }}
@@ -1100,7 +1103,7 @@ export default function ProjectDetail() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Asana Task</p>
-                  {isJoel && (
+                  {canEdit && (
                     <button onClick={() => { const v = !hideAsana; setHideAsana(v); saveLocalProjMeta(proj.id, { hideAsana: v }) }}
                       className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors ml-2">
                       {hideAsana ? 'Show' : 'Hide'}
@@ -1168,7 +1171,7 @@ export default function ProjectDetail() {
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                     />
                     {link.url && <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-500 hover:text-amber-400"><ExternalLink size={11} /></a>}
-                    {isJoel && (
+                    {canEdit && (
                       <button onClick={() => {
                         const updated = brandLinks.filter((_, idx) => idx !== i)
                         setBrandLinks(updated)
@@ -1177,7 +1180,7 @@ export default function ProjectDetail() {
                     )}
                   </div>
                 ))}
-                {isJoel && (
+                {canEdit && (
                   <button onClick={() => {
                     const updated = [...brandLinks, { label: '', url: '' }]
                     setBrandLinks(updated)
@@ -1194,7 +1197,7 @@ export default function ProjectDetail() {
           {proj.type === 'youtube' && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Video Breakdown</p>
-              {isJoel || isAnthony ? (
+              {isJoel || isAnthony || isTiana ? (
                 <textarea
                   value={editVideoBreakdown}
                   onChange={(e) => setEditVideoBreakdown(e.target.value)}
@@ -1214,10 +1217,10 @@ export default function ProjectDetail() {
           )}
 
           {/* ── Relevant Notes (Joel internal notes) ── */}
-          {(isJoel || editRelevantNotes) && (
+          {(canEdit || editRelevantNotes) && (
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Relevant Notes</p>
-            {isJoel ? (
+            {canEdit ? (
               <textarea
                 value={editRelevantNotes}
                 onChange={(e) => {
@@ -1251,7 +1254,7 @@ export default function ProjectDetail() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {isJoel && (
+                {canEdit && (
                   <button
                     onClick={() => { const v = !hideScript; setHideScript(v); saveLocalProjMeta(proj.id, { hideScript: v }) }}
                     className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
@@ -1532,7 +1535,7 @@ export default function ProjectDetail() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Thumbnails</p>
-                {isJoel && (
+                {canEdit && (
                   <>
                     <button
                       onClick={() => thumbInputRef.current?.click()}
@@ -1566,7 +1569,7 @@ export default function ProjectDetail() {
                         style={{ height: 100 }}
                       />
                       <div className="p-1.5 flex items-center gap-1">
-                        {isJoel ? (
+                        {canEdit ? (
                           <input
                             value={thumb.label}
                             onChange={(e) => updateThumbnailLabel(thumb.id, e.target.value)}
@@ -1576,7 +1579,7 @@ export default function ProjectDetail() {
                         ) : (
                           <span className="flex-1 text-xs text-zinc-500 truncate">{thumb.label}</span>
                         )}
-                        {isJoel && (
+                        {canEdit && (
                           <button onClick={() => removeThumbnail(thumb.id)}
                             style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>
                             <Trash2 size={11} />
