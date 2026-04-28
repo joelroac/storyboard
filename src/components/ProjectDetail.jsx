@@ -766,7 +766,7 @@ export default function ProjectDetail() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-end modal-backdrop"
+      className="fixed inset-x-0 bottom-0 top-14 sm:inset-0 sm:top-0 z-50 flex items-start justify-end modal-backdrop"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null) }}
     >
