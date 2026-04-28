@@ -265,30 +265,31 @@ export default function JoelDashboard() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
 
       {/* Page title */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-editorial text-3xl font-semibold text-white">
-            Good morning, Joel.
-          </h1>
-          <p className="text-zinc-500 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <h1 className="font-editorial text-2xl sm:text-3xl font-semibold text-white leading-tight">
+              Good morning, Joel.
+            </h1>
+            <p className="text-zinc-500 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+          </div>
           <button
             onClick={() => setShowAdd(true)}
-            className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+            className="btn-amber flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-sm shrink-0"
           >
             <Plus size={15} />
-            New Project
+            <span className="hidden sm:inline">New Project</span>
+            <span className="sm:hidden">New</span>
           </button>
         </div>
+        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Active Projects',   value: active.length,                                                              color: '#f59e0b' },
           { label: 'Ready to Post',     value: readyProjects.length,                                                       color: '#4ade80' },
@@ -424,8 +425,8 @@ export default function JoelDashboard() {
           <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Active Projects</h2>
           <span className="text-xs text-zinc-600">{kanbanProjects.length} in progress</span>
         </div>
-        <div className="kanban-scroll">
-          <div className="grid gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', minWidth: 800 }}>
+        <div className="kanban-scroll -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="grid gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(220px,1fr))', minWidth: 700 }}>
             {KANBAN_GROUPS.map((group, groupIdx) => {
               const isDragOver = dragOverCol === group.label
 
