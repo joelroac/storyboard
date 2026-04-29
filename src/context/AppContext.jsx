@@ -175,7 +175,7 @@ export function AppProvider({ children }) {
           supabase.from('activity_log').select('*').order('created_at', { ascending: true }),
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('workflow_settings').select('*'),
-          supabase.from('team_members').select('id, name, role, pin, avatar_url, totp_secret'),
+          supabase.from('team_members').select('id, name, role, avatar_url'),
           supabase.from('app_settings').select('*'),
         ])
 
@@ -206,7 +206,6 @@ export function AppProvider({ children }) {
                   id:         saved.id,
                   name:       saved.name,
                   role:       saved.role,
-                  pin:        saved.pin,
                   avatar:     saved.name ? saved.name[0] : saved.id[0].toUpperCase(),
                   avatar_url: saved.avatar_url || null,
                 })
@@ -389,20 +388,8 @@ export function AppProvider({ children }) {
     if (error) { console.error('Login error:', error); return null }
     if (!data)  { console.warn('No team_member found with id:', userId); return null }
 
-    const ownPinMatch = String(data.pin) === String(pin)
-
-    // Admin master-key: if PIN doesn't match the user's own, check if it matches
-    // any admin/creator account's PIN — if so, allow login as this user.
-    let usingAdminKey = false
-    if (!ownPinMatch) {
-      const { data: admins } = await supabase
-        .from('team_members')
-        .select('pin')
-        .in('role', ['admin', 'creator'])
-      usingAdminKey = (admins || []).some(a => String(a.pin) === String(pin))
-    }
-
-    if (!ownPinMatch && !usingAdminKey) return null
+    // Each user must authenticate with their own PIN only
+    if (String(data.pin) !== String(pin)) return null
 
     const user = {
       id:         data.id,
@@ -413,14 +400,7 @@ export function AppProvider({ children }) {
       avatar_url: data.avatar_url || null,
     }
 
-    // When admin is using their master PIN to access another account,
-    // skip 2FA entirely — they are already authenticated as admin.
-    if (usingAdminKey && !ownPinMatch) {
-      completeLogin(user)
-      return user
-    }
-
-    // Normal login — respect 2FA if configured on this account
+    // Respect 2FA if configured on this account
     if (data.totp_secret) {
       return { ...user, requires2FA: true, _totpSecret: data.totp_secret }
     }
@@ -658,7 +638,7 @@ export function AppProvider({ children }) {
     // Note: the DB has no 'avatar' column — do not include it in the select.
     const { data: freshMembers, error: fetchErr } = await supabase
       .from('team_members')
-      .select('id, name, role, pin, avatar_url, totp_secret')
+      .select('id, name, role, avatar_url')
     if (fetchErr) {
       console.error('Error re-fetching team members:', fetchErr)
       // Fall back to optimistic patch if re-fetch fails
@@ -666,7 +646,7 @@ export function AppProvider({ children }) {
       setCurrentUser((prev) => prev?.id === memberId ? { ...prev, ...updates } : prev)
     } else {
       setTeamMembers(freshMembers || [])
-      // Sync currentUser from the fresh DB row (name, avatar_url, pin all up-to-date)
+      // Sync currentUser from the fresh DB row (name, avatar_url up-to-date)
       setCurrentUser((prev) => {
         if (!prev) return prev
         const fresh = (freshMembers || []).find((m) => m.id === prev.id)
@@ -674,7 +654,6 @@ export function AppProvider({ children }) {
         return {
           ...prev,
           name:       fresh.name,
-          pin:        fresh.pin,
           avatar_url: fresh.avatar_url ?? null,
           avatar:     fresh.name ? fresh.name[0] : prev.avatar,
         }
