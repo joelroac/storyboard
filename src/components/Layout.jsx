@@ -336,10 +336,10 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      {/* Preview mode banner */}
+      {/* Preview mode banner — desktop only (mobile already shows active state in the View As bar) */}
       {previewRole && (
         <div
-          className="flex items-center justify-between px-4 sm:px-6 py-2 text-xs font-medium"
+          className="hidden sm:flex items-center justify-between px-4 sm:px-6 py-2 text-xs font-medium"
           style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.15)', color: '#fbbf24' }}
         >
           <span>

@@ -155,24 +155,25 @@ export default function SocialMediaManagerDashboard() {
   function open(p) { setSelectedProject(p) }
 
   return (
-    <div className="px-6 py-6 max-w-3xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-3xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between mb-6 sm:mb-8 gap-3">
         <div>
-          <h1 className="font-editorial text-3xl font-semibold text-white">Social Queue</h1>
+          <h1 className="font-editorial text-2xl sm:text-3xl font-semibold text-white">Social Queue</h1>
           <p className="text-zinc-500 text-sm mt-1">
             {format(now, 'EEEE, MMMM d')} · Here's your content queue
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <SortBar sortBy={sortBy} setSortBy={setSortBy} />
           <button
             onClick={() => setShowAdd(true)}
-            className="btn-amber flex items-center gap-2 px-4 py-2.5 text-sm"
+            className="btn-amber flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm"
           >
             <Plus size={15} />
-            New Project
+            <span className="hidden sm:inline">New Project</span>
+            <span className="sm:hidden">New</span>
           </button>
         </div>
       </div>

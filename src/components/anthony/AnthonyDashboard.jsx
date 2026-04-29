@@ -75,12 +75,12 @@ export default function AnthonyDashboard() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="font-editorial text-3xl font-semibold text-white">Hey, Anthony.</h1>
+          <h1 className="font-editorial text-2xl sm:text-3xl font-semibold text-white">Hey, Anthony.</h1>
           <p className="text-zinc-500 text-sm mt-1">
             {format(new Date(), 'EEEE, MMMM d')} · Here's what's in your editing queue
           </p>
