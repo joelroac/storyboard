@@ -301,6 +301,41 @@ export default function Layout({ children }) {
         </div>
       </header>
 
+      {/* Mobile-only: View As switcher for admin */}
+      {isAdmin && (
+        <div className="sm:hidden flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <span className="text-[10px] text-zinc-600 uppercase tracking-widest mr-1">View as</span>
+          {[
+            { role: 'editor',         label: 'Anthony' },
+            { role: 'social_manager', label: 'Juliana' },
+          ].map(({ role, label }) => {
+            const active = previewRole === role
+            return (
+              <button
+                key={role}
+                onClick={() => { setPreviewRole(active ? null : role); setActiveTab('dashboard') }}
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                style={
+                  active
+                    ? { background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }
+                    : { color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }
+                }
+              >
+                {label}
+              </button>
+            )
+          })}
+          {previewRole && (
+            <button
+              onClick={() => setPreviewRole(null)}
+              className="ml-auto text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+            >
+              ✕ Exit
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Preview mode banner */}
       {previewRole && (
         <div
