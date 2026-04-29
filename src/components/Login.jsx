@@ -81,9 +81,6 @@ export default function Login() {
     const val = e.target.value.slice(0, 20)
     setPin(val)
     setError('')
-    if (/^\d{4}$/.test(val)) {
-      setTimeout(() => attemptLogin(val), 80)
-    }
   }
 
   async function attemptLogin(pinVal = pin) {
