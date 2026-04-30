@@ -133,6 +133,8 @@ export default function ProjectDetail() {
   const [hideScript, setHideScript]               = useState(false)
   // Asana hide toggle
   const [hideAsana, setHideAsana]                 = useState(false)
+  // Cross-post (instagram ↔ tiktok)
+  const [editCrossPost, setEditCrossPost]         = useState(null)
 
   const captionTimerRef    = useRef(null)
   const scriptTimerRef     = useRef(null)
@@ -203,6 +205,7 @@ export default function ProjectDetail() {
       setBrandLinks(meta.brandLinks || [])
       setHideScript(meta.hideScript || false)
       setHideAsana(meta.hideAsana || false)
+      setEditCrossPost(fresh.crossPostTo || null)
     } else {
       // Same project updated (e.g. title/date save) — only sync non-editing fields
       setEditTitle(fresh.title)
@@ -1055,6 +1058,57 @@ export default function ProjectDetail() {
                 ) : (
                   <span className="text-sm text-white">{proj.videoBreakdown || '—'}</span>
                 )}
+              </Field>
+            )}
+
+            {/* Cross-post toggle — Instagram ↔ TikTok only */}
+            {(proj.type === 'instagram' || proj.type === 'tiktok') && (
+              <Field label="Cross-Post" className="col-span-2">
+                <button
+                  onClick={() => {
+                    if (!canEdit) return
+                    const otherPlatform = proj.type === 'instagram' ? 'tiktok' : 'instagram'
+                    const newVal = editCrossPost ? null : otherPlatform
+                    setEditCrossPost(newVal)
+                    updateProject(proj.id, { crossPostTo: newVal })
+                  }}
+                  disabled={!canEdit}
+                  className="flex items-center gap-3 w-full disabled:opacity-60"
+                >
+                  {/* Toggle pill */}
+                  <div
+                    className="relative shrink-0 transition-all duration-200"
+                    style={{
+                      width: 32, height: 18, borderRadius: 9,
+                      background: editCrossPost ? 'rgba(245,158,11,0.8)' : 'rgba(255,255,255,0.1)',
+                      border: `1px solid ${editCrossPost ? 'rgba(245,158,11,0.6)' : 'rgba(255,255,255,0.15)'}`,
+                    }}
+                  >
+                    <div
+                      className="absolute top-0.5 transition-all duration-200"
+                      style={{
+                        width: 14, height: 14, borderRadius: '50%',
+                        background: '#fff',
+                        left: editCrossPost ? 15 : 2,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PlatformIcon type={proj.type === 'instagram' ? 'tiktok' : 'instagram'} size={13} />
+                    <span className="text-sm text-zinc-300">
+                      Also post to {proj.type === 'instagram' ? 'TikTok' : 'Instagram'}
+                    </span>
+                    {editCrossPost && (
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
+                      >
+                        Cross-posted
+                      </span>
+                    )}
+                  </div>
+                </button>
               </Field>
             )}
 

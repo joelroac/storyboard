@@ -33,7 +33,8 @@ function GoalsPanel({ weeks, projects, goals }) {
           const weekEnd   = week[week.length - 1]
           const label     = format(weekStart, 'MMM d') + ' – ' + format(weekEnd, 'd')
 
-          // Count only fully-completed posts (Posted or Sent) in this week
+          // Count only fully-completed posts (Posted or Sent) in this week.
+          // Cross-posted projects count toward both platforms.
           const counts = {}
           for (const p of projects) {
             if (!p.publishDate) continue
@@ -41,6 +42,7 @@ function GoalsPanel({ weeks, projects, goals }) {
             const d = new Date(p.publishDate + 'T00:00:00')
             if (d >= weekStart && d <= weekEnd) {
               counts[p.type] = (counts[p.type] || 0) + 1
+              if (p.crossPostTo) counts[p.crossPostTo] = (counts[p.crossPostTo] || 0) + 1
             }
           }
 
@@ -225,6 +227,10 @@ export default function Calendar() {
               }}
             >
               <PlatformDot type={p.type} size={5} />
+              {/* Cross-post indicator — second platform dot */}
+              {p.crossPostTo && (
+                <PlatformDot type={p.crossPostTo} size={5} />
+              )}
               {p.brand && p.brand !== 'Organic' && (
                 <span
                   title={`Brand Deal: ${p.brand}`}
@@ -388,7 +394,10 @@ export default function Calendar() {
                             className="flex items-center gap-2 text-left w-full rounded-lg px-3 py-2 transition-colors hover:bg-white/5"
                             style={{ border: '1px solid rgba(255,255,255,0.07)', cursor: canReschedule ? 'grab' : 'pointer' }}
                           >
-                            <PlatformIcon type={p.type} size={13} />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <PlatformIcon type={p.type} size={13} />
+                              {p.crossPostTo && <PlatformIcon type={p.crossPostTo} size={13} />}
+                            </div>
                             <span className="text-sm text-white font-medium flex-1 truncate">{p.title}</span>
                             {p.brand && p.brand !== 'Organic' && (
                               <span
