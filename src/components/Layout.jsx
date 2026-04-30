@@ -7,7 +7,7 @@ import Notifications from './Notifications'
 import SettingsModal from './SettingsModal'
 
 export default function Layout({ children }) {
-  const { currentUser, teamMembers, logout, activeTab, setActiveTab, updateTeamMember, previewRole, setPreviewRole, selectedProject, setSelectedProject } = useApp()
+  const { currentUser, teamMembers, logout, activeTab, setActiveTab, updateTeamMember, previewRole, setPreviewRole, selectedProject, setSelectedProject, verifyPin } = useApp()
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileSettings, setShowProfileSettings] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -72,10 +72,12 @@ export default function Layout({ children }) {
   async function handlePinChange() {
     setPinError('')
     if (!currentPin) { setPinError('Enter your current passcode'); return }
-    if (String(liveMember?.pin) !== String(currentPin)) { setPinError('Current passcode is incorrect'); return }
     if (!newPin) { setPinError('Enter a new passcode'); return }
     if (newPin.length < 4) { setPinError('Passcode must be at least 4 characters'); return }
     if (newPin !== confirmPin) { setPinError('New passcodes do not match'); return }
+    // Verify current PIN via DB — it's intentionally not stored in frontend state
+    const pinOk = await verifyPin(liveMember.id, currentPin)
+    if (!pinOk) { setPinError('Current passcode is incorrect'); return }
     const ok = await updateTeamMember(liveMember.id, { pin: newPin })
     if (ok) {
       setPinSaved(true)

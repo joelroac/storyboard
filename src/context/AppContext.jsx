@@ -409,6 +409,17 @@ export function AppProvider({ children }) {
     return user
   }, [completeLogin])
 
+  // Verify a user's PIN against the DB — used by Profile Settings passcode change.
+  // PIN is intentionally not stored in frontend state, so we fetch fresh.
+  const verifyPin = useCallback(async (userId, pin) => {
+    const { data } = await supabase
+      .from('team_members')
+      .select('pin')
+      .eq('id', userId)
+      .maybeSingle()
+    return data && String(data.pin) === String(pin)
+  }, [])
+
   const logout = useCallback(() => {
     setCurrentUser(null)
     setSelectedProject(null)
@@ -918,6 +929,7 @@ export function AppProvider({ children }) {
       value={{
         currentUser,
         login,
+        verifyPin,
         completeLogin,
         logout,
         projects,
