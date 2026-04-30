@@ -185,7 +185,7 @@ export default function Layout({ children }) {
         }}
       >
         {/* Left: logo + tabs (tabs hidden on mobile) */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-2.5">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -221,9 +221,14 @@ export default function Layout({ children }) {
             })}
           </nav>
 
-          {/* View As — admin only, hidden on mobile */}
+        </div>
+
+        {/* Right: view-as + notifications + user */}
+        <div className="flex items-center gap-2 sm:gap-3">
+
+          {/* View As — admin only, desktop only */}
           {isAdmin && (
-            <div className="hidden sm:flex items-center gap-1 pl-4 ml-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="hidden sm:flex items-center gap-1 pr-2 mr-1" style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}>
               <span className="text-[10px] text-zinc-600 mr-1 uppercase tracking-widest">View as</span>
               {[
                 { role: 'social_manager', label: 'Juliana' },
@@ -257,10 +262,6 @@ export default function Layout({ children }) {
               )}
             </div>
           )}
-        </div>
-
-        {/* Right: notifications + user */}
-        <div className="flex items-center gap-2 sm:gap-3">
           {/* Profile / Settings */}
           <button
             onClick={() => setShowProfileSettings(true)}

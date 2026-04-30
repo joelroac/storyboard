@@ -74,9 +74,7 @@ export default function SocialMediaManagerDashboard() {
   const [sortBy, setSortBy]               = useState('due_date')
   const [schedulingId, setSchedulingId]   = useState(null)
   const [scheduleInput, setScheduleInput] = useState('')
-  const [analyticsId, setAnalyticsId]     = useState(null)  // project id being submitted
-  const [analyticsLink, setAnalyticsLink] = useState('')
-  const [analyticsNotes, setAnalyticsNotes] = useState('')
+  const [analyticsConfirmed, setAnalyticsConfirmed] = useState(null) // project id just completed
   const now = new Date()
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
@@ -108,16 +106,14 @@ export default function SocialMediaManagerDashboard() {
     return !submitted
   }).sort((a, b) => (b.publishDate || '').localeCompare(a.publishDate || ''))
 
-  function handleAnalyticsSubmit(p) {
-    if (!analyticsLink.trim()) return
-    submitAnalytics(p, { link: analyticsLink.trim(), notes: analyticsNotes.trim() })
+  function handleAnalyticsComplete(p) {
+    submitAnalytics(p, { notes: 'Analytics delivered on platform' })
     const joelId = getMemberByRole('admin')?.id
-    const msg = `${getTeamName(currentUser.id)} submitted analytics for "${p.title}"`
+    const msg = `${getTeamName(currentUser.id)} marked analytics complete for "${p.title}"`
     addNotification({ message: msg, projectId: p.id, forUser: joelId })
-    addBanner(msg, 'info')
-    setAnalyticsId(null)
-    setAnalyticsLink('')
-    setAnalyticsNotes('')
+    addBanner(msg, 'success')
+    setAnalyticsConfirmed(p.id)
+    setTimeout(() => setAnalyticsConfirmed(null), 2000)
   }
 
   function handleMarkPublished(p) {
@@ -374,73 +370,38 @@ export default function SocialMediaManagerDashboard() {
           </div>
           <div className="flex flex-col gap-2">
             {analyticsDue.map(p => {
-              const isSubmitting = analyticsId === p.id
+              const done = analyticsConfirmed === p.id
               return (
                 <div key={p.id}
-                  className="rounded-xl overflow-hidden"
-                  style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <div className="p-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)' }}>
-                      <PlatformIcon type={p.type} size={15} />
-                    </div>
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedProject(p)}>
-                      <p className="text-sm font-semibold text-white truncate">{p.title}</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">
-                        {p.publishDate ? `Posted ${format(parseISO(p.publishDate), 'MMM d')}` : 'Posted'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {!isSubmitting && (
-                        <button
-                          onClick={() => { setAnalyticsId(p.id); setAnalyticsLink(''); setAnalyticsNotes('') }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                          style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#60a5fa' }}>
-                          Submit Analytics
-                        </button>
-                      )}
-                      {isSubmitting && (
-                        <button
-                          onClick={() => { setAnalyticsId(null); setAnalyticsLink(''); setAnalyticsNotes('') }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#71717a' }}>
-                          Cancel
-                        </button>
-                      )}
-                    </div>
+                  className="rounded-xl p-4 flex items-center gap-3 transition-all"
+                  style={{
+                    background: done ? 'rgba(74,222,128,0.05)' : '#141418',
+                    border: done ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                  }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{
+                      background: done ? 'rgba(74,222,128,0.1)' : 'rgba(96,165,250,0.1)',
+                      border: done ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(96,165,250,0.2)',
+                    }}>
+                    {done
+                      ? <CheckCircle2 size={15} style={{ color: '#4ade80' }} />
+                      : <PlatformIcon type={p.type} size={15} />}
                   </div>
-                  {/* Inline analytics form */}
-                  {isSubmitting && (
-                    <div className="px-4 pb-4 flex flex-col gap-2 animate-fade-in"
-                      style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      <input
-                        type="url"
-                        placeholder="Analytics link (e.g. Instagram Insights URL)"
-                        value={analyticsLink}
-                        onChange={e => setAnalyticsLink(e.target.value)}
-                        className="w-full text-sm rounded-lg px-3 py-2 text-white mt-2"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Notes (views, likes, reach…) — optional"
-                        value={analyticsNotes}
-                        onChange={e => setAnalyticsNotes(e.target.value)}
-                        className="w-full text-sm rounded-lg px-3 py-2 text-white"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
-                      />
-                      <button
-                        onClick={() => handleAnalyticsSubmit(p)}
-                        disabled={!analyticsLink.trim()}
-                        className="self-end px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-                        style={{
-                          background: analyticsLink.trim() ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
-                          border: analyticsLink.trim() ? '1px solid rgba(96,165,250,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                          color: analyticsLink.trim() ? '#60a5fa' : '#52525b',
-                        }}>
-                        Submit
-                      </button>
-                    </div>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !done && setSelectedProject(p)}>
+                    <p className="text-sm font-semibold truncate" style={{ color: done ? '#4ade80' : '#fff' }}>
+                      {done ? 'Campaign complete!' : p.title}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      {done ? 'Analytics marked as delivered' : p.publishDate ? `Posted ${format(parseISO(p.publishDate), 'MMM d')}` : 'Posted'}
+                    </p>
+                  </div>
+                  {!done && (
+                    <button
+                      onClick={() => handleAnalyticsComplete(p)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all"
+                      style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}>
+                      Mark Complete
+                    </button>
                   )}
                 </div>
               )
