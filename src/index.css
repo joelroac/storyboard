@@ -68,17 +68,21 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding-bottom: env(safe-area-inset-bottom);
+  /* safe-area-inset-bottom pushes buttons above the home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: rgba(12,12,14,0.96);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid rgba(255,255,255,0.07);
 }
 
-/* Push main content up so bottom nav doesn't cover it — mobile only */
+/* Push main content above the bottom nav — mobile only.
+   Nav buttons are ~64px tall; safe-area adds ~34px on modern iPhones.
+   We use 72px base (clears buttons) + env() (clears safe area) + 16px buffer. */
 @media (max-width: 639px) {
   .mobile-main-offset {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    padding-bottom: 104px; /* fallback for browsers that don't support env() */
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 34px) + 16px);
   }
 }
 
