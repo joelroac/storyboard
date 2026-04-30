@@ -56,13 +56,14 @@ function BannerContainer() {
 }
 
 function LinksPage() {
-  const { currentUser, relevantLinks, previewRole } = useApp()
+  const { currentUser, relevantLinks, previewRole, verifyPin } = useApp()
   const [showPasswords, setShowPasswords] = React.useState({})
   const [copiedKey, setCopiedKey]         = React.useState(null)
   // PIN re-auth state
   const [pendingAuthKey, setPendingAuthKey] = React.useState(null)
   const [pinInput, setPinInput]             = React.useState('')
   const [pinError, setPinError]             = React.useState(false)
+  const [verifying, setVerifying]           = React.useState(false)
 
   const effectiveRole = previewRole || currentUser?.role
   const isAdmin   = effectiveRole === 'admin' || effectiveRole === 'creator'
@@ -91,8 +92,12 @@ function LinksPage() {
     }
   }
 
-  function handlePinSubmit(key) {
-    if (String(pinInput) === String(currentUser?.pin)) {
+  async function handlePinSubmit(key) {
+    if (!pinInput || verifying) return
+    setVerifying(true)
+    const ok = await verifyPin(currentUser.id, pinInput)
+    setVerifying(false)
+    if (ok) {
       setShowPasswords(prev => ({ ...prev, [key]: true }))
       setPendingAuthKey(null)
       setPinInput('')
@@ -164,13 +169,14 @@ function LinksPage() {
           <div className="px-4 pb-4 flex items-center gap-2 animate-fade-in">
             <input
               type="password"
-              maxLength={8}
+              maxLength={20}
               value={pinInput}
               onChange={e => { setPinInput(e.target.value); setPinError(false) }}
               onKeyDown={e => e.key === 'Enter' && handlePinSubmit(key)}
               autoFocus
-              placeholder="PIN"
-              className="w-20 text-sm rounded-lg px-3 py-1.5 text-white text-center font-mono tracking-widest"
+              placeholder="Passcode"
+              disabled={verifying}
+              className="w-28 text-sm rounded-lg px-3 py-1.5 text-white text-center font-mono tracking-widest"
               style={{
                 background: pinError ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)',
                 border: pinError ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(255,255,255,0.12)',
@@ -179,10 +185,11 @@ function LinksPage() {
             />
             <button
               onClick={() => handlePinSubmit(key)}
-              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+              disabled={verifying || !pinInput}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all disabled:opacity-40"
               style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}
             >
-              Confirm
+              {verifying ? '…' : 'Confirm'}
             </button>
             <button
               onClick={() => { setPendingAuthKey(null); setPinInput(''); setPinError(false) }}
@@ -190,7 +197,7 @@ function LinksPage() {
             >
               Cancel
             </button>
-            {pinError && <span className="text-xs text-red-400">Incorrect PIN</span>}
+            {pinError && <span className="text-xs text-red-400">Incorrect passcode</span>}
           </div>
         )}
       </div>
