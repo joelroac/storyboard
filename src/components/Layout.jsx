@@ -179,7 +179,7 @@ export default function Layout({ children }) {
 
       {/* Top nav */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 safe-top"
+        className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-4 safe-top"
         style={{
           background: 'rgba(12,12,14,0.92)',
           backdropFilter: 'blur(16px)',
