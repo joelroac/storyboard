@@ -7,7 +7,7 @@ import Notifications from './Notifications'
 import SettingsModal from './SettingsModal'
 
 export default function Layout({ children }) {
-  const { currentUser, teamMembers, logout, activeTab, setActiveTab, updateTeamMember, previewRole, setPreviewRole } = useApp()
+  const { currentUser, teamMembers, logout, activeTab, setActiveTab, updateTeamMember, previewRole, setPreviewRole, selectedProject, setSelectedProject } = useApp()
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileSettings, setShowProfileSettings] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -354,8 +354,9 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      {/* Page content — offset on mobile for bottom nav */}
-      <main className="flex-1 overflow-auto mobile-main-offset">
+      {/* Page content — offset on mobile for bottom nav.
+          Lock scroll when a project detail panel is open so background doesn't scroll behind it. */}
+      <main className={`flex-1 overflow-auto mobile-main-offset${selectedProject ? ' overflow-hidden' : ''}`}>
         {children}
       </main>
 
@@ -367,7 +368,7 @@ export default function Layout({ children }) {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setSelectedProject(null); setActiveTab(tab.id) }}
               className="flex flex-col items-center justify-center gap-1 flex-1 py-3 transition-all"
               style={{ color: active ? '#fbbf24' : '#52525b', minHeight: 56 }}
             >
