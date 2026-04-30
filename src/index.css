@@ -78,7 +78,7 @@ input, textarea, select {
 /* Push main content up so bottom nav doesn't cover it — mobile only */
 @media (max-width: 639px) {
   .mobile-main-offset {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
 

@@ -668,6 +668,10 @@ export default function ProjectDetail() {
       // Fallback — Joel (admin) can always advance any stage
       if (nextStage)
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage)}>Advance to Next Stage</ActionBtn>
+      // Status is not in the current workflow (e.g. set via override or legacy status)
+      // Offer to move to the first stage so the project can enter the proper pipeline
+      if (currentIdx === -1 && workflow.length > 0)
+        return <ActionBtn color="amber" onClick={() => handleAdvance(workflow[0])}>Move to {workflow[0]}</ActionBtn>
       return null
     }
 
