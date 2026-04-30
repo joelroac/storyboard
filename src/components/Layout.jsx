@@ -152,6 +152,9 @@ export default function Layout({ children }) {
   return (
     <div className="flex flex-col" style={{ background: '#0c0c0e', minHeight: '100dvh' }}>
 
+      {/* Top accent bar — gives visual separation from browser chrome */}
+      <div className="hidden sm:block w-full" style={{ height: 3, background: 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%)' }} />
+
       {/* iOS "Add to Home Screen" nudge — only shown on Safari/iOS, dismissed per session */}
       {showIosBanner && (
         <div
