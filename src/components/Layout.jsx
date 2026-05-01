@@ -181,6 +181,7 @@ export default function Layout({ children }) {
           background: 'rgba(12,12,14,0.92)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '3px solid #f59e0b',
           borderBottom: '1px solid rgba(255,255,255,0.07)',
         }}
       >
