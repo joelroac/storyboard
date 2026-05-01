@@ -13,9 +13,10 @@ const OWNER_ROLE = { joel: 'admin', anthony: 'editor', tiana: 'social_manager' }
 // ── Progress Bar ──────────────────────────────────────────────────────────────
 
 function ProgressBar({ stages, status }) {
+  const isPosted   = ['Posted', 'Sent'].includes(status)
   const currentIdx = stages.indexOf(status)
   const safeIdx    = Math.max(0, currentIdx)
-  const pct        = stages.length > 1 ? ((safeIdx + 1) / stages.length) * 100 : 100
+  const pct        = isPosted ? 100 : (stages.length > 1 ? ((safeIdx + 1) / stages.length) * 100 : 100)
 
   return (
     <div>
@@ -24,12 +25,12 @@ function ProgressBar({ stages, status }) {
           <div
             key={stage}
             title={stage}
-            className={`progress-stage ${i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}`}
+            className={`progress-stage ${isPosted || i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}`}
           />
         ))}
       </div>
       <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: '#f59e0b', borderRadius: 2, transition: 'width 400ms ease' }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: isPosted ? '#4ade80' : '#f59e0b', borderRadius: 2, transition: 'width 400ms ease' }} />
       </div>
     </div>
   )
