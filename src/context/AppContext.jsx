@@ -71,6 +71,7 @@ function dbToProject(row) {
     videoBreakdown: row.video_breakdown || '',
     activeStages:   row.active_stages || [],
     crossPostTo:    row.cross_post_to || null,
+    finalLink:      row.final_link || '',
     createdAt:      row.created_at,
     statusHistory:  [],
   }
@@ -320,6 +321,7 @@ export function AppProvider({ children }) {
           videoBreakdown: row.video_breakdown || '',
           activeStages:   row.active_stages || [],
           crossPostTo:    row.cross_post_to || null,
+          finalLink:      row.final_link || '',
         })
         setProjects((prev) => prev.map((p) => p.id === row.id ? merge(p) : p))
         setSelectedProject((prev) => prev?.id === row.id ? merge(prev) : prev)
@@ -577,6 +579,7 @@ export function AppProvider({ children }) {
       videoBreakdown: 'video_breakdown',
       activeStages:   'active_stages',
       crossPostTo:    'cross_post_to',
+      finalLink:      'final_link',
     }
 
     const dbUpdates = {}

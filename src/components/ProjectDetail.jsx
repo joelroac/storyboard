@@ -97,6 +97,7 @@ export default function ProjectDetail() {
   const [editBrandName, setEditBrandName]         = useState('')
   const [editDate, setEditDate]                   = useState('')
   const [editDropbox, setEditDropbox]             = useState('')
+  const [editFinalLink, setEditFinalLink]         = useState('')
   const [editAsana, setEditAsana]                 = useState('')
   const [editVideoBreakdown, setEditVideoBreakdown] = useState('')
   const [editCaption, setEditCaption]             = useState('')
@@ -180,6 +181,7 @@ export default function ProjectDetail() {
       }
       setEditDate(fresh.publishDate || '')
       setEditDropbox(fresh.dropboxLink || '')
+      setEditFinalLink(fresh.finalLink || '')
       setEditAsana(fresh.asanaLink || '')
       setEditVideoBreakdown(fresh.videoBreakdown || '')
       setEditCaption(fresh.caption || '')
@@ -259,6 +261,7 @@ export default function ProjectDetail() {
       publishDate: editDate,
       dropboxLink: editDropbox,
       asanaLink:  editAsana,
+      finalLink:  editFinalLink,
       ...extra,
     })
   }
@@ -1136,6 +1139,44 @@ export default function ProjectDetail() {
               </Field>
             )}
           </div>
+
+          {/* ── Final Link (YouTube only — for social manager posting) ── */}
+          {proj.type === 'youtube' && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Final Link</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                  style={{ background: 'rgba(96,165,250,0.08)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.15)' }}>
+                  For posting
+                </span>
+              </div>
+              {isJoel ? (
+                <div>
+                  <input
+                    value={editFinalLink}
+                    onChange={(e) => setEditFinalLink(e.target.value)}
+                    onBlur={() => saveEdits()}
+                    placeholder="https://drive.google.com/… or https://dropbox.com/…"
+                    className="w-full text-sm rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-700"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  />
+                  {editFinalLink && (
+                    <a href={editFinalLink} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 mt-1 transition-colors">
+                      <ExternalLink size={11} /> Open link
+                    </a>
+                  )}
+                </div>
+              ) : proj.finalLink ? (
+                <a href={proj.finalLink} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                  <ExternalLink size={13} /> {proj.finalLink}
+                </a>
+              ) : (
+                <span className="text-sm text-zinc-600">No link added yet</span>
+              )}
+            </div>
+          )}
 
           {/* ── Storage link + Asana (side by side when both visible) ── */}
           <div className={storageLabel && proj.type !== 'youtube' ? 'grid grid-cols-2 gap-4' : ''}>

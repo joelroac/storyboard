@@ -239,15 +239,16 @@ export default function SocialMediaManagerDashboard() {
                   className="rounded-xl overflow-hidden"
                   style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
                   {/* Main row */}
-                  <div className="p-4 flex items-center gap-4">
-                    <div className="flex-1 flex items-center gap-3 cursor-pointer min-w-0" onClick={() => open(p)}>
+                  <div className="p-4 flex flex-col gap-3">
+                    {/* Title row */}
+                    <div className="flex items-center gap-3 cursor-pointer min-w-0" onClick={() => open(p)}>
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <PlatformIcon type={p.type} size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-white truncate">{p.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <StatusBadge status={p.status} />
                           {!isOrganic && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
@@ -258,11 +259,12 @@ export default function SocialMediaManagerDashboard() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Action buttons — full width row below title */}
+                    <div className="flex items-center gap-2">
                       {isOrganic && !isScheduling && (
                         <button
                           onClick={() => { setSchedulingId(p.id); setScheduleInput('') }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          className="flex-1 py-2 rounded-lg text-xs font-semibold"
                           style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#60a5fa' }}>
                           Schedule
                         </button>
@@ -270,14 +272,14 @@ export default function SocialMediaManagerDashboard() {
                       {isScheduling && (
                         <button
                           onClick={() => { setSchedulingId(null); setScheduleInput('') }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          className="flex-1 py-2 rounded-lg text-xs font-semibold"
                           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#71717a' }}>
                           Cancel
                         </button>
                       )}
                       <button
                         onClick={() => handleMarkPublished(p)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                        className="flex-1 py-2 rounded-lg text-xs font-semibold"
                         style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
                         Mark as Published
                       </button>
