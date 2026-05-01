@@ -40,9 +40,10 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
   const ownerMember = teamMembers?.find(m => m.role === OWNER_ROLE[ownerKey])
   const days        = daysLabel(project.publishDate)
   const workflow    = getWorkflow ? getWorkflow(project.type) : []
+  const isPosted    = ['Posted', 'Sent'].includes(project.status)
   const idx         = workflow.indexOf(project.status)
   const safeIdx     = Math.max(0, idx)
-  const pct         = workflow.length > 1 ? ((safeIdx + 1) / workflow.length) * 100 : 100
+  const pct         = isPosted ? 100 : (workflow.length > 1 ? ((safeIdx + 1) / workflow.length) * 100 : 100)
   const [editingDate, setEditingDate] = useState(false)
 
   return (
@@ -151,8 +152,11 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
 
       {/* Mini progress bar */}
       <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: getStatusColor(project.status), borderRadius: 1 }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: isPosted ? '#4ade80' : getStatusColor(project.status), borderRadius: 1 }} />
       </div>
+      {isPosted && (
+        <span className="text-[9px] font-semibold tracking-wide" style={{ color: '#4ade80' }}>✓ POSTED</span>
+      )}
     </div>
   )
 }
