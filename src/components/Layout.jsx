@@ -152,9 +152,6 @@ export default function Layout({ children }) {
   return (
     <div className="flex flex-col" style={{ background: '#0c0c0e', minHeight: '100dvh' }}>
 
-      {/* Top accent bar — gives visual separation from browser chrome */}
-      <div className="hidden sm:block w-full" style={{ height: 3, background: 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%)' }} />
-
       {/* iOS "Add to Home Screen" nudge — only shown on Safari/iOS, dismissed per session */}
       {showIosBanner && (
         <div
@@ -179,7 +176,7 @@ export default function Layout({ children }) {
 
       {/* Top nav */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-4 safe-top"
+        className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-5 safe-top"
         style={{
           background: 'rgba(12,12,14,0.92)',
           backdropFilter: 'blur(16px)',
