@@ -280,11 +280,17 @@ export default function ProjectDetail() {
     saveEdits()
   }
 
-  function saveCaption() {
-    updateProject(proj.id, { caption: editCaption })
+  function saveCaption(value = editCaption) {
+    updateProject(proj.id, { caption: value })
     setCaptionSaved(true)
     if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
     captionTimerRef.current = setTimeout(() => setCaptionSaved(false), 2000)
+  }
+
+  function handleCaptionChange(value) {
+    setEditCaption(value)
+    if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
+    captionTimerRef.current = setTimeout(() => saveCaption(value), 1000)
   }
 
   // Script blocks auto-save with 800ms debounce
@@ -783,7 +789,8 @@ export default function ProjectDetail() {
     <div
       className="fixed inset-x-0 bottom-0 z-50 flex items-start justify-end modal-backdrop project-detail-top"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null) }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) e.currentTarget._closeOnMouseUp = true }}
+      onMouseUp={(e) => { if (e.currentTarget._closeOnMouseUp && e.target === e.currentTarget) setSelectedProject(null); e.currentTarget._closeOnMouseUp = false }}
     >
       <div
         className={`modal-panel h-full w-full ${expanded ? 'max-w-full' : 'max-w-2xl'} overflow-y-auto flex flex-col`}
@@ -1487,7 +1494,9 @@ export default function ProjectDetail() {
                         <textarea
                           value={block.scriptLine}
                           onChange={(e) => {
-                            const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, scriptLine: e.target.value } : b)
+                            let updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, scriptLine: e.target.value } : b)
+                            const isLast = idx === scriptBlocks.length - 1
+                            if (isLast && e.target.value) updated = [...updated, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }]
                             handleScriptBlocksChange(updated)
                           }}
                           rows={2}
@@ -1498,7 +1507,9 @@ export default function ProjectDetail() {
                         <textarea
                           value={block.shotNote}
                           onChange={(e) => {
-                            const updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
+                            let updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
+                            const isLast = idx === scriptBlocks.length - 1
+                            if (isLast && e.target.value) updated = [...updated, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }]
                             handleScriptBlocksChange(updated)
                           }}
                           rows={2}
@@ -1605,28 +1616,15 @@ export default function ProjectDetail() {
                     {captionCopied ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy</>}
                   </button>
                 )}
-                {(canEditCaption || isJoel) && (
-                  <>
-                    {captionSaved && <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>}
-                    <button
-                      onClick={saveCaption}
-                      className="text-xs px-2 py-1 rounded"
-                      style={
-                        canEditCaption
-                          ? { background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }
-                          : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }
-                      }
-                    >
-                      Save
-                    </button>
-                  </>
+                {(canEditCaption || isJoel) && captionSaved && (
+                  <span className="text-xs" style={{ color: '#4ade80' }}>Saved ✓</span>
                 )}
               </div>
             </div>
             {canEditCaption || isJoel ? (
               <textarea
                 value={editCaption}
-                onChange={(e) => setEditCaption(e.target.value)}
+                onChange={(e) => handleCaptionChange(e.target.value)}
                 placeholder="Write the caption here…"
                 className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-200 placeholder-zinc-700"
                 style={{
