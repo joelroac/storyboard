@@ -214,7 +214,7 @@ export default function JoelDashboard() {
   const [deletingId, setDeletingId]     = useState(null)
   const [showInactive, setShowInactive] = useState(false)
   const [expandedCols, setExpandedCols] = useState({})
-  const [sortBy, setSortBy]             = useState('due_date')
+  const [sortBy, setSortBy]             = useState(() => localStorage.getItem('sb_sort') || 'due_date')
 
   const active         = projects.filter(p => !['Posted', 'Sent', 'Inactive'].includes(p.status))
   const inactiveProjects = projects.filter(p => p.status === 'Inactive')

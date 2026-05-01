@@ -40,7 +40,7 @@ export default function SortBar({ sortBy, setSortBy }) {
       {OPTIONS.map(opt => (
         <button
           key={opt.id}
-          onClick={() => setSortBy(opt.id)}
+          onClick={() => { setSortBy(opt.id); localStorage.setItem('sb_sort', opt.id) }}
           className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
           style={
             sortBy === opt.id
