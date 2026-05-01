@@ -1169,8 +1169,9 @@ export default function ProjectDetail() {
                 </div>
               ) : proj.finalLink ? (
                 <a href={proj.finalLink} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors">
-                  <ExternalLink size={13} /> {proj.finalLink}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa' }}>
+                  <ExternalLink size={14} /> Open Final Files
                 </a>
               ) : (
                 <span className="text-sm text-zinc-600">No link added yet</span>
