@@ -178,8 +178,8 @@ export default function Layout({ children }) {
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6"
         style={{
-          paddingTop: 'max(28px, calc(env(safe-area-inset-top) + 12px))',
-          paddingBottom: '20px',
+          paddingTop: 'max(14px, calc(env(safe-area-inset-top) + 8px))',
+          paddingBottom: '14px',
           background: 'rgba(12,12,14,0.92)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
