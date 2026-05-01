@@ -333,81 +333,88 @@ export default function SocialMediaManagerDashboard() {
         </section>
       )}
 
-      {/* Posted This Month */}
-      {postedThisMonth.length > 0 && (
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle2 size={13} className="text-zinc-600" />
-            <h2 className="text-sm font-semibold text-zinc-600 uppercase tracking-widest">
-              Posted This Month
-            </h2>
-            <span className="text-xs text-zinc-700">{postedThisMonth.length}</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {postedThisMonth.map(p => (
-              <button key={p.id} onClick={() => open(p)}
-                className="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/[0.03]"
-                style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
-                <PlatformIcon type={p.type} size={13} />
-                <span className="text-sm text-zinc-500 flex-1 truncate">{p.title}</span>
-                <StatusBadge status={p.status} />
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Analytics Due + Posted This Month — side by side */}
+      {(analyticsDue.length > 0 || postedThisMonth.length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
 
-      {/* Analytics Due */}
-      {analyticsDue.length > 0 && (
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart2 size={13} className="text-blue-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Analytics Due</h2>
-            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>
-              {analyticsDue.length}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {analyticsDue.map(p => {
-              const done = analyticsConfirmed === p.id
-              return (
-                <div key={p.id}
-                  className="rounded-xl p-4 flex items-center gap-3 transition-all"
-                  style={{
-                    background: done ? 'rgba(74,222,128,0.05)' : '#141418',
-                    border: done ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(255,255,255,0.07)',
-                  }}>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{
-                      background: done ? 'rgba(74,222,128,0.1)' : 'rgba(96,165,250,0.1)',
-                      border: done ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(96,165,250,0.2)',
-                    }}>
-                    {done
-                      ? <CheckCircle2 size={15} style={{ color: '#4ade80' }} />
-                      : <PlatformIcon type={p.type} size={15} />}
-                  </div>
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !done && setSelectedProject(p)}>
-                    <p className="text-sm font-semibold truncate" style={{ color: done ? '#4ade80' : '#fff' }}>
-                      {done ? 'Campaign complete!' : p.title}
-                    </p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">
-                      {done ? 'Analytics marked as delivered' : p.publishDate ? `Posted ${format(parseISO(p.publishDate), 'MMM d')}` : 'Posted'}
-                    </p>
-                  </div>
-                  {!done && (
-                    <button
-                      onClick={() => handleAnalyticsComplete(p)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all"
-                      style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}>
-                      Mark Complete
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
+          {/* Analytics Due */}
+          {analyticsDue.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart2 size={13} className="text-blue-400" />
+                <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Analytics Due</h2>
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                  style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>
+                  {analyticsDue.length}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {analyticsDue.map(p => {
+                  const done = analyticsConfirmed === p.id
+                  return (
+                    <div key={p.id}
+                      className="rounded-xl p-4 flex items-center gap-3 transition-all"
+                      style={{
+                        background: done ? 'rgba(74,222,128,0.05)' : '#141418',
+                        border: done ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                      }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{
+                          background: done ? 'rgba(74,222,128,0.1)' : 'rgba(96,165,250,0.1)',
+                          border: done ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(96,165,250,0.2)',
+                        }}>
+                        {done
+                          ? <CheckCircle2 size={15} style={{ color: '#4ade80' }} />
+                          : <PlatformIcon type={p.type} size={15} />}
+                      </div>
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !done && setSelectedProject(p)}>
+                        <p className="text-sm font-semibold truncate" style={{ color: done ? '#4ade80' : '#fff' }}>
+                          {done ? 'Campaign complete!' : p.title}
+                        </p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">
+                          {done ? 'Analytics marked as delivered' : p.publishDate ? `Posted ${format(parseISO(p.publishDate), 'MMM d')}` : 'Posted'}
+                        </p>
+                      </div>
+                      {!done && (
+                        <button
+                          onClick={() => handleAnalyticsComplete(p)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all"
+                          style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}>
+                          Mark Complete
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Posted This Month */}
+          {postedThisMonth.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2 size={13} className="text-zinc-600" />
+                <h2 className="text-sm font-semibold text-zinc-600 uppercase tracking-widest">
+                  Posted This Month
+                </h2>
+                <span className="text-xs text-zinc-700">{postedThisMonth.length}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {postedThisMonth.map(p => (
+                  <button key={p.id} onClick={() => open(p)}
+                    className="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/[0.03]"
+                    style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <PlatformIcon type={p.type} size={13} />
+                    <span className="text-sm text-zinc-500 flex-1 truncate">{p.title}</span>
+                    <StatusBadge status={p.status} />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+        </div>
       )}
 
       {awaitingApproval.length === 0 && readyToPost.length === 0 && scheduled.length === 0 && postedThisMonth.length === 0 && (

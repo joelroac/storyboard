@@ -127,7 +127,7 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
               autoFocus
               defaultValue={project.publishDate || ''}
               onBlur={e => {
-                if (e.target.value) updateProject(project.id, { publishDate: e.target.value })
+                updateProject(project.id, { publishDate: e.target.value || null })
                 setEditingDate(false)
               }}
               onKeyDown={e => {

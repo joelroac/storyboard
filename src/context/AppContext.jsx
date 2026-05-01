@@ -582,7 +582,7 @@ export function AppProvider({ children }) {
     const dbUpdates = {}
     for (const [frontendKey, dbKey] of Object.entries(fieldMap)) {
       if (frontendKey in updates) {
-        dbUpdates[dbKey] = (dbKey === 'publish_time' && !updates[frontendKey]) ? null : updates[frontendKey]
+        dbUpdates[dbKey] = (!updates[frontendKey] && (dbKey === 'publish_time' || dbKey === 'publish_date')) ? null : updates[frontendKey]
       }
     }
 
