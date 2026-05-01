@@ -598,6 +598,10 @@ export default function ProjectDetail() {
 
   function renderActionButton() {
     const s          = proj.status
+
+    // Fully completed — no further actions
+    if (['Posted', 'Sent'].includes(s)) return null
+
     const currentIdx = workflow.indexOf(s)
     const nextStage  = (currentIdx >= 0 && currentIdx < workflow.length - 1)
       ? workflow[currentIdx + 1]
