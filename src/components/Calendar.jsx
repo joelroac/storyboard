@@ -317,14 +317,16 @@ export default function Calendar() {
       <div className="flex gap-6">
         {/* Calendar grid — takes full width on mobile, shares space on desktop */}
         <div className="flex-1 min-w-0 w-full">
-          {/* Day labels */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {DAY_LABELS.map((d) => (
-              <div key={d} className="text-center text-xs font-semibold uppercase tracking-wider text-zinc-600 py-2">
-                {d}
-              </div>
-            ))}
-          </div>
+          {/* Day labels — month view only */}
+          {view === 'month' && (
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {DAY_LABELS.map((d) => (
+                <div key={d} className="text-center text-xs font-semibold uppercase tracking-wider text-zinc-600 py-2">
+                  {d}
+                </div>
+              ))}
+            </div>
+          )}
 
           {view === 'month' ? (
             (() => {
@@ -337,8 +339,77 @@ export default function Calendar() {
               ))
             })()
           ) : (
-            <div className="grid grid-cols-7 gap-1">
-              {weekDays.map((day) => <DayCell key={day.toISOString()} date={day} />)}
+            <div className="grid grid-cols-7 gap-2" style={{ minHeight: 520 }}>
+              {weekDays.map((day) => {
+                const dayProjects = projectsOnDay(day)
+                const today       = isToday(day)
+                const isSelected  = selectedDay && isSameDay(day, selectedDay)
+                const isDragOver  = dragOverDate === day.toISOString()
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className="flex flex-col rounded-xl overflow-hidden"
+                    style={{
+                      background: isSelected ? 'rgba(245,158,11,0.05)' : isDragOver ? 'rgba(245,158,11,0.03)' : 'rgba(255,255,255,0.02)',
+                      border: isSelected ? '1px solid rgba(245,158,11,0.3)' : isDragOver ? '1px solid rgba(245,158,11,0.35)' : '1px solid rgba(255,255,255,0.07)',
+                      transition: 'background 0.1s ease, border-color 0.1s ease',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setSelectedDay(day)}
+                    onDragOver={(e) => handleDayCellDragOver(e, day)}
+                    onDrop={(e)     => handleDayCellDrop(e, day)}
+                    onDragLeave={()  => setDragOverDate(null)}
+                  >
+                    {/* Day header */}
+                    <div className="px-2 py-2 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: today ? 'rgba(245,158,11,0.08)' : undefined }}>
+                      <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: today ? '#f59e0b' : '#52525b' }}>
+                        {format(day, 'EEE')}
+                      </div>
+                      <div
+                        className="text-lg font-bold mt-0.5 w-8 h-8 flex items-center justify-center rounded-full mx-auto"
+                        style={today ? { background: '#f59e0b', color: '#111' } : { color: '#e4e4e7' }}
+                      >
+                        {format(day, 'd')}
+                      </div>
+                    </div>
+                    {/* Projects */}
+                    <div className="flex flex-col gap-1.5 p-1.5 flex-1">
+                      {dayProjects.length === 0 && (
+                        <div className="flex-1 flex items-center justify-center">
+                          <span className="text-[9px] text-zinc-700">—</span>
+                        </div>
+                      )}
+                      {dayProjects.map((p) => (
+                        <button
+                          key={p.id}
+                          draggable={canReschedule}
+                          onDragStart={(e) => { handleChipDragStart(e, p.id) }}
+                          onDragEnd={handleDragEnd}
+                          onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                          className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
+                          style={{
+                            background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}15`,
+                            border:     `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}35`,
+                            cursor:     isAdmin ? 'grab' : 'pointer',
+                          }}
+                        >
+                          <div className="flex items-center gap-1">
+                            <PlatformDot type={p.type} size={5} />
+                            {p.crossPostTo && <PlatformDot type={p.crossPostTo} size={5} />}
+                            {p.brand && p.brand !== 'Organic' && (
+                              <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-medium leading-tight" style={{ color: PLATFORM_COLORS[p.type] || '#9ca3af' }}>
+                            {p.title}
+                          </span>
+                          <span className="text-[9px] text-zinc-600">{p.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
 
