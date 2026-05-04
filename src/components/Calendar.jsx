@@ -4,7 +4,7 @@ import {
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
   addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, X, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
@@ -19,15 +19,11 @@ function GoalsPanel({ weeks, projects, goals }) {
   const COMPLETED_STATUSES = ['Posted', 'Sent']
 
   return (
-    <div
-      className="w-48 shrink-0 sticky top-24 self-start rounded-2xl overflow-hidden"
-      style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}
-    >
+    <div className="rounded-2xl overflow-hidden" style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <p className="text-xs font-semibold text-white uppercase tracking-widest">Posting Goals</p>
-        <p className="text-[10px] text-zinc-600 mt-0.5">per week</p>
+        <p className="text-xs font-semibold text-white uppercase tracking-widest">Posting Goals <span className="text-zinc-600 font-normal normal-case text-[10px] ml-1">per week</span></p>
       </div>
-      <div className="p-3 flex flex-col gap-3">
+      <div className="p-3 grid gap-3" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}>
         {weeks.map((week, wi) => {
           const weekStart = week[0]
           const weekEnd   = week[week.length - 1]
@@ -264,7 +260,7 @@ export default function Calendar() {
               +{dayProjects.length - 3} more
             </span>
           )}
-          {/* WIP chips — dashed outline, draggable to reschedule work date */}
+          {/* WIP chips — amber pencil, gray bg, clearly "in progress" */}
           {projectsWorkingOnDay(date).map((p) => (
             <button
               key={`wip-${p.id}`}
@@ -273,10 +269,10 @@ export default function Calendar() {
               onDragEnd={handleDragEnd}
               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
-              style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}60`, cursor: canReschedule ? 'grab' : 'pointer' }}
+              style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'pointer' }}
             >
-              <PlatformDot type={p.type} size={5} />
-              <span className="text-[9px] font-medium truncate" style={{ color: `${PLATFORM_COLORS[p.type] || '#9ca3af'}aa` }}>
+              <Pencil size={7} style={{ color: '#f59e0b', flexShrink: 0 }} />
+              <span className="text-[9px] font-medium truncate" style={{ color: '#a1a1aa' }}>
                 {p.title}
               </span>
             </button>
@@ -405,9 +401,8 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div className="flex gap-6">
-        {/* Calendar grid — takes full width on mobile, shares space on desktop */}
-        <div className="flex-1 min-w-0 w-full">
+      <div>
+        <div className="w-full">
           {/* Day labels — month view only */}
           {view === 'month' && (
             <div className="grid grid-cols-7 gap-1 mb-1">
@@ -492,13 +487,13 @@ export default function Calendar() {
                               <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
                             )}
                           </div>
-                          <span className="text-[10px] font-medium leading-tight" style={{ color: PLATFORM_COLORS[p.type] || '#9ca3af' }}>
+                          <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: PLATFORM_COLORS[p.type] || '#9ca3af' }}>
                             {p.title}
                           </span>
                           <span className="text-[9px] text-zinc-600">{p.status}</span>
                         </button>
                       ))}
-                      {/* WIP chips — dashed, draggable to reschedule work date */}
+                      {/* WIP chips — amber pencil, clearly "in progress" */}
                       {projectsWorkingOnDay(day).map((p) => (
                         <button
                           key={`wip-${p.id}`}
@@ -507,13 +502,16 @@ export default function Calendar() {
                           onDragEnd={handleDragEnd}
                           onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
                           className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
-                          style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}55`, cursor: canReschedule ? 'grab' : 'pointer' }}
+                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'pointer' }}
                         >
-                          <PlatformDot type={p.type} size={5} />
-                          <span className="text-[10px] font-medium leading-tight" style={{ color: `${PLATFORM_COLORS[p.type] || '#9ca3af'}bb` }}>
+                          <div className="flex items-center gap-1">
+                            <Pencil size={8} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                            <PlatformDot type={p.type} size={5} />
+                          </div>
+                          <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: '#a1a1aa' }}>
                             {p.title}
                           </span>
-                          <span className="text-[9px] text-zinc-600">{p.status} · WIP</span>
+                          <span className="text-[9px] text-zinc-600">{p.status}</span>
                         </button>
                       ))}
                     </div>
@@ -538,183 +536,63 @@ export default function Calendar() {
               <span className="text-xs text-zinc-500">Brand Deal</span>
             </div>
             <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={{ display: 'inline-block', width: 16, height: 10, borderRadius: 2, border: '1px dashed rgba(156,163,175,0.5)', background: 'transparent' }} />
+              <span style={{ display: 'inline-block', width: 16, height: 10, borderRadius: 2, border: '1px dashed rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.07)' }} />
               <span className="text-xs text-zinc-500">Work Day</span>
             </div>
           </div>
 
-          {/* Weekly Agenda */}
-          <div className="mt-8">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-widest mb-4">
-              This Week's Agenda
-              <span className="text-zinc-600 ml-2 text-xs normal-case font-normal">
-                {format(agendaStart, 'MMM d')} – {format(agendaEnd, 'MMM d')}
-              </span>
-            </h3>
-            <div className="flex flex-col gap-1">
-              {agendaDays.map((day) => {
-                const dayProjects = projectsOnDay(day)
-                const today = isToday(day)
-                return (
-                  <div
-                    key={day.toISOString()}
-                    className="flex gap-4 items-start py-3"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-                  >
-                    <div className={`w-16 shrink-0 text-right ${today ? 'text-amber-400' : 'text-zinc-600'}`}>
-                      <p className="text-xs font-semibold uppercase tracking-widest">{format(day, 'EEE')}</p>
-                      <p className="text-sm font-bold">{format(day, 'd')}</p>
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                      {dayProjects.length === 0 ? (
-                        <p className="text-xs text-zinc-700 py-1">—</p>
-                      ) : (
-                        dayProjects.map((p) => (
-                          <button
-                            key={p.id}
-                            draggable={canReschedule}
-                            onDragStart={(e) => handleChipDragStart(e, p.id)}
-                            onDragEnd={handleDragEnd}
-                            onClick={() => setSelectedProject(p)}
-                            className="flex items-center gap-2 text-left w-full rounded-lg px-3 py-2 transition-colors hover:bg-white/5"
-                            style={{ border: '1px solid rgba(255,255,255,0.07)', cursor: canReschedule ? 'grab' : 'pointer' }}
-                          >
-                            <div className="flex items-center gap-1 shrink-0">
-                              <PlatformIcon type={p.type} size={13} />
-                              {p.crossPostTo && <PlatformIcon type={p.crossPostTo} size={13} />}
-                            </div>
-                            <span className="text-sm text-white font-medium flex-1 truncate">{p.title}</span>
-                            {p.brand && p.brand !== 'Organic' && (
-                              <span
-                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
-                                style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
-                              >
-                                {p.brand}
-                              </span>
-                            )}
-                            <StatusBadge status={p.status} />
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
         </div>
 
-        {/* Goals panel — hidden on mobile, shown on desktop */}
-        <div className="hidden sm:block">
-          {(() => {
-            const weeks = view === 'month'
-              ? (() => { const w = []; for (let i = 0; i < days.length; i += 7) w.push(days.slice(i, i + 7)); return w })()
-              : [weekDays]
-            return <GoalsPanel weeks={weeks} projects={projects} goals={postingGoals} />
-          })()}
-        </div>
-
-        {/* Side panel — hidden on mobile (shown as bottom sheet below instead) */}
-        {selectedDay && (
-          <div className="hidden sm:block w-72 shrink-0 animate-fade-in">
-            <div
-              className="sticky top-24 rounded-2xl overflow-hidden"
-              style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              <div
-                className="px-4 py-3 flex items-center justify-between"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
-              >
-                <div>
-                  <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">
-                    {format(selectedDay, 'EEE, MMM d')}
-                  </p>
-                  <p className="text-[10px] text-zinc-600 mt-0.5">
-                    {projectsOnDay(selectedDay).length === 0
-                      ? 'No projects'
-                      : `${projectsOnDay(selectedDay).length} project${projectsOnDay(selectedDay).length > 1 ? 's' : ''}`}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedDay(null)}
-                  className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10"
-                  style={{ color: '#52525b' }}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-
-              <div className="p-3 flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
-                {projectsOnDay(selectedDay).length === 0 ? (
-                  <p className="text-xs text-zinc-600 text-center py-6">Nothing scheduled for this day</p>
-                ) : (
-                  projectsOnDay(selectedDay).map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
-                      className="w-full text-left rounded-xl p-3 transition-colors hover:bg-white/[0.03]"
-                      style={{ border: `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}25`, background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}08` }}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <PlatformIcon type={p.type} size={13} />
-                        <span className="text-sm font-semibold text-white truncate flex-1">{p.title}</span>
-                        {p.brand && p.brand !== 'Organic' && (
-                          <span
-                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
-                            style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}
-                          >
-                            Brand Deal
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <StatusBadge status={p.status} />
-                        {p.brand && p.brand !== 'Organic' && (
-                          <span className="text-[10px] text-zinc-500">{p.brand}</span>
-                        )}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Mobile-only: selected day bottom sheet */}
+      {/* Goals panel — below calendar, full width on mobile, shown on desktop */}
+      <div className="hidden sm:block mt-4">
+        {(() => {
+          const weeks = view === 'month'
+            ? (() => { const w = []; for (let i = 0; i < days.length; i += 7) w.push(days.slice(i, i + 7)); return w })()
+            : [weekDays]
+          return <GoalsPanel weeks={weeks} projects={projects} goals={postingGoals} />
+        })()}
+      </div>
+
+      {/* Day breakdown — full width below calendar on all screen sizes */}
       {selectedDay && (
-        <div className="sm:hidden mt-4 rounded-2xl overflow-hidden animate-fade-in"
-          style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.1)' }}
-        >
-          <div className="px-4 py-3 flex items-center justify-between"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
-          >
-            <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">
-              {format(selectedDay, 'EEE, MMM d')} · {projectsOnDay(selectedDay).length === 0 ? 'Nothing scheduled' : `${projectsOnDay(selectedDay).length} project${projectsOnDay(selectedDay).length > 1 ? 's' : ''}`}
-            </p>
+        <div className="mt-4 rounded-2xl overflow-hidden animate-fade-in" style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">{format(selectedDay, 'EEE, MMM d')}</p>
             <button onClick={() => setSelectedDay(null)} className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10" style={{ color: '#52525b' }}>
               <X size={12} />
             </button>
           </div>
-          <div className="p-3 flex flex-col gap-2">
-            {projectsOnDay(selectedDay).length === 0 ? (
-              <p className="text-xs text-zinc-600 text-center py-4">Nothing scheduled for this day</p>
-            ) : (
-              projectsOnDay(selectedDay).map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
-                  className="w-full text-left rounded-xl p-3 transition-colors"
-                  style={{ border: `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}25`, background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}08` }}
-                >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <PlatformIcon type={p.type} size={13} />
-                    <span className="text-sm font-semibold text-white truncate flex-1">{p.title}</span>
-                  </div>
+          <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {projectsOnDay(selectedDay).map((p) => (
+              <button key={p.id} onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
+                className="w-full text-left rounded-xl p-3 transition-colors hover:bg-white/[0.03]"
+                style={{ border: `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}25`, background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}08` }}>
+                <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                  <PlatformIcon type={p.type} size={13} />
+                  <span className="text-sm font-semibold text-white truncate flex-1">{p.title}</span>
+                </div>
+                <StatusBadge status={p.status} />
+              </button>
+            ))}
+            {projectsWorkingOnDay(selectedDay).map((p) => (
+              <button key={`wip-${p.id}`} onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
+                className="w-full text-left rounded-xl p-3 transition-colors hover:bg-white/[0.03]"
+                style={{ background: 'rgba(245,158,11,0.05)', border: '1px dashed rgba(245,158,11,0.3)' }}>
+                <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                  <Pencil size={11} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                  <PlatformIcon type={p.type} size={13} />
+                  <span className="text-sm font-semibold text-zinc-300 truncate flex-1">{p.title}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>In Progress</span>
                   <StatusBadge status={p.status} />
-                </button>
-              ))
+                </div>
+              </button>
+            ))}
+            {projectsOnDay(selectedDay).length === 0 && projectsWorkingOnDay(selectedDay).length === 0 && (
+              <p className="text-xs text-zinc-600 py-4 col-span-full text-center">Nothing scheduled for this day</p>
             )}
           </div>
         </div>
