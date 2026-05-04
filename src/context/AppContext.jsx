@@ -536,6 +536,7 @@ export function AppProvider({ children }) {
         shot_list:     [],
         thumbnails:    [],
         video_breakdown: null,
+        cross_post_to:  data.crossPostTo || null,
         active_stages: [firstStatus],
         created_by:    createdBy,
       })
