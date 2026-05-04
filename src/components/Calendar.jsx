@@ -112,7 +112,7 @@ function projectColor(p) {
   if (p.type === 'instagram' && p.videoBreakdown && INSTAGRAM_ACCOUNT_COLORS[p.videoBreakdown]) {
     return INSTAGRAM_ACCOUNT_COLORS[p.videoBreakdown]
   }
-  return projectColor(p)
+  return PLATFORM_COLORS[p.type] || '#9ca3af'
 }
 
 export default function Calendar() {
