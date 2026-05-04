@@ -228,6 +228,15 @@ export default function ProjectDetail() {
     }
   }, [selectedProject, projects])
 
+  // Close on Escape key
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') setSelectedProject(null)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [setSelectedProject])
+
   if (!selectedProject || !proj) return null
 
   const effectiveRole = previewRole || currentUser?.role
