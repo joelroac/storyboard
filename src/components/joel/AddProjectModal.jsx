@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext'
 import { CONTENT_TYPES, TYPE_LABELS } from '../../data/seedData'
 import { PlatformIcon } from '../shared/Icons'
 
-export default function AddProjectModal({ onClose, limitTypes = null, initialTitle = '', initialType = null }) {
+export default function AddProjectModal({ onClose, limitTypes = null, initialTitle = '', initialType = null, initialDate = null }) {
   const { addProject, currentUser, projects } = useApp()
 
   const allTypes = Object.values(CONTENT_TYPES)
@@ -16,7 +16,7 @@ export default function AddProjectModal({ onClose, limitTypes = null, initialTit
     type:        (initialType && allTypes.find(t => t.id === initialType)) ? initialType : (types[0]?.id || 'youtube'),
     brand:       'Organic',
     brandName:   '',
-    publishDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+    publishDate: initialDate || format(addDays(new Date(), 7), 'yyyy-MM-dd'),
     dropboxLink: '',
   })
   const [titleError, setTitleError] = useState('')

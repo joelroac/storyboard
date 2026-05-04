@@ -4,10 +4,11 @@ import {
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
   addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil, Plus } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
+import AddProjectModal from './joel/AddProjectModal'
 
 // ── Goals Panel (right sidebar) ───────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ export default function Calendar() {
   const [draggedIsWip, setDraggedIsWip] = useState(false)
   const [dragOverDate, setDragOverDate] = useState(null)
   const [contextMenu, setContextMenu]   = useState(null) // { x, y, project, date }
+  const [addForDate, setAddForDate]     = useState(null) // date string to pre-fill in new project modal
+  const [hoveredDate, setHoveredDate]   = useState(null)
 
   // When Joel is previewing another user, use that role for filtering/permissions
   const effectiveRole = previewRole || currentUser?.role
@@ -195,6 +198,8 @@ export default function Calendar() {
     const isDragOver  = dragOverDate === date.toISOString()
     const isSelected  = selectedDay && isSameDay(date, selectedDay)
 
+    const isHovered = hoveredDate === date.toISOString()
+
     return (
       <div
         className={`cal-day ${today ? 'today' : ''}`}
@@ -208,17 +213,33 @@ export default function Calendar() {
             : isDragOver ? 'rgba(245,158,11,0.4)' : undefined,
           transition:  'background 0.1s ease, border-color 0.1s ease',
           cursor:      'pointer',
+          position:    'relative',
         }}
         onClick={() => setSelectedDay(date)}
+        onContextMenu={(e) => handleDayContextMenu(e, date)}
+        onMouseEnter={() => setHoveredDate(date.toISOString())}
+        onMouseLeave={() => setHoveredDate(null)}
         onDragOver={(e) => handleDayCellDragOver(e, date)}
         onDrop={(e)     => handleDayCellDrop(e, date)}
         onDragLeave={()  => setDragOverDate(null)}
       >
-        <div
-          className={`text-xs font-semibold mb-1.5 w-6 h-6 flex items-center justify-center rounded-full ${today ? 'text-zinc-900' : 'text-zinc-500'}`}
-          style={today ? { background: '#f59e0b' } : {}}
-        >
-          {format(date, 'd')}
+        <div className="flex items-center justify-between mb-1.5">
+          <div
+            className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${today ? 'text-zinc-900' : 'text-zinc-500'}`}
+            style={today ? { background: '#f59e0b' } : {}}
+          >
+            {format(date, 'd')}
+          </div>
+          {isAdmin && isHovered && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setAddForDate(format(date, 'yyyy-MM-dd')) }}
+              className="w-5 h-5 rounded flex items-center justify-center transition-colors hover:bg-amber-400/20"
+              style={{ color: '#f59e0b' }}
+              title={`Add project on ${format(date, 'MMM d')}`}
+            >
+              <Plus size={10} />
+            </button>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           {dayProjects.slice(0, 3).map((p) => (
@@ -288,6 +309,11 @@ export default function Calendar() {
     setContextMenu({ x: e.clientX, y: e.clientY, project, date })
   }
 
+  function handleDayContextMenu(e, date) {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, project: null, date })
+  }
+
   function closeContextMenu() { setContextMenu(null) }
 
   function handleSetWorkDate() {
@@ -316,31 +342,47 @@ export default function Calendar() {
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-3 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <p className="text-xs font-semibold text-white truncate">{contextMenu.project.title}</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{format(contextMenu.date, 'EEEE, MMM d')}</p>
+            {contextMenu.project
+              ? <p className="text-xs font-semibold text-white truncate">{contextMenu.project.title}</p>
+              : <p className="text-xs font-semibold text-white">{format(contextMenu.date, 'EEEE')}</p>
+            }
+            <p className="text-[10px] text-zinc-500 mt-0.5">{format(contextMenu.date, 'MMMM d, yyyy')}</p>
           </div>
           <div className="py-1">
-            <button
-              onClick={handleSetWorkDate}
-              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/05 hover:text-white transition-colors flex items-center gap-2"
-            >
-              <span style={{ display: 'inline-block', width: 10, height: 8, borderRadius: 2, border: '1px dashed rgba(156,163,175,0.6)', flexShrink: 0 }} />
-              Set Work Date to {format(contextMenu.date, 'MMM d')}
-            </button>
-            {contextMenu.project.workDate && (
+            {/* Add project — always available */}
+            {isAdmin && (
               <button
-                onClick={handleClearWorkDate}
-                className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:bg-white/05 hover:text-zinc-300 transition-colors"
+                onClick={() => { setAddForDate(format(contextMenu.date, 'yyyy-MM-dd')); closeContextMenu() }}
+                className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-white/[0.04] transition-colors flex items-center gap-2 font-semibold"
               >
-                Clear Work Date
+                <Plus size={11} style={{ flexShrink: 0 }} />
+                Add Project on {format(contextMenu.date, 'MMM d')}
               </button>
             )}
-            <button
-              onClick={() => { setSelectedProject(contextMenu.project); closeContextMenu() }}
-              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/05 hover:text-white transition-colors"
-            >
-              Open Project
-            </button>
+            {/* Project-specific actions */}
+            {contextMenu.project && (
+              <>
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '2px 0' }} />
+                <button
+                  onClick={handleSetWorkDate}
+                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/[0.04] transition-colors flex items-center gap-2"
+                >
+                  <span style={{ display: 'inline-block', width: 10, height: 8, borderRadius: 2, border: '1px dashed rgba(245,158,11,0.5)', flexShrink: 0 }} />
+                  Set Work Date to {format(contextMenu.date, 'MMM d')}
+                </button>
+                {contextMenu.project.workDate && (
+                  <button onClick={handleClearWorkDate} className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors">
+                    Clear Work Date
+                  </button>
+                )}
+                <button
+                  onClick={() => { setSelectedProject(contextMenu.project); closeContextMenu() }}
+                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/[0.04] transition-colors"
+                >
+                  Open Project
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -442,12 +484,13 @@ export default function Calendar() {
                       cursor: 'pointer',
                     }}
                     onClick={() => setSelectedDay(day)}
+                    onContextMenu={(e) => handleDayContextMenu(e, day)}
                     onDragOver={(e) => handleDayCellDragOver(e, day)}
                     onDrop={(e)     => handleDayCellDrop(e, day)}
                     onDragLeave={()  => setDragOverDate(null)}
                   >
                     {/* Day header */}
-                    <div className="px-2 py-2 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: today ? 'rgba(245,158,11,0.08)' : undefined }}>
+                    <div className="px-2 py-2 text-center relative" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: today ? 'rgba(245,158,11,0.08)' : undefined }}>
                       <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: today ? '#f59e0b' : '#52525b' }}>
                         {format(day, 'EEE')}
                       </div>
@@ -457,6 +500,18 @@ export default function Calendar() {
                       >
                         {format(day, 'd')}
                       </div>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setAddForDate(format(day, 'yyyy-MM-dd')) }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded flex items-center justify-center transition-colors opacity-0 hover:opacity-100 group-hover:opacity-100 hover:bg-amber-400/20"
+                          style={{ color: '#f59e0b' }}
+                          title={`Add project on ${format(day, 'MMM d')}`}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0' }}
+                        >
+                          <Plus size={10} />
+                        </button>
+                      )}
                     </div>
                     {/* Projects */}
                     <div className="flex flex-col gap-1.5 p-1.5 flex-1">
@@ -554,6 +609,14 @@ export default function Calendar() {
           return <GoalsPanel weeks={weeks} projects={projects} goals={postingGoals} />
         })()}
       </div>
+
+      {/* Add Project Modal — opened from calendar day hover + or right-click */}
+      {addForDate && (
+        <AddProjectModal
+          initialDate={addForDate}
+          onClose={() => setAddForDate(null)}
+        />
+      )}
 
       {/* Day breakdown — full width below calendar on all screen sizes */}
       {selectedDay && (
