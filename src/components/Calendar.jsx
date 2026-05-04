@@ -112,6 +112,7 @@ export default function Calendar() {
   const [draggedId, setDraggedId]       = useState(null)
   const [draggedIsWip, setDraggedIsWip] = useState(false)
   const [dragOverDate, setDragOverDate] = useState(null)
+  const [contextMenu, setContextMenu]   = useState(null) // { x, y, project, date }
 
   // When Joel is previewing another user, use that role for filtering/permissions
   const effectiveRole = previewRole || currentUser?.role
@@ -231,6 +232,7 @@ export default function Calendar() {
               onDragStart={(e) => { handleChipDragStart(e, p.id) }}
               onDragEnd={handleDragEnd}
               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+              onContextMenu={(e) => handleChipContextMenu(e, p, date)}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
               style={{
                 background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}18`,
@@ -284,8 +286,68 @@ export default function Calendar() {
     )
   }
 
+  function handleChipContextMenu(e, project, date) {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, project, date })
+  }
+
+  function closeContextMenu() { setContextMenu(null) }
+
+  function handleSetWorkDate() {
+    const newDate = format(contextMenu.date, 'yyyy-MM-dd')
+    updateProject(contextMenu.project.id, { workDate: newDate })
+    closeContextMenu()
+  }
+
+  function handleClearWorkDate() {
+    updateProject(contextMenu.project.id, { workDate: null })
+    closeContextMenu()
+  }
+
   return (
-    <div className="px-3 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
+    <div className="px-3 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto" onClick={closeContextMenu}>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-[999] rounded-xl overflow-hidden shadow-2xl"
+          style={{
+            top: contextMenu.y, left: contextMenu.x,
+            background: '#1c1c22', border: '1px solid rgba(255,255,255,0.12)',
+            minWidth: 200,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-xs font-semibold text-white truncate">{contextMenu.project.title}</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">{format(contextMenu.date, 'EEEE, MMM d')}</p>
+          </div>
+          <div className="py-1">
+            <button
+              onClick={handleSetWorkDate}
+              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/05 hover:text-white transition-colors flex items-center gap-2"
+            >
+              <span style={{ display: 'inline-block', width: 10, height: 8, borderRadius: 2, border: '1px dashed rgba(156,163,175,0.6)', flexShrink: 0 }} />
+              Set Work Date to {format(contextMenu.date, 'MMM d')}
+            </button>
+            {contextMenu.project.workDate && (
+              <button
+                onClick={handleClearWorkDate}
+                className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:bg-white/05 hover:text-zinc-300 transition-colors"
+              >
+                Clear Work Date
+              </button>
+            )}
+            <button
+              onClick={() => { setSelectedProject(contextMenu.project); closeContextMenu() }}
+              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/05 hover:text-white transition-colors"
+            >
+              Open Project
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -415,6 +477,7 @@ export default function Calendar() {
                           onDragStart={(e) => { handleChipDragStart(e, p.id) }}
                           onDragEnd={handleDragEnd}
                           onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                          onContextMenu={(e) => handleChipContextMenu(e, p, day)}
                           className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
                           style={{
                             background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}15`,
