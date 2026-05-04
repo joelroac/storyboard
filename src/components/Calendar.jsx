@@ -297,20 +297,31 @@ export default function Calendar() {
           )}
           {/* WIP chips — amber pencil, gray bg, clearly "in progress" */}
           {projectsWorkingOnDay(date).map((p) => (
-            <button
+            <div
               key={`wip-${p.id}`}
               draggable={canReschedule}
               onDragStart={(e) => handleChipDragStart(e, p.id, true)}
               onDragEnd={handleDragEnd}
-              onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
-              className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
-              style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'pointer' }}
+              className="flex items-center gap-1 w-full rounded px-1 py-0.5 group/wip"
+              style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'default' }}
             >
               <Pencil size={7} style={{ color: '#f59e0b', flexShrink: 0 }} />
-              <span className="text-[9px] font-medium truncate" style={{ color: '#a1a1aa' }}>
+              <span
+                className="text-[9px] font-medium truncate flex-1 text-left cursor-pointer hover:opacity-80"
+                style={{ color: '#a1a1aa' }}
+                onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+              >
                 {p.title}
               </span>
-            </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDate: null }) }}
+                className="opacity-0 group-hover/wip:opacity-100 transition-opacity flex-shrink-0 hover:text-white"
+                style={{ color: '#71717a', lineHeight: 1 }}
+                title="Dismiss work date"
+              >
+                <X size={8} />
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -564,24 +575,37 @@ export default function Calendar() {
                       ))}
                       {/* WIP chips — amber pencil, clearly "in progress" */}
                       {projectsWorkingOnDay(day).map((p) => (
-                        <button
+                        <div
                           key={`wip-${p.id}`}
                           draggable={canReschedule}
                           onDragStart={(e) => handleChipDragStart(e, p.id, true)}
                           onDragEnd={handleDragEnd}
-                          onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
-                          className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
-                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'pointer' }}
+                          className="w-full rounded-lg px-2 py-1.5 flex flex-col gap-1 group/wip"
+                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'default' }}
                         >
-                          <div className="flex items-center gap-1">
-                            <Pencil size={8} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                            <PlatformDot type={p.type} size={5} />
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1">
+                              <Pencil size={8} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                              <PlatformDot type={p.type} size={5} />
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDate: null }) }}
+                              className="opacity-0 group-hover/wip:opacity-100 transition-opacity hover:text-white"
+                              style={{ color: '#71717a' }}
+                              title="Dismiss work date"
+                            >
+                              <X size={9} />
+                            </button>
                           </div>
-                          <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: '#a1a1aa' }}>
+                          <span
+                            className="text-[10px] font-medium leading-tight w-full truncate block cursor-pointer hover:opacity-80"
+                            style={{ color: '#a1a1aa' }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                          >
                             {p.title}
                           </span>
                           <span className="text-[9px] text-zinc-600">{p.status}</span>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
