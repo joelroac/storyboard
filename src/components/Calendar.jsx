@@ -122,6 +122,7 @@ export default function Calendar() {
   const [selectedDay, setSelectedDay]   = useState(null)
   const [draggedId, setDraggedId]       = useState(null)
   const [draggedIsWip, setDraggedIsWip] = useState(false)
+  const [altHeld, setAltHeld]           = useState(false)
   const [dragOverDate, setDragOverDate] = useState(null)
   const [contextMenu, setContextMenu]   = useState(null) // { x, y, project, date }
   const [addForDate, setAddForDate]     = useState(null) // date string to pre-fill in new project modal
@@ -137,6 +138,21 @@ export default function Calendar() {
   // Projects with a publish date; editor (Anthony) sees YouTube only
   const isEditor = effectiveRole === 'editor'
   const activeProjects = projects.filter((p) => p.publishDate && (isEditor ? p.type === 'youtube' : true))
+
+  // Track Option/Alt key globally so it can be pressed/released mid-drag
+  React.useEffect(() => {
+    function onKeyDown(e) { if (e.key === 'Alt') setAltHeld(true) }
+    function onKeyUp(e)   { if (e.key === 'Alt') setAltHeld(false) }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup',   onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup',   onKeyUp)
+    }
+  }, [])
+
+  // Whether this drag is acting as a WIP drag — either started as one, or Option is currently held
+  const isWipDrag = draggedIsWip || altHeld
 
   function projectsOnDay(date) {
     return activeProjects.filter((p) => {
@@ -194,7 +210,7 @@ export default function Calendar() {
     e.preventDefault()
     if (!draggedId) return
     const newDate = format(date, 'yyyy-MM-dd')
-    updateProject(draggedId, draggedIsWip ? { workDate: newDate } : { publishDate: newDate })
+    updateProject(draggedId, isWipDrag ? { workDate: newDate } : { publishDate: newDate })
     setDraggedId(null)
     setDraggedIsWip(false)
     setDragOverDate(null)
@@ -202,6 +218,7 @@ export default function Calendar() {
 
   function handleDragEnd() {
     setDraggedId(null)
+    setDraggedIsWip(false)
     setDragOverDate(null)
   }
 
@@ -222,10 +239,15 @@ export default function Calendar() {
           opacity:     inMonth ? 1 : 0.3,
           background:  isSelected
             ? 'rgba(245,158,11,0.06)'
-            : isDragOver ? 'rgba(245,158,11,0.04)' : undefined,
+            : isDragOver
+              ? isWipDrag ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.04)'
+              : undefined,
           borderColor: isSelected
             ? 'rgba(245,158,11,0.35)'
-            : isDragOver ? 'rgba(245,158,11,0.4)' : undefined,
+            : isDragOver
+              ? isWipDrag ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.25)'
+              : undefined,
+          borderStyle: isDragOver && isWipDrag ? 'dashed' : undefined,
           transition:  'background 0.1s ease, border-color 0.1s ease',
           cursor:      'pointer',
           position:    'relative',
