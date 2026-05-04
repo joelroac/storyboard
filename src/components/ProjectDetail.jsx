@@ -148,11 +148,14 @@ export default function ProjectDetail() {
   const shotDirtyRef       = useRef(false) // true while user has unsaved shot list changes
 
   // Parse legacy plain-text script or JSON blocks (Feature 8 backward compat)
+  function newBlock() { return { id: 'b_' + Date.now(), scriptLine: '', shotNote: '', filmed: false } }
+
   function parseScriptBlocks(notesStr) {
-    if (!notesStr) return [{ id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }]
+    if (!notesStr) return [newBlock()]
     try {
       const parsed = JSON.parse(notesStr)
-      if (Array.isArray(parsed) && parsed.length > 0 && 'scriptLine' in parsed[0]) return parsed
+      if (Array.isArray(parsed) && parsed.length > 0 && 'scriptLine' in parsed[0])
+        return parsed.map((b) => ({ filmed: false, ...b })) // backfill filmed for older blocks
     } catch (_) {}
     // Legacy plain text → single row
     return [{ id: 'b_' + Date.now(), scriptLine: notesStr, shotNote: '' }]
@@ -445,6 +448,9 @@ export default function ProjectDetail() {
   // Change content type (Feature 6)
   function handleTypeChange() {
     if (editType === proj.type) return
+    // Force the useEffect to do a full state re-init on next render (type-specific
+    // fields like videoBreakdown, crossPostTo, caption visibility all need resetting)
+    loadedProjectIdRef.current = null
     changePlatform(proj.id, editType, currentUser.id)
     addBanner(`Platform changed to ${TYPE_LABELS[editType] || editType} — workflow reset`, 'info')
     setShowTypeConfirm(false)
@@ -1383,13 +1389,27 @@ export default function ProjectDetail() {
           )}
 
           {/* ── Script / Notes (Feature 8: structured two-column template) ── */}
-          {proj.type !== 'youtube' && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">
                   {proj.type === 'newsletter' ? 'Draft' : 'Script / Notes'}
                 </p>
+                {(() => {
+                  const filled  = scriptBlocks.filter((b) => b.scriptLine || b.shotNote)
+                  const filmedN = filled.filter((b) => b.filmed).length
+                  if (filled.length === 0) return null
+                  return (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums"
+                      style={{
+                        background: filmedN === filled.length ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.05)',
+                        color:      filmedN === filled.length ? '#4ade80' : '#52525b',
+                        border:     `1px solid ${filmedN === filled.length ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                      }}>
+                      {filmedN}/{filled.length} filmed
+                    </span>
+                  )
+                })()}
                 {canEditScript && scriptUnsaved && <span className="text-xs text-zinc-600">Saving…</span>}
                 {canEditScript && !scriptUnsaved && scriptSavedAt && (
                   <span className="text-xs text-zinc-600">
@@ -1423,7 +1443,7 @@ export default function ProjectDetail() {
               /* Joel: editable script blocks (Script Line | Shot Note) */
               <div>
                 {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 24px', gap: 8, marginBottom: 4, paddingLeft: 2 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 32px 24px', gap: 8, marginBottom: 4, paddingLeft: 2 }}>
                   <span />
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
                     {proj.type === 'newsletter' ? 'Content' : 'Script Line'}
@@ -1431,6 +1451,7 @@ export default function ProjectDetail() {
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
                     {proj.type === 'newsletter' ? 'Section Note' : 'Shot / Visual'}
                   </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 text-center" title="Mark as filmed">✓</span>
                   <span />
                 </div>
                 <div className="flex flex-col">
@@ -1446,7 +1467,7 @@ export default function ProjectDetail() {
                         <button
                           onClick={() => {
                             const next = [...scriptBlocks]
-                            next.splice(idx, 0, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' })
+                            next.splice(idx, 0, newBlock())
                             handleScriptBlocksChange(next)
                           }}
                           className="group flex items-center gap-2 w-full my-0.5"
@@ -1474,11 +1495,11 @@ export default function ProjectDetail() {
                         }}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '16px 1fr 1fr 24px',
+                          gridTemplateColumns: '16px 1fr 1fr 32px 24px',
                           gap: 8,
                           alignItems: 'start',
                           marginBottom: 4,
-                          opacity: draggedScriptIdx === idx ? 0.35 : 1,
+                          opacity: draggedScriptIdx === idx ? 0.35 : block.filmed ? 0.45 : 1,
                           transition: 'opacity 0.15s',
                         }}
                       >
@@ -1518,7 +1539,7 @@ export default function ProjectDetail() {
                           onChange={(e) => {
                             let updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, scriptLine: e.target.value } : b)
                             const isLast = idx === scriptBlocks.length - 1
-                            if (isLast && e.target.value) updated = [...updated, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }]
+                            if (isLast && e.target.value) updated = [...updated, newBlock()]
                             handleScriptBlocksChange(updated)
                           }}
                           rows={2}
@@ -1531,7 +1552,7 @@ export default function ProjectDetail() {
                           onChange={(e) => {
                             let updated = scriptBlocks.map((b) => b.id === block.id ? { ...b, shotNote: e.target.value } : b)
                             const isLast = idx === scriptBlocks.length - 1
-                            if (isLast && e.target.value) updated = [...updated, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }]
+                            if (isLast && e.target.value) updated = [...updated, newBlock()]
                             handleScriptBlocksChange(updated)
                           }}
                           rows={2}
@@ -1539,6 +1560,30 @@ export default function ProjectDetail() {
                           className="text-sm text-zinc-400 placeholder-zinc-700 rounded-lg px-3 py-2"
                           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 1, resize: 'vertical' }}
                         />
+                        {/* Filmed checkbox */}
+                        <div style={{ paddingTop: 8, display: 'flex', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleScriptBlocksChange(
+                              scriptBlocks.map((b) => b.id === block.id ? { ...b, filmed: !b.filmed } : b)
+                            )}
+                            title={block.filmed ? 'Mark as not filmed' : 'Mark as filmed'}
+                            style={{
+                              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                              background: block.filmed ? 'rgba(74,222,128,0.15)' : 'transparent',
+                              border: `1.5px solid ${block.filmed ? '#4ade80' : 'rgba(255,255,255,0.15)'}`,
+                              cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {block.filmed && (
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M1.5 5L4 7.5L8.5 2.5" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+
                         <button
                           onClick={() => handleScriptBlocksChange(scriptBlocks.filter((b) => b.id !== block.id))}
                           style={{ background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', paddingTop: 8 }}
@@ -1574,7 +1619,7 @@ export default function ProjectDetail() {
                   )}
                 </div>
                 <button
-                  onClick={() => handleScriptBlocksChange([...scriptBlocks, { id: 'b_' + Date.now(), scriptLine: '', shotNote: '' }])}
+                  onClick={() => handleScriptBlocksChange([...scriptBlocks, newBlock()])}
                   className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mt-2"
                 >
                   + Add Row
@@ -1590,11 +1635,13 @@ export default function ProjectDetail() {
                         key={block.id}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
+                          gridTemplateColumns: '1fr 1fr 20px',
                           gap: 12,
                           padding: '10px 12px',
                           borderBottom: i < scriptBlocks.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                          background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                          background: block.filmed ? 'rgba(74,222,128,0.03)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                          opacity: block.filmed ? 0.55 : 1,
+                          transition: 'opacity 0.15s',
                         }}
                       >
                         <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
@@ -1603,6 +1650,15 @@ export default function ProjectDetail() {
                         <p className="text-xs text-zinc-500 italic leading-relaxed">
                           {block.shotNote || ''}
                         </p>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 2 }}>
+                          {block.filmed && (
+                            <div style={{ width: 16, height: 16, borderRadius: 4, background: 'rgba(74,222,128,0.15)', border: '1.5px solid #4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                                <path d="M1.5 5L4 7.5L8.5 2.5" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1612,7 +1668,6 @@ export default function ProjectDetail() {
               </div>
             )}
           </div>
-          )}
 
           {/* ── Caption ── */}
           <div>

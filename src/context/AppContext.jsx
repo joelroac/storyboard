@@ -695,16 +695,18 @@ export function AppProvider({ children }) {
     const apply = (p) =>
       p.id !== projectId
         ? p
-        : { ...p, type: newType, status: newFirstStage, activeStages: [newFirstStage] }
+        : { ...p, type: newType, status: newFirstStage, activeStages: [newFirstStage], videoBreakdown: '', crossPostTo: null }
 
     setProjects((prev) => prev.map(apply))
     setSelectedProject((prev) => (prev ? apply(prev) : prev))
 
     const [{ error: projErr }, { error: logErr }] = await Promise.all([
       supabase.from('projects').update({
-        platform:      dbPlatform,
-        status:        newFirstStage,
-        active_stages: [newFirstStage],
+        platform:        dbPlatform,
+        status:          newFirstStage,
+        active_stages:   [newFirstStage],
+        video_breakdown: null,   // repurposed per-type — clear on conversion
+        cross_post_to:   null,   // cross-post is type-specific, reset on conversion
       }).eq('id', projectId),
       supabase.from('activity_log').insert({
         project_id: projectId,
