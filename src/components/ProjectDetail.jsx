@@ -1091,7 +1091,7 @@ export default function ProjectDetail() {
 
             {/* Cross-post toggle — Instagram ↔ TikTok only */}
             {(proj.type === 'instagram' || proj.type === 'tiktok') && (
-              <Field label="Cross-Post" className="col-span-2">
+              <Field label="Cross-Post">
                 <button
                   onClick={() => {
                     if (!canEdit) return
