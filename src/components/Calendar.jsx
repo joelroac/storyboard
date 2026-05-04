@@ -176,8 +176,9 @@ export default function Calendar() {
   // ── Drag-to-reschedule ────────────────────────────────────────────────────
   function handleChipDragStart(e, projectId, isWip = false) {
     if (!canReschedule) return
+    const wipMode = isWip || e.altKey  // hold ⌥ Option to drag as work date
     setDraggedId(projectId)
-    setDraggedIsWip(isWip)
+    setDraggedIsWip(wipMode)
     e.dataTransfer.effectAllowed = 'move'
     e.stopPropagation()
   }
@@ -418,7 +419,7 @@ export default function Calendar() {
           <h1 className="font-editorial text-3xl font-semibold text-white">Content Calendar</h1>
           <p className="text-zinc-500 text-sm mt-1">
             {format(currentMonth, 'MMMM yyyy')}
-            {canReschedule && <span className="ml-2 text-zinc-600 text-xs">· Drag chips to reschedule</span>}
+            {canReschedule && <span className="ml-2 text-zinc-600 text-xs">· Drag to reschedule · <span className="text-zinc-700">⌥ drag to set work date</span></span>}
           </p>
         </div>
 
@@ -695,10 +696,21 @@ export default function Calendar() {
               </button>
             ))}
             {projectsWorkingOnDay(selectedDay).map((p) => (
-              <button key={`wip-${p.id}`} onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
-                className="w-full text-left rounded-xl p-3 transition-colors hover:bg-white/[0.03]"
+              <div key={`wip-${p.id}`}
+                className="w-full text-left rounded-xl p-3 group/wip relative"
                 style={{ background: 'rgba(245,158,11,0.05)', border: '1px dashed rgba(245,158,11,0.3)' }}>
-                <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDate: null }) }}
+                  className="absolute top-2 right-2 opacity-0 group-hover/wip:opacity-100 transition-opacity w-5 h-5 rounded flex items-center justify-center hover:bg-white/10"
+                  style={{ color: '#71717a' }}
+                  title="Dismiss work date"
+                >
+                  <X size={10} />
+                </button>
+                <div
+                  className="flex items-center gap-2 mb-1.5 min-w-0 cursor-pointer hover:opacity-80"
+                  onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
+                >
                   <Pencil size={11} style={{ color: '#f59e0b', flexShrink: 0 }} />
                   <PlatformIcon type={p.type} size={13} />
                   <span className="text-sm font-semibold text-zinc-300 truncate flex-1">{p.title}</span>
@@ -707,7 +719,7 @@ export default function Calendar() {
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>In Progress</span>
                   <StatusBadge status={p.status} />
                 </div>
-              </button>
+              </div>
             ))}
             {projectsOnDay(selectedDay).length === 0 && projectsWorkingOnDay(selectedDay).length === 0 && (
               <p className="text-xs text-zinc-600 py-4 col-span-full text-center">Nothing scheduled for this day</p>
