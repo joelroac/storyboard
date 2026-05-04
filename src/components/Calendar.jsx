@@ -110,6 +110,7 @@ export default function Calendar() {
   const [view, setView]                 = useState('month') // 'month' | 'week'
   const [selectedDay, setSelectedDay]   = useState(null)
   const [draggedId, setDraggedId]       = useState(null)
+  const [draggedIsWip, setDraggedIsWip] = useState(false)
   const [dragOverDate, setDragOverDate] = useState(null)
 
   // When Joel is previewing another user, use that role for filtering/permissions
@@ -159,9 +160,10 @@ export default function Calendar() {
   const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   // ── Drag-to-reschedule ────────────────────────────────────────────────────
-  function handleChipDragStart(e, projectId) {
+  function handleChipDragStart(e, projectId, isWip = false) {
     if (!canReschedule) return
     setDraggedId(projectId)
+    setDraggedIsWip(isWip)
     e.dataTransfer.effectAllowed = 'move'
     e.stopPropagation()
   }
@@ -177,8 +179,9 @@ export default function Calendar() {
     e.preventDefault()
     if (!draggedId) return
     const newDate = format(date, 'yyyy-MM-dd')
-    updateProject(draggedId, { publishDate: newDate })
+    updateProject(draggedId, draggedIsWip ? { workDate: newDate } : { publishDate: newDate })
     setDraggedId(null)
+    setDraggedIsWip(false)
     setDragOverDate(null)
   }
 
@@ -259,13 +262,16 @@ export default function Calendar() {
               +{dayProjects.length - 3} more
             </span>
           )}
-          {/* WIP chips — dashed outline, shows title + stage being worked on */}
+          {/* WIP chips — dashed outline, draggable to reschedule work date */}
           {projectsWorkingOnDay(date).map((p) => (
             <button
               key={`wip-${p.id}`}
+              draggable={canReschedule}
+              onDragStart={(e) => handleChipDragStart(e, p.id, true)}
+              onDragEnd={handleDragEnd}
               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
-              style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}60`, cursor: 'pointer' }}
+              style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}60`, cursor: canReschedule ? 'grab' : 'pointer' }}
             >
               <PlatformDot type={p.type} size={5} />
               <span className="text-[9px] font-medium truncate" style={{ color: `${PLATFORM_COLORS[p.type] || '#9ca3af'}aa` }}>
@@ -429,13 +435,16 @@ export default function Calendar() {
                           <span className="text-[9px] text-zinc-600">{p.status}</span>
                         </button>
                       ))}
-                      {/* WIP chips — dashed, shows active work stage */}
+                      {/* WIP chips — dashed, draggable to reschedule work date */}
                       {projectsWorkingOnDay(day).map((p) => (
                         <button
                           key={`wip-${p.id}`}
+                          draggable={canReschedule}
+                          onDragStart={(e) => handleChipDragStart(e, p.id, true)}
+                          onDragEnd={handleDragEnd}
                           onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
                           className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
-                          style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}55`, cursor: 'pointer' }}
+                          style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}55`, cursor: canReschedule ? 'grab' : 'pointer' }}
                         >
                           <PlatformDot type={p.type} size={5} />
                           <span className="text-[10px] font-medium leading-tight" style={{ color: `${PLATFORM_COLORS[p.type] || '#9ca3af'}bb` }}>
