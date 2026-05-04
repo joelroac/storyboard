@@ -130,6 +130,15 @@ export default function Calendar() {
     })
   }
 
+  function projectsWorkingOnDay(date) {
+    return projects.filter((p) => {
+      if (!p.workDate) return false
+      if (isEditor && p.type !== 'youtube') return false
+      try { return isSameDay(parseISO(p.workDate), date) }
+      catch { return false }
+    })
+  }
+
   // Month grid
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -250,6 +259,20 @@ export default function Calendar() {
               +{dayProjects.length - 3} more
             </span>
           )}
+          {/* WIP chips — dashed outline, shows title + stage being worked on */}
+          {projectsWorkingOnDay(date).map((p) => (
+            <button
+              key={`wip-${p.id}`}
+              onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+              className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
+              style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}60`, cursor: 'pointer' }}
+            >
+              <PlatformDot type={p.type} size={5} />
+              <span className="text-[9px] font-medium truncate" style={{ color: `${PLATFORM_COLORS[p.type] || '#9ca3af'}aa` }}>
+                {p.title}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
     )
@@ -406,6 +429,21 @@ export default function Calendar() {
                           <span className="text-[9px] text-zinc-600">{p.status}</span>
                         </button>
                       ))}
+                      {/* WIP chips — dashed, shows active work stage */}
+                      {projectsWorkingOnDay(day).map((p) => (
+                        <button
+                          key={`wip-${p.id}`}
+                          onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                          className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
+                          style={{ background: 'transparent', border: `1px dashed ${PLATFORM_COLORS[p.type] || '#9ca3af'}55`, cursor: 'pointer' }}
+                        >
+                          <PlatformDot type={p.type} size={5} />
+                          <span className="text-[10px] font-medium leading-tight" style={{ color: `${PLATFORM_COLORS[p.type] || '#9ca3af'}bb` }}>
+                            {p.title}
+                          </span>
+                          <span className="text-[9px] text-zinc-600">{p.status} · WIP</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )
@@ -426,6 +464,10 @@ export default function Calendar() {
             <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#fbbf24' }}>B</span>
               <span className="text-xs text-zinc-500">Brand Deal</span>
+            </div>
+            <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ display: 'inline-block', width: 16, height: 10, borderRadius: 2, border: '1px dashed rgba(156,163,175,0.5)', background: 'transparent' }} />
+              <span className="text-xs text-zinc-500">Work Day</span>
             </div>
           </div>
 

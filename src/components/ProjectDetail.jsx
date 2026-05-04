@@ -96,6 +96,7 @@ export default function ProjectDetail() {
   const [editBrandType, setEditBrandType]         = useState('Organic')
   const [editBrandName, setEditBrandName]         = useState('')
   const [editDate, setEditDate]                   = useState('')
+  const [editWorkDate, setEditWorkDate]           = useState('')
   const [editDropbox, setEditDropbox]             = useState('')
   const [editFinalLink, setEditFinalLink]         = useState('')
   const [editAsana, setEditAsana]                 = useState('')
@@ -180,6 +181,7 @@ export default function ProjectDetail() {
         setEditBrandName(fresh.brand)
       }
       setEditDate(fresh.publishDate || '')
+      setEditWorkDate(fresh.workDate || '')
       setEditDropbox(fresh.dropboxLink || '')
       setEditFinalLink(fresh.finalLink || '')
       setEditAsana(fresh.asanaLink || '')
@@ -259,6 +261,7 @@ export default function ProjectDetail() {
       title:      editTitle,
       brand:      brandValue,
       publishDate: editDate,
+      workDate:    editWorkDate,
       dropboxLink: editDropbox,
       asanaLink:  editAsana,
       finalLink:  editFinalLink,
@@ -979,6 +982,16 @@ export default function ProjectDetail() {
                   style={{ colorScheme: 'dark' }} />
               ) : (
                 <span className="text-sm text-white">{proj.publishDate ? format(parseISO(proj.publishDate), 'MMMM d, yyyy') : '—'}</span>
+              )}
+            </Field>
+
+            <Field label="Work Date">
+              {canEdit ? (
+                <input type="date" value={editWorkDate} onChange={(e) => setEditWorkDate(e.target.value)} onBlur={() => saveEdits()}
+                  className="text-sm text-white bg-transparent border-none outline-none w-full"
+                  style={{ colorScheme: 'dark' }} />
+              ) : (
+                <span className="text-sm text-white">{proj.workDate ? format(parseISO(proj.workDate), 'MMMM d, yyyy') : '—'}</span>
               )}
             </Field>
 

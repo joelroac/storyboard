@@ -60,6 +60,7 @@ function dbToProject(row) {
     type:           PLATFORM_FROM_DB[row.platform] || row.platform || '',
     brand:          brandFromDb(row),
     publishDate:    row.publish_date || '',
+    workDate:       row.work_date || '',
     dropboxLink:    row.dropbox_link || '',
     asanaLink:      row.asana_link || '',
     status:         row.status,
@@ -321,6 +322,7 @@ export function AppProvider({ children }) {
           videoBreakdown: row.video_breakdown || '',
           activeStages:   row.active_stages || [],
           crossPostTo:    row.cross_post_to || null,
+          workDate:       row.work_date || '',
           finalLink:      row.final_link || '',
         })
         setProjects((prev) => prev.map((p) => p.id === row.id ? merge(p) : p))
@@ -571,6 +573,7 @@ export function AppProvider({ children }) {
       caption:        'caption',
       status:         'status',
       publishDate:    'publish_date',
+      workDate:       'work_date',
       dropboxLink:    'dropbox_link',
       asanaLink:      'asana_link',
       scheduledTime:  'publish_time',
@@ -585,7 +588,7 @@ export function AppProvider({ children }) {
     const dbUpdates = {}
     for (const [frontendKey, dbKey] of Object.entries(fieldMap)) {
       if (frontendKey in updates) {
-        dbUpdates[dbKey] = (!updates[frontendKey] && (dbKey === 'publish_time' || dbKey === 'publish_date')) ? null : updates[frontendKey]
+        dbUpdates[dbKey] = (!updates[frontendKey] && (dbKey === 'publish_time' || dbKey === 'publish_date' || dbKey === 'work_date')) ? null : updates[frontendKey]
       }
     }
 
