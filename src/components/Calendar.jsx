@@ -101,6 +101,20 @@ const PLATFORM_COLORS = {
   patreon:    '#ff424d',
 }
 
+// joelleroa gets a distinct pink so you can tell the two IG accounts apart on the calendar
+const INSTAGRAM_ACCOUNT_COLORS = {
+  joelroac:  '#a855f7', // standard purple
+  joelleroa: '#ec4899', // hot pink
+}
+
+// Returns the display color for a project, accounting for Instagram account variants
+function projectColor(p) {
+  if (p.type === 'instagram' && p.videoBreakdown && INSTAGRAM_ACCOUNT_COLORS[p.videoBreakdown]) {
+    return INSTAGRAM_ACCOUNT_COLORS[p.videoBreakdown]
+  }
+  return projectColor(p)
+}
+
 export default function Calendar() {
   const { projects, setSelectedProject, updateProject, currentUser, permissions, postingGoals, previewRole } = useApp()
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -252,8 +266,8 @@ export default function Calendar() {
               onContextMenu={(e) => handleChipContextMenu(e, p, date)}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
               style={{
-                background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}18`,
-                border:     `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}30`,
+                background: `${projectColor(p)}18`,
+                border:     `1px solid ${projectColor(p)}30`,
                 cursor:     isAdmin ? 'grab' : 'pointer',
               }}
             >
@@ -268,7 +282,7 @@ export default function Calendar() {
                   style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}
                 >B</span>
               )}
-              <span className="text-[9px] font-medium truncate" style={{ color: PLATFORM_COLORS[p.type] || '#9ca3af' }}>
+              <span className="text-[9px] font-medium truncate" style={{ color: projectColor(p) }}>
                 {p.title}
               </span>
             </button>
@@ -530,8 +544,8 @@ export default function Calendar() {
                           onContextMenu={(e) => handleChipContextMenu(e, p, day)}
                           className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
                           style={{
-                            background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}15`,
-                            border:     `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}35`,
+                            background: `${projectColor(p)}15`,
+                            border:     `1px solid ${projectColor(p)}35`,
                             cursor:     isAdmin ? 'grab' : 'pointer',
                           }}
                         >
@@ -542,7 +556,7 @@ export default function Calendar() {
                               <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
                             )}
                           </div>
-                          <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: PLATFORM_COLORS[p.type] || '#9ca3af' }}>
+                          <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: projectColor(p) }}>
                             {p.title}
                           </span>
                           <span className="text-[9px] text-zinc-600">{p.status}</span>
@@ -578,14 +592,31 @@ export default function Calendar() {
 
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 pt-4 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            {Object.entries(PLATFORM_COLORS).map(([platform, color]) => (
-              <div key={platform} className="flex items-center gap-1.5">
-                <PlatformDot type={platform} size={8} />
-                <span className="text-xs text-zinc-500 capitalize">
-                  {platform === 'newsletter' ? 'Newsletter' : platform.charAt(0).toUpperCase() + platform.slice(1)}
-                </span>
-              </div>
-            ))}
+            {Object.entries(PLATFORM_COLORS).map(([platform, color]) => {
+              // Instagram gets expanded into two account entries
+              if (platform === 'instagram') {
+                return (
+                  <React.Fragment key={platform}>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: INSTAGRAM_ACCOUNT_COLORS.joelroac, display: 'inline-block', flexShrink: 0 }} />
+                      <span className="text-xs text-zinc-500">Instagram · joelroac</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: INSTAGRAM_ACCOUNT_COLORS.joelleroa, display: 'inline-block', flexShrink: 0 }} />
+                      <span className="text-xs text-zinc-500">Instagram · joelleroa</span>
+                    </div>
+                  </React.Fragment>
+                )
+              }
+              return (
+                <div key={platform} className="flex items-center gap-1.5">
+                  <PlatformDot type={platform} size={8} />
+                  <span className="text-xs text-zinc-500 capitalize">
+                    {platform === 'newsletter' ? 'Newsletter' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                  </span>
+                </div>
+              )
+            })}
             <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#fbbf24' }}>B</span>
               <span className="text-xs text-zinc-500">Brand Deal</span>
@@ -631,7 +662,7 @@ export default function Calendar() {
             {projectsOnDay(selectedDay).map((p) => (
               <button key={p.id} onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
                 className="w-full text-left rounded-xl p-3 transition-colors hover:bg-white/[0.03]"
-                style={{ border: `1px solid ${PLATFORM_COLORS[p.type] || '#9ca3af'}25`, background: `${PLATFORM_COLORS[p.type] || '#9ca3af'}08` }}>
+                style={{ border: `1px solid ${projectColor(p)}25`, background: `${projectColor(p)}08` }}>
                 <div className="flex items-center gap-2 mb-1.5 min-w-0">
                   <PlatformIcon type={p.type} size={13} />
                   <span className="text-sm font-semibold text-white truncate flex-1">{p.title}</span>

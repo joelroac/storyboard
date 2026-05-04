@@ -14,17 +14,42 @@ export default function AddProjectModal({ onClose, limitTypes = null, initialTit
   const [form, setForm] = useState({
     title:       initialTitle,
     type:        (initialType && allTypes.find(t => t.id === initialType)) ? initialType : (types[0]?.id || 'youtube'),
+    crossPostTo: null,
     brand:       'Organic',
     brandName:   '',
     publishDate: initialDate || format(addDays(new Date(), 7), 'yyyy-MM-dd'),
     dropboxLink: '',
   })
+
+  // Only Instagram ↔ TikTok can be cross-posted
+  function canCrossPost(a, b) {
+    return (a === 'instagram' && b === 'tiktok') || (a === 'tiktok' && b === 'instagram')
+  }
+
+  function handleTypeClick(id) {
+    setTitleError('')
+    setError('')
+    if (id === form.type) return // already primary — no-op
+    if (id === form.crossPostTo) {
+      // deselect cross-post
+      setForm((f) => ({ ...f, crossPostTo: null }))
+      return
+    }
+    if (canCrossPost(form.type, id)) {
+      // add as cross-post target
+      setForm((f) => ({ ...f, crossPostTo: id }))
+    } else {
+      // new primary — clear crossPostTo
+      setForm((f) => ({ ...f, type: id, crossPostTo: null }))
+    }
+  }
   const [titleError, setTitleError] = useState('')
   const [error, setError]           = useState('')
 
   // Drive vs Dropbox label depending on type
-  const storageLabel       = (form.type === 'instagram' || form.type === 'tiktok') ? 'Google Drive Link'     : form.type === 'newsletter' ? null : 'Dropbox Link'
-  const storagePlaceholder = (form.type === 'instagram' || form.type === 'tiktok') ? 'https://drive.google.com/…' : 'https://dropbox.com/…'
+  const isSocialType = form.type === 'instagram' || form.type === 'tiktok'
+  const storageLabel       = isSocialType ? 'Google Drive Link' : form.type === 'newsletter' ? null : 'Dropbox Link'
+  const storagePlaceholder = isSocialType ? 'https://drive.google.com/…' : 'https://dropbox.com/…'
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -51,7 +76,7 @@ export default function AddProjectModal({ onClose, limitTypes = null, initialTit
     // Brand value: "Organic" or the brandName from the secondary input
     const brandVal = form.brand === 'Brand Deal' ? (form.brandName.trim() || 'Brand Deal') : 'Organic'
 
-    addProject({ ...form, brand: brandVal }, currentUser.id)
+    addProject({ ...form, brand: brandVal, crossPostTo: form.crossPostTo || null }, currentUser.id)
     onClose()
   }
 
@@ -111,23 +136,49 @@ export default function AddProjectModal({ onClose, limitTypes = null, initialTit
               Content Type *
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {types.map((ct) => (
-                <button
-                  key={ct.id}
-                  type="button"
-                  onClick={() => { set('type', ct.id); setTitleError('') }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-all"
-                  style={
-                    form.type === ct.id
-                      ? { background: `${ct.color}22`, border: `1px solid ${ct.color}55`, color: ct.color }
-                      : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }
-                  }
-                >
-                  <PlatformIcon type={ct.id} size={14} />
-                  <span className="font-medium text-xs">{ct.label}</span>
-                </button>
-              ))}
+              {types.map((ct) => {
+                const isPrimary     = form.type === ct.id
+                const isCrossPost   = form.crossPostTo === ct.id
+                const isEligible    = !isPrimary && canCrossPost(form.type, ct.id)
+                return (
+                  <button
+                    key={ct.id}
+                    type="button"
+                    onClick={() => handleTypeClick(ct.id)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-all relative"
+                    style={
+                      isPrimary
+                        ? { background: `${ct.color}22`, border: `1px solid ${ct.color}55`, color: ct.color }
+                        : isCrossPost
+                          ? { background: `${ct.color}12`, border: `1px dashed ${ct.color}55`, color: ct.color }
+                          : isEligible
+                            ? { background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.2)', color: '#9ca3af' }
+                            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }
+                    }
+                  >
+                    <PlatformIcon type={ct.id} size={14} />
+                    <span className="font-medium text-xs flex-1">{ct.label}</span>
+                    {isPrimary && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{ background: `${ct.color}22`, color: ct.color }}>
+                        Primary
+                      </span>
+                    )}
+                    {isCrossPost && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{ background: `${ct.color}15`, color: ct.color, border: `1px dashed ${ct.color}40` }}>
+                        + Cross
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
+            {form.crossPostTo && (
+              <p className="text-[10px] text-zinc-500 mt-1.5">
+                Will post to <span style={{ color: types.find(t => t.id === form.type)?.color }}>{types.find(t => t.id === form.type)?.label}</span> (primary) and <span style={{ color: types.find(t => t.id === form.crossPostTo)?.color }}>{types.find(t => t.id === form.crossPostTo)?.label}</span>
+              </p>
+            )}
           </div>
 
           {/* Brand dropdown + conditional name input */}
