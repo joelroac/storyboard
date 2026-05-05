@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical, Plus } from 'lucide-react'
 import DateTimePicker from './shared/DateTimePicker'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
@@ -96,7 +96,8 @@ export default function ProjectDetail() {
   const [editBrandType, setEditBrandType]         = useState('Organic')
   const [editBrandName, setEditBrandName]         = useState('')
   const [editDate, setEditDate]                   = useState('')
-  const [editWorkDate, setEditWorkDate]           = useState('')
+  const [editWorkDates, setEditWorkDates]         = useState([])
+  const [addingWorkDate, setAddingWorkDate]       = useState(false)
   const [editDropbox, setEditDropbox]             = useState('')
   const [editFinalLink, setEditFinalLink]         = useState('')
   const [editAsana, setEditAsana]                 = useState('')
@@ -184,7 +185,8 @@ export default function ProjectDetail() {
         setEditBrandName(fresh.brand)
       }
       setEditDate(fresh.publishDate || '')
-      setEditWorkDate(fresh.workDate || '')
+      setEditWorkDates(fresh.workDates || [])
+      setAddingWorkDate(false)
       setEditDropbox(fresh.dropboxLink || '')
       setEditFinalLink(fresh.finalLink || '')
       setEditAsana(fresh.asanaLink || '')
@@ -273,7 +275,7 @@ export default function ProjectDetail() {
       title:      editTitle,
       brand:      brandValue,
       publishDate: editDate,
-      workDate:    editWorkDate,
+      workDates:   editWorkDates,
       dropboxLink: editDropbox,
       asanaLink:  editAsana,
       finalLink:  editFinalLink,
@@ -1000,14 +1002,64 @@ export default function ProjectDetail() {
               )}
             </Field>
 
-            <Field label="Work Date">
-              {canEdit ? (
-                <input type="date" value={editWorkDate} onChange={(e) => setEditWorkDate(e.target.value)} onBlur={() => saveEdits()}
-                  className="text-sm text-white bg-transparent border-none outline-none w-full"
-                  style={{ colorScheme: 'dark' }} />
-              ) : (
-                <span className="text-sm text-white">{proj.workDate ? format(parseISO(proj.workDate), 'MMMM d, yyyy') : '—'}</span>
-              )}
+            <Field label="Work Dates">
+              <div className="flex flex-col gap-1.5">
+                {/* Existing work date chips */}
+                {(canEdit ? editWorkDates : (proj.workDates || [])).length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {(canEdit ? editWorkDates : (proj.workDates || [])).sort().map((d) => (
+                      <span key={d} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(245,158,11,0.1)', border: '1px dashed rgba(245,158,11,0.35)', color: '#fbbf24' }}>
+                        {format(parseISO(d), 'MMM d')}
+                        {canEdit && (
+                          <button
+                            onClick={() => {
+                              const updated = editWorkDates.filter(x => x !== d)
+                              setEditWorkDates(updated)
+                              updateProject(proj.id, { workDates: updated })
+                            }}
+                            className="hover:text-white transition-colors"
+                            style={{ lineHeight: 1 }}
+                          >
+                            <X size={9} />
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  !addingWorkDate && <span className="text-sm text-zinc-600">No work dates set</span>
+                )}
+                {/* Add new date */}
+                {canEdit && (
+                  addingWorkDate ? (
+                    <input
+                      type="date"
+                      autoFocus
+                      className="text-sm text-white bg-transparent border-none outline-none"
+                      style={{ colorScheme: 'dark' }}
+                      onBlur={() => setAddingWorkDate(false)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (!val) return
+                        if (!editWorkDates.includes(val)) {
+                          const updated = [...editWorkDates, val].sort()
+                          setEditWorkDates(updated)
+                          updateProject(proj.id, { workDates: updated })
+                        }
+                        setAddingWorkDate(false)
+                      }}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setAddingWorkDate(true)}
+                      className="text-xs text-zinc-600 hover:text-amber-400 transition-colors text-left flex items-center gap-1"
+                    >
+                      <Plus size={10} /> Add date
+                    </button>
+                  )
+                )}
+              </div>
             </Field>
 
             <Field label="Brand / Sponsor">

@@ -120,10 +120,11 @@ export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [view, setView]                 = useState('month') // 'month' | 'week'
   const [selectedDay, setSelectedDay]   = useState(null)
-  const [draggedId, setDraggedId]       = useState(null)
-  const [draggedIsWip, setDraggedIsWip] = useState(false)
-  const [altHeld, setAltHeld]           = useState(false)
-  const [dragOverDate, setDragOverDate] = useState(null)
+  const [draggedId, setDraggedId]         = useState(null)
+  const [draggedIsWip, setDraggedIsWip]   = useState(false)
+  const [draggedWipDate, setDraggedWipDate] = useState(null) // which specific work date is being moved
+  const [altHeld, setAltHeld]             = useState(false)
+  const [dragOverDate, setDragOverDate]   = useState(null)
   const [contextMenu, setContextMenu]   = useState(null) // { x, y, project, date }
   const [addForDate, setAddForDate]     = useState(null) // date string to pre-fill in new project modal
   const [hoveredDate, setHoveredDate]   = useState(null)
@@ -163,10 +164,10 @@ export default function Calendar() {
 
   function projectsWorkingOnDay(date) {
     return projects.filter((p) => {
-      if (!p.workDate) return false
+      const dates = p.workDates || []
+      if (dates.length === 0) return false
       if (isEditor && p.type !== 'youtube') return false
-      try { return isSameDay(parseISO(p.workDate), date) }
-      catch { return false }
+      return dates.some((d) => { try { return isSameDay(parseISO(d), date) } catch { return false } })
     })
   }
 
@@ -190,11 +191,12 @@ export default function Calendar() {
   const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   // ── Drag-to-reschedule ────────────────────────────────────────────────────
-  function handleChipDragStart(e, projectId, isWip = false) {
+  function handleChipDragStart(e, projectId, isWip = false, wipDate = null) {
     if (!canReschedule) return
     const wipMode = isWip || e.altKey  // hold ⌥ Option to drag as work date
     setDraggedId(projectId)
     setDraggedIsWip(wipMode)
+    setDraggedWipDate(wipDate)  // which specific work date is being moved (null = adding new)
     e.dataTransfer.effectAllowed = 'move'
     e.stopPropagation()
   }
@@ -210,15 +212,33 @@ export default function Calendar() {
     e.preventDefault()
     if (!draggedId) return
     const newDate = format(date, 'yyyy-MM-dd')
-    updateProject(draggedId, isWipDrag ? { workDate: newDate } : { publishDate: newDate })
+    if (isWipDrag) {
+      const project = projects.find((p) => p.id === draggedId)
+      const existing = project?.workDates || []
+      if (draggedWipDate) {
+        // Move: remove old date, add new date (no dupes)
+        const updated = [...existing.filter((d) => d !== draggedWipDate)]
+        if (!updated.includes(newDate)) updated.push(newDate)
+        updateProject(draggedId, { workDates: updated })
+      } else {
+        // Add new work date (⌥ drag from publish chip)
+        if (!existing.includes(newDate)) {
+          updateProject(draggedId, { workDates: [...existing, newDate] })
+        }
+      }
+    } else {
+      updateProject(draggedId, { publishDate: newDate })
+    }
     setDraggedId(null)
     setDraggedIsWip(false)
+    setDraggedWipDate(null)
     setDragOverDate(null)
   }
 
   function handleDragEnd() {
     setDraggedId(null)
     setDraggedIsWip(false)
+    setDraggedWipDate(null)
     setDragOverDate(null)
   }
 
@@ -318,34 +338,38 @@ export default function Calendar() {
               +{dayProjects.length - 3} more
             </span>
           )}
-          {/* WIP chips — amber pencil, gray bg, clearly "in progress" */}
-          {projectsWorkingOnDay(date).map((p) => (
-            <div
-              key={`wip-${p.id}`}
-              draggable={canReschedule}
-              onDragStart={(e) => handleChipDragStart(e, p.id, true)}
-              onDragEnd={handleDragEnd}
-              className="flex items-center gap-1 w-full rounded px-1 py-0.5 group/wip"
-              style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'default' }}
-            >
-              <Pencil size={7} style={{ color: '#f59e0b', flexShrink: 0 }} />
-              <span
-                className="text-[9px] font-medium truncate flex-1 text-left cursor-pointer hover:opacity-80"
-                style={{ color: '#a1a1aa' }}
-                onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+          {/* WIP chips — platform color tint + dashed border to distinguish from publish chips */}
+          {projectsWorkingOnDay(date).map((p) => {
+            const col      = projectColor(p)
+            const dateStr  = format(date, 'yyyy-MM-dd')
+            return (
+              <div
+                key={`wip-${p.id}`}
+                draggable={canReschedule}
+                onDragStart={(e) => handleChipDragStart(e, p.id, true, dateStr)}
+                onDragEnd={handleDragEnd}
+                className="flex items-center gap-1 w-full rounded px-1 py-0.5 group/wip"
+                style={{ background: `${col}0e`, border: `1px dashed ${col}55`, cursor: canReschedule ? 'grab' : 'default' }}
               >
-                {p.title}
-              </span>
-              <button
-                onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDate: null }) }}
-                className="opacity-0 group-hover/wip:opacity-100 transition-opacity flex-shrink-0 hover:text-white"
-                style={{ color: '#71717a', lineHeight: 1 }}
-                title="Dismiss work date"
-              >
-                <X size={8} />
-              </button>
-            </div>
-          ))}
+                <Pencil size={7} style={{ color: col, opacity: 0.7, flexShrink: 0 }} />
+                <span
+                  className="text-[9px] font-medium truncate flex-1 text-left cursor-pointer hover:opacity-80"
+                  style={{ color: `${col}99` }}
+                  onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                >
+                  {p.title}
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr) }) }}
+                  className="opacity-0 group-hover/wip:opacity-100 transition-opacity flex-shrink-0 hover:text-white"
+                  style={{ color: '#71717a', lineHeight: 1 }}
+                  title="Remove this work date"
+                >
+                  <X size={8} />
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
     )
@@ -365,13 +389,19 @@ export default function Calendar() {
   function closeContextMenu() { setContextMenu(null) }
 
   function handleSetWorkDate() {
-    const newDate = format(contextMenu.date, 'yyyy-MM-dd')
-    updateProject(contextMenu.project.id, { workDate: newDate })
+    const newDate  = format(contextMenu.date, 'yyyy-MM-dd')
+    const existing = contextMenu.project.workDates || []
+    if (!existing.includes(newDate)) {
+      updateProject(contextMenu.project.id, { workDates: [...existing, newDate] })
+    }
     closeContextMenu()
   }
 
   function handleClearWorkDate() {
-    updateProject(contextMenu.project.id, { workDate: null })
+    // Remove just this date from the array
+    const dateStr  = format(contextMenu.date, 'yyyy-MM-dd')
+    const existing = contextMenu.project.workDates || []
+    updateProject(contextMenu.project.id, { workDates: existing.filter(d => d !== dateStr) })
     closeContextMenu()
   }
 
@@ -418,9 +448,9 @@ export default function Calendar() {
                   <span style={{ display: 'inline-block', width: 10, height: 8, borderRadius: 2, border: '1px dashed rgba(245,158,11,0.5)', flexShrink: 0 }} />
                   Set Work Date to {format(contextMenu.date, 'MMM d')}
                 </button>
-                {contextMenu.project.workDate && (
+                {(contextMenu.project.workDates || []).includes(format(contextMenu.date, 'yyyy-MM-dd')) && (
                   <button onClick={handleClearWorkDate} className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors">
-                    Clear Work Date
+                    Remove Work Date on {format(contextMenu.date, 'MMM d')}
                   </button>
                 )}
                 <button
@@ -596,40 +626,44 @@ export default function Calendar() {
                           <span className="text-[9px] text-zinc-600">{p.status}</span>
                         </button>
                       ))}
-                      {/* WIP chips — amber pencil, clearly "in progress" */}
-                      {projectsWorkingOnDay(day).map((p) => (
-                        <div
-                          key={`wip-${p.id}`}
-                          draggable={canReschedule}
-                          onDragStart={(e) => handleChipDragStart(e, p.id, true)}
-                          onDragEnd={handleDragEnd}
-                          className="w-full rounded-lg px-2 py-1.5 flex flex-col gap-1 group/wip"
-                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px dashed rgba(245,158,11,0.35)', cursor: canReschedule ? 'grab' : 'default' }}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1">
-                              <Pencil size={8} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                              <PlatformDot type={p.type} size={5} />
-                            </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDate: null }) }}
-                              className="opacity-0 group-hover/wip:opacity-100 transition-opacity hover:text-white"
-                              style={{ color: '#71717a' }}
-                              title="Dismiss work date"
-                            >
-                              <X size={9} />
-                            </button>
-                          </div>
-                          <span
-                            className="text-[10px] font-medium leading-tight w-full truncate block cursor-pointer hover:opacity-80"
-                            style={{ color: '#a1a1aa' }}
-                            onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                      {/* WIP chips — platform color tint + dashed border */}
+                      {projectsWorkingOnDay(day).map((p) => {
+                        const col     = projectColor(p)
+                        const dateStr = format(day, 'yyyy-MM-dd')
+                        return (
+                          <div
+                            key={`wip-${p.id}`}
+                            draggable={canReschedule}
+                            onDragStart={(e) => handleChipDragStart(e, p.id, true, dateStr)}
+                            onDragEnd={handleDragEnd}
+                            className="w-full rounded-lg px-2 py-1.5 flex flex-col gap-1 group/wip"
+                            style={{ background: `${col}0e`, border: `1px dashed ${col}55`, cursor: canReschedule ? 'grab' : 'default' }}
                           >
-                            {p.title}
-                          </span>
-                          <span className="text-[9px] text-zinc-600">{p.status}</span>
-                        </div>
-                      ))}
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1">
+                                <Pencil size={8} style={{ color: col, opacity: 0.7, flexShrink: 0 }} />
+                                <PlatformDot type={p.type} size={5} />
+                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr) }) }}
+                                className="opacity-0 group-hover/wip:opacity-100 transition-opacity hover:text-white"
+                                style={{ color: '#71717a' }}
+                                title="Remove this work date"
+                              >
+                                <X size={9} />
+                              </button>
+                            </div>
+                            <span
+                              className="text-[10px] font-medium leading-tight w-full truncate block cursor-pointer hover:opacity-80"
+                              style={{ color: `${col}99` }}
+                              onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                            >
+                              {p.title}
+                            </span>
+                            <span className="text-[9px]" style={{ color: `${col}66` }}>{p.status}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -669,8 +703,8 @@ export default function Calendar() {
               <span className="text-xs text-zinc-500">Brand Deal</span>
             </div>
             <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={{ display: 'inline-block', width: 16, height: 10, borderRadius: 2, border: '1px dashed rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.07)' }} />
-              <span className="text-xs text-zinc-500">Work Day</span>
+              <Pencil size={9} style={{ color: '#71717a' }} />
+              <span className="text-xs text-zinc-500">Work Day <span className="text-zinc-700">(dashed = platform color)</span></span>
             </div>
           </div>
 
@@ -717,32 +751,39 @@ export default function Calendar() {
                 <StatusBadge status={p.status} />
               </button>
             ))}
-            {projectsWorkingOnDay(selectedDay).map((p) => (
-              <div key={`wip-${p.id}`}
-                className="w-full text-left rounded-xl p-3 group/wip relative"
-                style={{ background: 'rgba(245,158,11,0.05)', border: '1px dashed rgba(245,158,11,0.3)' }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDate: null }) }}
-                  className="absolute top-2 right-2 opacity-0 group-hover/wip:opacity-100 transition-opacity w-5 h-5 rounded flex items-center justify-center hover:bg-white/10"
-                  style={{ color: '#71717a' }}
-                  title="Dismiss work date"
-                >
-                  <X size={10} />
-                </button>
-                <div
-                  className="flex items-center gap-2 mb-1.5 min-w-0 cursor-pointer hover:opacity-80"
-                  onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
-                >
-                  <Pencil size={11} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                  <PlatformIcon type={p.type} size={13} />
-                  <span className="text-sm font-semibold text-zinc-300 truncate flex-1">{p.title}</span>
+            {projectsWorkingOnDay(selectedDay).map((p) => {
+              const col     = projectColor(p)
+              const dateStr = format(selectedDay, 'yyyy-MM-dd')
+              return (
+                <div key={`wip-${p.id}`}
+                  className="w-full text-left rounded-xl p-3 group/wip relative"
+                  style={{ background: `${col}0a`, border: `1px dashed ${col}45` }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr) }) }}
+                    className="absolute top-2 right-2 opacity-0 group-hover/wip:opacity-100 transition-opacity w-5 h-5 rounded flex items-center justify-center hover:bg-white/10"
+                    style={{ color: '#71717a' }}
+                    title="Remove this work date"
+                  >
+                    <X size={10} />
+                  </button>
+                  <div
+                    className="flex items-center gap-2 mb-1.5 min-w-0 cursor-pointer hover:opacity-80"
+                    onClick={() => { setSelectedProject(p); setSelectedDay(null) }}
+                  >
+                    <Pencil size={11} style={{ color: col, opacity: 0.7, flexShrink: 0 }} />
+                    <PlatformIcon type={p.type} size={13} />
+                    <span className="text-sm font-semibold truncate flex-1" style={{ color: `${col}cc` }}>{p.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{ background: `${col}15`, color: col, border: `1px solid ${col}30` }}>
+                      In Progress
+                    </span>
+                    <StatusBadge status={p.status} />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>In Progress</span>
-                  <StatusBadge status={p.status} />
-                </div>
-              </div>
-            ))}
+              )
+            })}
             {projectsOnDay(selectedDay).length === 0 && projectsWorkingOnDay(selectedDay).length === 0 && (
               <p className="text-xs text-zinc-600 py-4 col-span-full text-center">Nothing scheduled for this day</p>
             )}
