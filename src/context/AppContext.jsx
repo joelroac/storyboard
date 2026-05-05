@@ -134,6 +134,14 @@ const DEFAULT_PERMISSIONS = {
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser]         = useState(null)
   const [projects, setProjects]               = useState([])
+  // Ref always holds the latest projects array so callbacks don't capture stale closures
+  const projectsRef = React.useRef([])
+  React.useEffect(() => { projectsRef.current = projects }, [projects])
+
+  // ── Undo stack ────────────────────────────────────────────────────────────
+  const [undoStack, setUndoStack]             = useState([])
+  const undoStackRef = React.useRef([])
+  React.useEffect(() => { undoStackRef.current = undoStack }, [undoStack])
   const [notifications, setNotifications]     = useState([])
   const [teamMembers, setTeamMembers]         = useState([])
   const [banners, setBanners]                 = useState([])
@@ -563,7 +571,19 @@ export function AppProvider({ children }) {
     return newProject
   }, [workflowSettings])
 
-  const updateProject = useCallback(async (projectId, updates) => {
+  const updateProject = useCallback(async (projectId, updates, { skipUndo = false } = {}) => {
+    // Capture previous field values for undo (before the optimistic update)
+    if (!skipUndo) {
+      const current = projectsRef.current.find((p) => p.id === projectId)
+      if (current) {
+        const previousFields = {}
+        for (const key of Object.keys(updates)) {
+          previousFields[key] = current[key]
+        }
+        setUndoStack((stack) => [...stack.slice(-29), { projectId, previousFields }])
+      }
+    }
+
     // Optimistic
     setProjects((prev) => prev.map((p) => p.id === projectId ? { ...p, ...updates } : p))
     setSelectedProject((prev) => prev?.id === projectId ? { ...prev, ...updates } : prev)
@@ -647,6 +667,36 @@ export function AppProvider({ children }) {
     const { error } = await supabase.from('projects').delete().eq('id', projectId)
     if (error) console.error('Error deleting project:', error)
   }, [])
+
+  // ── Undo ───────────────────────────────────────────────────────────────────
+  const undo = useCallback(() => {
+    const stack = undoStackRef.current
+    if (stack.length === 0) return
+    const last = stack[stack.length - 1]
+    setUndoStack((prev) => prev.slice(0, -1))
+    updateProject(last.projectId, last.previousFields, { skipUndo: true })
+    // Show a brief banner so the user gets feedback
+    setBanners((prev) => {
+      const id = Date.now()
+      setTimeout(() => setBanners((b) => b.filter((x) => x.id !== id)), 2000)
+      return [...prev, { id, message: 'Action undone', type: 'info' }]
+    })
+  }, [updateProject])
+
+  // Global Cmd+Z / Ctrl+Z handler
+  React.useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        // Don't intercept when the user is typing in an input/textarea
+        const tag = document.activeElement?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
+        e.preventDefault()
+        undo()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo])
 
   // ── Team member updates ────────────────────────────────────────────────────
 
@@ -955,6 +1005,8 @@ export function AppProvider({ children }) {
         overrideStatus,
         addProject,
         deleteProject,
+        undo,
+        canUndo: undoStack.length > 0,
         selectedProject,
         setSelectedProject,
         activeTab,

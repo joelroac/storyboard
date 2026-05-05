@@ -528,27 +528,6 @@ export default function Calendar() {
           </p>
         </div>
 
-        {/* Search bar */}
-        <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#52525b' }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search projects…"
-            className="w-full text-sm rounded-xl pl-8 pr-8 py-2 text-white placeholder-zinc-600"
-            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${searchQ ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.09)'}`, outline: 'none', transition: 'border-color 0.15s' }}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-white transition-colors"
-              style={{ color: '#52525b' }}
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
         <div className="flex items-center gap-3 shrink-0">
           {/* View toggle */}
           <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -595,7 +574,7 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* Platform filter pills */}
+      {/* Platform filter pills + search bar */}
       {!isEditor && (
         <div className="flex items-center gap-2 mb-5 flex-wrap">
           <button
@@ -627,6 +606,26 @@ export default function Calendar() {
               </button>
             )
           })}
+          {/* Search — pushed to the right */}
+          <div className="relative ml-auto" style={{ minWidth: 180 }}>
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#52525b' }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search projects…"
+              className="w-full text-xs rounded-full pl-8 pr-7 py-1.5 text-white placeholder-zinc-600"
+              style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${searchQ ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.08)'}`, outline: 'none', transition: 'border-color 0.15s' }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-white transition-colors"
+                style={{ color: '#52525b' }}
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
