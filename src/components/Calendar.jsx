@@ -81,8 +81,8 @@ function GoalsPanel({ weeks, projects, goals }) {
                           <span className="text-[10px] text-zinc-500 capitalize">{platform}</span>
                         </div>
                         <span className="text-[10px] font-semibold tabular-nums"
-                          style={{ color: met ? '#4ade80' : onTrack ? color : '#52525b' }}>
-                          {done}{sched > 0 && !met ? <span style={{ opacity: 0.5 }}>+{sched}</span> : ''}/{goal}
+                          style={{ color: met ? '#4ade80' : '#52525b' }}>
+                          {goal}
                         </span>
                       </div>
                       {/* Two-layer bar: solid = completed, dim = scheduled */}

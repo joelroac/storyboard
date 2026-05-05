@@ -1189,14 +1189,14 @@ export default function ProjectDetail() {
                       }}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1">
                     <PlatformIcon type={proj.type === 'instagram' ? 'tiktok' : 'instagram'} size={13} />
                     <span className="text-sm text-zinc-300">
                       Also post to {proj.type === 'instagram' ? 'TikTok' : 'Instagram'}
                     </span>
                     {editCrossPost && (
                       <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                        className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded"
                         style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
                       >
                         Cross-posted
