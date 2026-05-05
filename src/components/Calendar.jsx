@@ -4,7 +4,7 @@ import {
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
   addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil, Plus, Search } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
@@ -151,6 +151,18 @@ export default function Calendar() {
   const [contextMenu, setContextMenu]   = useState(null) // { x, y, project, date }
   const [addForDate, setAddForDate]     = useState(null) // date string to pre-fill in new project modal
   const [hoveredDate, setHoveredDate]   = useState(null)
+  const [search, setSearch]             = useState('')
+
+  const searchQ = search.trim().toLowerCase()
+  function matchesSearch(p) {
+    if (!searchQ) return true
+    return (
+      p.title?.toLowerCase().includes(searchQ) ||
+      p.type?.toLowerCase().includes(searchQ) ||
+      p.brand?.toLowerCase().includes(searchQ) ||
+      p.status?.toLowerCase().includes(searchQ)
+    )
+  }
 
   // When Joel is previewing another user, use that role for filtering/permissions
   const effectiveRole = previewRole || currentUser?.role
@@ -322,7 +334,9 @@ export default function Calendar() {
           )}
         </div>
         <div className="flex flex-col gap-1">
-          {dayProjects.slice(0, 3).map((p) => (
+          {dayProjects.slice(0, 3).map((p) => {
+            const hit = matchesSearch(p)
+            return (
             <button
               key={p.id}
               draggable={canReschedule}
@@ -330,11 +344,13 @@ export default function Calendar() {
               onDragEnd={handleDragEnd}
               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
               onContextMenu={(e) => handleChipContextMenu(e, p, date)}
-              className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-all hover:opacity-80"
               style={{
                 background: `${projectColor(p)}18`,
-                border:     `1px solid ${projectColor(p)}30`,
+                border:     `1px solid ${searchQ && hit ? projectColor(p) : `${projectColor(p)}30`}`,
                 cursor:     isAdmin ? 'grab' : 'pointer',
+                opacity:    searchQ && !hit ? 0.2 : 1,
+                boxShadow:  searchQ && hit ? `0 0 0 1px ${projectColor(p)}50` : 'none',
               }}
             >
               <PlatformDot type={p.type} size={5} />
@@ -352,7 +368,7 @@ export default function Calendar() {
                 {p.title}
               </span>
             </button>
-          ))}
+          )})}
           {dayProjects.length > 3 && (
             <span
               className="text-[9px] text-zinc-600 pl-1 cursor-pointer hover:text-zinc-400 transition-colors"
@@ -365,14 +381,21 @@ export default function Calendar() {
           {projectsWorkingOnDay(date).map((p) => {
             const col      = projectColor(p)
             const dateStr  = format(date, 'yyyy-MM-dd')
+            const hit      = matchesSearch(p)
             return (
               <div
                 key={`wip-${p.id}`}
                 draggable={canReschedule}
                 onDragStart={(e) => handleChipDragStart(e, p.id, true, dateStr)}
                 onDragEnd={handleDragEnd}
-                className="flex items-center gap-1 w-full rounded px-1 py-0.5 group/wip"
-                style={{ background: `${col}0e`, border: `1px dashed ${col}55`, cursor: canReschedule ? 'grab' : 'default' }}
+                className="flex items-center gap-1 w-full rounded px-1 py-0.5 group/wip transition-all"
+                style={{
+                  background: `${col}0e`,
+                  border: `1px dashed ${searchQ && hit ? col : `${col}55`}`,
+                  cursor: canReschedule ? 'grab' : 'default',
+                  opacity: searchQ && !hit ? 0.2 : 1,
+                  boxShadow: searchQ && hit ? `0 0 0 1px ${col}40` : 'none',
+                }}
               >
                 <Pencil size={7} style={{ color: col, opacity: 0.7, flexShrink: 0 }} />
                 <span
@@ -489,8 +512,8 @@ export default function Calendar() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex items-center justify-between mb-6 gap-4">
+        <div className="shrink-0">
           <h1 className="font-editorial text-3xl font-semibold text-white">Content Calendar</h1>
           <p className="text-zinc-500 text-sm mt-1">
             {format(currentMonth, 'MMMM yyyy')}
@@ -498,7 +521,28 @@ export default function Calendar() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Search bar */}
+        <div className="relative flex-1 max-w-xs">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#52525b' }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects…"
+            className="w-full text-sm rounded-xl pl-8 pr-8 py-2 text-white placeholder-zinc-600"
+            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${searchQ ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.09)'}`, outline: 'none', transition: 'border-color 0.15s' }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-white transition-colors"
+              style={{ color: '#52525b' }}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
           {/* View toggle */}
           <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
             {['month', 'week'].map((v) => (
@@ -621,38 +665,44 @@ export default function Calendar() {
                           <span className="text-[9px] text-zinc-700">—</span>
                         </div>
                       )}
-                      {dayProjects.map((p) => (
-                        <button
-                          key={p.id}
-                          draggable={canReschedule}
-                          onDragStart={(e) => { handleChipDragStart(e, p.id) }}
-                          onDragEnd={handleDragEnd}
-                          onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
-                          onContextMenu={(e) => handleChipContextMenu(e, p, day)}
-                          className="w-full text-left rounded-lg px-2 py-1.5 transition-opacity hover:opacity-80 flex flex-col gap-1"
-                          style={{
-                            background: `${projectColor(p)}15`,
-                            border:     `1px solid ${projectColor(p)}35`,
-                            cursor:     isAdmin ? 'grab' : 'pointer',
-                          }}
-                        >
-                          <div className="flex items-center gap-1">
-                            <PlatformDot type={p.type} size={5} />
-                            {p.crossPostTo && <PlatformDot type={p.crossPostTo} size={5} />}
-                            {p.brand && p.brand !== 'Organic' && (
-                              <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: projectColor(p) }}>
-                            {p.title}
-                          </span>
-                          <span className="text-[9px] text-zinc-600">{p.status}</span>
-                        </button>
-                      ))}
+                      {dayProjects.map((p) => {
+                        const hit = matchesSearch(p)
+                        return (
+                          <button
+                            key={p.id}
+                            draggable={canReschedule}
+                            onDragStart={(e) => { handleChipDragStart(e, p.id) }}
+                            onDragEnd={handleDragEnd}
+                            onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                            onContextMenu={(e) => handleChipContextMenu(e, p, day)}
+                            className="w-full text-left rounded-lg px-2 py-1.5 transition-all hover:opacity-80 flex flex-col gap-1"
+                            style={{
+                              background: `${projectColor(p)}15`,
+                              border:     `1px solid ${searchQ && hit ? projectColor(p) : `${projectColor(p)}35`}`,
+                              boxShadow:  searchQ && hit ? `0 0 0 1px ${projectColor(p)}50` : 'none',
+                              opacity:    searchQ && !hit ? 0.2 : 1,
+                              cursor:     isAdmin ? 'grab' : 'pointer',
+                            }}
+                          >
+                            <div className="flex items-center gap-1">
+                              <PlatformDot type={p.type} size={5} />
+                              {p.crossPostTo && <PlatformDot type={p.crossPostTo} size={5} />}
+                              {p.brand && p.brand !== 'Organic' && (
+                                <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: projectColor(p) }}>
+                              {p.title}
+                            </span>
+                            <span className="text-[9px] text-zinc-600">{p.status}</span>
+                          </button>
+                        )
+                      })}
                       {/* WIP chips — platform color tint + dashed border */}
                       {projectsWorkingOnDay(day).map((p) => {
                         const col     = projectColor(p)
                         const dateStr = format(day, 'yyyy-MM-dd')
+                        const hit     = matchesSearch(p)
                         return (
                           <div
                             key={`wip-${p.id}`}
@@ -660,7 +710,13 @@ export default function Calendar() {
                             onDragStart={(e) => handleChipDragStart(e, p.id, true, dateStr)}
                             onDragEnd={handleDragEnd}
                             className="w-full rounded-lg px-2 py-1.5 flex flex-col gap-1 group/wip"
-                            style={{ background: `${col}0e`, border: `1px dashed ${col}55`, cursor: canReschedule ? 'grab' : 'default' }}
+                            style={{
+                              background: `${col}0e`,
+                              border:     `1px dashed ${searchQ && hit ? col : `${col}55`}`,
+                              boxShadow:  searchQ && hit ? `0 0 0 1px ${col}40` : 'none',
+                              opacity:    searchQ && !hit ? 0.2 : 1,
+                              cursor:     canReschedule ? 'grab' : 'default',
+                            }}
                           >
                             <div className="flex items-center justify-between gap-1">
                               <div className="flex items-center gap-1">
