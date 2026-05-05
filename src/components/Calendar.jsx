@@ -152,6 +152,7 @@ export default function Calendar() {
   const [addForDate, setAddForDate]     = useState(null) // date string to pre-fill in new project modal
   const [hoveredDate, setHoveredDate]   = useState(null)
   const [search, setSearch]             = useState('')
+  const [filterType, setFilterType]     = useState(null) // null = all platforms
 
   const searchQ = search.trim().toLowerCase()
   function matchesSearch(p) {
@@ -173,7 +174,12 @@ export default function Calendar() {
 
   // Projects with a publish date; editor (Anthony) sees YouTube only
   const isEditor = effectiveRole === 'editor'
-  const activeProjects = projects.filter((p) => p.publishDate && (isEditor ? p.type === 'youtube' : true))
+  const activeProjects = projects.filter((p) => {
+    if (!p.publishDate) return false
+    if (isEditor && p.type !== 'youtube') return false
+    if (filterType && p.type !== filterType && p.crossPostTo !== filterType) return false
+    return true
+  })
 
   // Track Option/Alt key globally so it can be pressed/released mid-drag
   React.useEffect(() => {
@@ -202,6 +208,7 @@ export default function Calendar() {
       const dates = p.workDates || []
       if (dates.length === 0) return false
       if (isEditor && p.type !== 'youtube') return false
+      if (filterType && p.type !== filterType) return false
       return dates.some((d) => { try { return isSameDay(parseISO(d), date) } catch { return false } })
     })
   }
@@ -587,6 +594,41 @@ export default function Calendar() {
           </div>
         </div>
       </div>
+
+      {/* Platform filter pills */}
+      {!isEditor && (
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <button
+            onClick={() => setFilterType(null)}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+            style={
+              filterType === null
+                ? { background: 'rgba(255,255,255,0.12)', color: '#e4e4e7', border: '1px solid rgba(255,255,255,0.2)' }
+                : { background: 'transparent', color: '#52525b', border: '1px solid rgba(255,255,255,0.08)' }
+            }
+          >
+            All
+          </button>
+          {Object.entries(PLATFORM_COLORS).map(([platform, color]) => {
+            const active = filterType === platform
+            return (
+              <button
+                key={platform}
+                onClick={() => setFilterType(active ? null : platform)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={
+                  active
+                    ? { background: `${color}22`, color: color, border: `1px solid ${color}55` }
+                    : { background: 'transparent', color: '#52525b', border: '1px solid rgba(255,255,255,0.08)' }
+                }
+              >
+                <PlatformDot type={platform} size={6} />
+                <span className="capitalize">{platform === 'newsletter' ? 'Newsletter' : platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div>
         <div className="w-full">
