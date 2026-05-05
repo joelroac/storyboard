@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Plus, AlertCircle, CheckCircle2, Trash2, ChevronDown, DollarSign, ExternalLink } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { Plus, AlertCircle, CheckCircle2, Trash2, ChevronDown, DollarSign, ExternalLink, Search, X } from 'lucide-react'
 import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, differenceInDays, isToday, isTomorrow } from 'date-fns'
 import { useApp } from '../../context/AppContext'
@@ -215,9 +215,23 @@ export default function JoelDashboard() {
   const [showInactive, setShowInactive] = useState(false)
   const [expandedCols, setExpandedCols] = useState({})
   const [sortBy, setSortBy]             = useState(() => localStorage.getItem('sb_sort') || 'due_date')
+  const [search, setSearch]             = useState('')
+  const searchRef                       = useRef(null)
 
-  const active         = projects.filter(p => !['Posted', 'Sent', 'Inactive'].includes(p.status))
-  const inactiveProjects = projects.filter(p => p.status === 'Inactive')
+  const q = search.trim().toLowerCase()
+  function matchesSearch(p) {
+    if (!q) return true
+    return (
+      p.title?.toLowerCase().includes(q) ||
+      p.type?.toLowerCase().includes(q) ||
+      p.status?.toLowerCase().includes(q) ||
+      p.brand?.toLowerCase().includes(q) ||
+      p.caption?.toLowerCase().includes(q)
+    )
+  }
+
+  const active         = projects.filter(p => !['Posted', 'Sent', 'Inactive'].includes(p.status) && matchesSearch(p))
+  const inactiveProjects = projects.filter(p => p.status === 'Inactive' && matchesSearch(p))
   const reviewQueue    = active.filter(p => JOEL_REVIEW_STAGES.includes(p.status))
   const tianaProjects  = sortProjects(active.filter(p => getStageOwner(p.type, p.status) === 'tiana'), sortBy)
   const kanbanProjects = sortProjects(active.filter(
@@ -225,10 +239,10 @@ export default function JoelDashboard() {
        && getStageOwner(p.type, p.status) !== 'tiana'
   ), sortBy)
   const readyProjects  = projects
-    .filter(p => ['Ready to Post', 'Ready to Send'].includes(p.status))
+    .filter(p => ['Ready to Post', 'Ready to Send'].includes(p.status) && matchesSearch(p))
     .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate))
   const scheduledProjects = projects
-    .filter(p => p.status === 'Scheduled')
+    .filter(p => p.status === 'Scheduled' && matchesSearch(p))
     .sort((a, b) => {
       const aT = a.scheduledTime ? new Date(a.scheduledTime) : (a.publishDate ? new Date(a.publishDate + 'T23:59') : new Date(9999, 0, 1))
       const bT = b.scheduledTime ? new Date(b.scheduledTime) : (b.publishDate ? new Date(b.publishDate + 'T23:59') : new Date(9999, 0, 1))
@@ -289,7 +303,30 @@ export default function JoelDashboard() {
             <span className="sm:hidden">New</span>
           </button>
         </div>
-        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        <div className="flex items-center gap-3 mt-3">
+          {/* Search bar */}
+          <div className="relative flex-1 max-w-sm">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#52525b' }} />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search projects…"
+              className="w-full text-sm rounded-xl pl-8 pr-8 py-2 text-white placeholder-zinc-600"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', outline: 'none' }}
+            />
+            {search && (
+              <button
+                onClick={() => { setSearch(''); searchRef.current?.focus() }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-white transition-colors"
+                style={{ color: '#52525b' }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        </div>
       </div>
 
       {/* Stats row */}
