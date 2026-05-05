@@ -16,13 +16,15 @@ function GoalsPanel({ weeks, projects, goals }) {
   const activePlatforms = Object.entries(goals).filter(([, g]) => g > 0)
   if (activePlatforms.length === 0) return null
 
-  // Only count posts where the final workflow step is complete
   const COMPLETED_STATUSES = ['Posted', 'Sent']
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <p className="text-xs font-semibold text-white uppercase tracking-widest">Posting Goals <span className="text-zinc-600 font-normal normal-case text-[10px] ml-1">per week</span></p>
+        <p className="text-xs font-semibold text-white uppercase tracking-widest">
+          Posting Goals
+          <span className="text-zinc-600 font-normal normal-case text-[10px] ml-1">per week</span>
+        </p>
       </div>
       <div className="p-3 grid gap-3" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}>
         {weeks.map((week, wi) => {
@@ -30,20 +32,24 @@ function GoalsPanel({ weeks, projects, goals }) {
           const weekEnd   = week[week.length - 1]
           const label     = format(weekStart, 'MMM d') + ' – ' + format(weekEnd, 'd')
 
-          // Count only fully-completed posts (Posted or Sent) in this week.
-          // Cross-posted projects count toward both platforms.
-          const counts = {}
+          // completed = Posted/Sent;  scheduled = has a publish date in this week but not yet complete
+          const completed = {}
+          const scheduled = {}
           for (const p of projects) {
             if (!p.publishDate) continue
-            if (!COMPLETED_STATUSES.includes(p.status)) continue
             const d = new Date(p.publishDate + 'T00:00:00')
-            if (d >= weekStart && d <= weekEnd) {
-              counts[p.type] = (counts[p.type] || 0) + 1
-              if (p.crossPostTo) counts[p.crossPostTo] = (counts[p.crossPostTo] || 0) + 1
+            if (d < weekStart || d > weekEnd) continue
+            const platforms = [p.type, ...(p.crossPostTo ? [p.crossPostTo] : [])]
+            for (const pl of platforms) {
+              if (COMPLETED_STATUSES.includes(p.status)) {
+                completed[pl] = (completed[pl] || 0) + 1
+              } else {
+                scheduled[pl] = (scheduled[pl] || 0) + 1
+              }
             }
           }
 
-          const allMet = activePlatforms.every(([platform, goal]) => (counts[platform] || 0) >= goal)
+          const allMet = activePlatforms.every(([pl, goal]) => (completed[pl] || 0) >= goal)
 
           return (
             <div key={wi} className="rounded-xl p-2.5"
@@ -57,28 +63,45 @@ function GoalsPanel({ weeks, projects, goals }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 {activePlatforms.map(([platform, goal]) => {
-                  const count = counts[platform] || 0
-                  const met   = count >= goal
-                  const pct   = Math.min(count / goal, 1)
+                  const done      = completed[platform] || 0
+                  const sched     = scheduled[platform] || 0
+                  const total     = done + sched            // combined toward goal
+                  const met       = done >= goal
+                  const onTrack   = !met && total >= goal   // will hit goal if all scheduled post
+                  const color     = PLATFORM_COLORS[platform] || '#9ca3af'
+
+                  const donePct  = Math.min(done  / goal, 1)
+                  const schedPct = Math.min(total / goal, 1) - donePct  // extra beyond done
+
                   return (
                     <div key={platform}>
                       <div className="flex items-center justify-between mb-0.5">
                         <div className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{ background: PLATFORM_COLORS[platform] || '#9ca3af' }} />
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                           <span className="text-[10px] text-zinc-500 capitalize">{platform}</span>
                         </div>
                         <span className="text-[10px] font-semibold tabular-nums"
-                          style={{ color: met ? '#4ade80' : '#52525b' }}>
-                          {count}/{goal}
+                          style={{ color: met ? '#4ade80' : onTrack ? color : '#52525b' }}>
+                          {done}{sched > 0 && !met ? <span style={{ opacity: 0.5 }}>+{sched}</span> : ''}/{goal}
                         </span>
                       </div>
-                      <div className="rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
-                        <div className="h-full rounded-full transition-all"
+                      {/* Two-layer bar: solid = completed, dim = scheduled */}
+                      <div className="rounded-full relative overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
+                        {/* Scheduled layer (behind, dimmer) */}
+                        {schedPct > 0 && (
+                          <div className="absolute inset-y-0 left-0 rounded-full transition-all"
+                            style={{
+                              width: `${(donePct + schedPct) * 100}%`,
+                              background: met ? '#4ade80' : color,
+                              opacity: 0.2,
+                            }} />
+                        )}
+                        {/* Completed layer (in front, solid) */}
+                        <div className="absolute inset-y-0 left-0 rounded-full transition-all"
                           style={{
-                            width: `${pct * 100}%`,
-                            background: met ? '#4ade80' : (PLATFORM_COLORS[platform] || '#9ca3af'),
-                            opacity: met ? 1 : 0.5,
+                            width: `${donePct * 100}%`,
+                            background: met ? '#4ade80' : color,
+                            opacity: met ? 1 : 0.75,
                           }} />
                       </div>
                     </div>
