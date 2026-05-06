@@ -4,7 +4,7 @@ import {
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
   addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil, Plus, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, Check, Pencil, Plus, Search } from 'lucide-react'
 import { useApp, setDragInProgress } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
@@ -394,31 +394,49 @@ export default function Calendar() {
             const col      = projectColor(p)
             const dateStr  = format(date, 'yyyy-MM-dd')
             const hit      = matchesSearch(p)
+            const done     = (p.completedWorkDates || []).includes(dateStr)
+            function toggleDone(e) {
+              e.stopPropagation()
+              const prev = p.completedWorkDates || []
+              updateProject(p.id, {
+                completedWorkDates: done ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+              })
+            }
             return (
               <div
                 key={`wip-${p.id}`}
-                draggable={canReschedule}
-                onDragStart={(e) => handleChipDragStart(e, p.id, true, dateStr)}
+                draggable={!done && canReschedule}
+                onDragStart={(e) => !done && handleChipDragStart(e, p.id, true, dateStr)}
                 onDragEnd={handleDragEnd}
                 className="flex items-center gap-1 w-full rounded px-1 py-0.5 group/wip transition-all"
                 style={{
-                  background: `${col}0e`,
-                  border: `1px dashed ${searchQ && hit ? col : `${col}55`}`,
-                  cursor: canReschedule ? 'grab' : 'default',
-                  opacity: searchQ && !hit ? 0.2 : 1,
-                  boxShadow: searchQ && hit ? `0 0 0 1px ${col}40` : 'none',
+                  background: done ? `${col}07` : `${col}0e`,
+                  border: done ? `1px solid ${col}30` : `1px dashed ${searchQ && hit ? col : `${col}55`}`,
+                  cursor: done ? 'default' : canReschedule ? 'grab' : 'default',
+                  opacity: done ? 0.6 : searchQ && !hit ? 0.2 : 1,
+                  boxShadow: !done && searchQ && hit ? `0 0 0 1px ${col}40` : 'none',
                 }}
               >
-                <Pencil size={7} style={{ color: col, opacity: 0.7, flexShrink: 0 }} />
+                <button
+                  onClick={toggleDone}
+                  className="flex-shrink-0 transition-opacity"
+                  style={{ lineHeight: 1, color: done ? '#4ade80' : `${col}70` }}
+                  title={done ? 'Mark incomplete' : 'Mark done for today'}
+                >
+                  {done
+                    ? <CheckCircle2 size={8} />
+                    : <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', border: `1px solid ${col}70`, flexShrink: 0 }} />
+                  }
+                </button>
                 <span
                   className="text-[9px] font-medium truncate flex-1 text-left cursor-pointer hover:opacity-80"
-                  style={{ color: `${col}99` }}
+                  style={{ color: done ? `${col}55` : `${col}99`, textDecoration: done ? 'line-through' : 'none' }}
                   onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
                 >
                   {p.title}
                 </span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr) }) }}
+                  onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr), completedWorkDates: (p.completedWorkDates || []).filter(d => d !== dateStr) }) }}
                   className="opacity-0 group-hover/wip:opacity-100 transition-opacity flex-shrink-0 hover:text-white"
                   style={{ color: '#71717a', lineHeight: 1 }}
                   title="Remove this work date"
@@ -749,28 +767,46 @@ export default function Calendar() {
                         const col     = projectColor(p)
                         const dateStr = format(day, 'yyyy-MM-dd')
                         const hit     = matchesSearch(p)
+                        const done    = (p.completedWorkDates || []).includes(dateStr)
+                        function toggleDone(e) {
+                          e.stopPropagation()
+                          const prev = p.completedWorkDates || []
+                          updateProject(p.id, {
+                            completedWorkDates: done ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+                          })
+                        }
                         return (
                           <div
                             key={`wip-${p.id}`}
-                            draggable={canReschedule}
-                            onDragStart={(e) => handleChipDragStart(e, p.id, true, dateStr)}
+                            draggable={!done && canReschedule}
+                            onDragStart={(e) => !done && handleChipDragStart(e, p.id, true, dateStr)}
                             onDragEnd={handleDragEnd}
                             className="w-full rounded-lg px-2 py-1.5 flex flex-col gap-1 group/wip"
                             style={{
-                              background: `${col}0e`,
-                              border:     `1px dashed ${searchQ && hit ? col : `${col}55`}`,
-                              boxShadow:  searchQ && hit ? `0 0 0 1px ${col}40` : 'none',
-                              opacity:    searchQ && !hit ? 0.2 : 1,
-                              cursor:     canReschedule ? 'grab' : 'default',
+                              background: done ? `${col}07` : `${col}0e`,
+                              border:     done ? `1px solid ${col}30` : `1px dashed ${searchQ && hit ? col : `${col}55`}`,
+                              boxShadow:  !done && searchQ && hit ? `0 0 0 1px ${col}40` : 'none',
+                              opacity:    done ? 0.65 : searchQ && !hit ? 0.2 : 1,
+                              cursor:     done ? 'default' : canReschedule ? 'grab' : 'default',
                             }}
                           >
                             <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1">
-                                <Pencil size={8} style={{ color: col, opacity: 0.7, flexShrink: 0 }} />
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={toggleDone}
+                                  className="flex-shrink-0 transition-colors"
+                                  style={{ lineHeight: 1, color: done ? '#4ade80' : `${col}70` }}
+                                  title={done ? 'Mark incomplete' : 'Mark done for today'}
+                                >
+                                  {done
+                                    ? <CheckCircle2 size={10} />
+                                    : <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', border: `1.5px solid ${col}60`, flexShrink: 0 }} />
+                                  }
+                                </button>
                                 <PlatformDot type={p.type} size={5} />
                               </div>
                               <button
-                                onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr) }) }}
+                                onClick={(e) => { e.stopPropagation(); updateProject(p.id, { workDates: (p.workDates || []).filter(d => d !== dateStr), completedWorkDates: (p.completedWorkDates || []).filter(d => d !== dateStr) }) }}
                                 className="opacity-0 group-hover/wip:opacity-100 transition-opacity hover:text-white"
                                 style={{ color: '#71717a' }}
                                 title="Remove this work date"
@@ -780,12 +816,12 @@ export default function Calendar() {
                             </div>
                             <span
                               className="text-[10px] font-medium leading-tight w-full truncate block cursor-pointer hover:opacity-80"
-                              style={{ color: `${col}99` }}
+                              style={{ color: done ? `${col}55` : `${col}99`, textDecoration: done ? 'line-through' : 'none' }}
                               onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
                             >
                               {p.title}
                             </span>
-                            <span className="text-[9px]" style={{ color: `${col}66` }}>{p.status}</span>
+                            <span className="text-[9px]" style={{ color: `${col}55` }}>{done ? '✓ done' : p.status}</span>
                           </div>
                         )
                       })}
