@@ -5,6 +5,11 @@ import { identifyUser, unidentifyUser, sendPushToUser } from '../lib/onesignal'
 
 const AppContext = createContext(null)
 
+// Module-level drag flag — lets the undo keydown handler know a drag is in progress
+// without needing React state (avoids stale closure issues in the effect).
+let _dragInProgress = false
+export function setDragInProgress(v) { _dragInProgress = v }
+
 // ── DB ↔ Frontend mappers ──────────────────────────────────────────────────────
 
 const PLATFORM_TO_DB = {
@@ -687,6 +692,8 @@ export function AppProvider({ children }) {
   React.useEffect(() => {
     function handleKeyDown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        // Don't intercept while a drag is in progress
+        if (_dragInProgress) return
         // Don't intercept when the user is typing in an input/textarea
         const tag = document.activeElement?.tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return

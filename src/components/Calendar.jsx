@@ -5,7 +5,7 @@ import {
   addMonths, subMonths, addWeeks, subWeeks, parseISO,
 } from 'date-fns'
 import { ChevronLeft, ChevronRight, X, CheckCircle2, Pencil, Plus, Search } from 'lucide-react'
-import { useApp } from '../context/AppContext'
+import { useApp, setDragInProgress } from '../context/AppContext'
 import StatusBadge from './shared/StatusBadge'
 import { PlatformIcon, PlatformDot } from './shared/Icons'
 import AddProjectModal from './joel/AddProjectModal'
@@ -239,6 +239,7 @@ export default function Calendar() {
     setDraggedId(projectId)
     setDraggedIsWip(wipMode)
     setDraggedWipDate(wipDate)  // which specific work date is being moved (null = adding new)
+    setDragInProgress(true)
     e.dataTransfer.effectAllowed = 'move'
     e.stopPropagation()
   }
@@ -275,6 +276,8 @@ export default function Calendar() {
     setDraggedIsWip(false)
     setDraggedWipDate(null)
     setDragOverDate(null)
+    setAltHeld(false)       // browser eats the keyup during drag — reset manually
+    setDragInProgress(false)
   }
 
   function handleDragEnd() {
@@ -282,6 +285,8 @@ export default function Calendar() {
     setDraggedIsWip(false)
     setDraggedWipDate(null)
     setDragOverDate(null)
+    setAltHeld(false)       // reset in case keyup was swallowed mid-drag
+    setDragInProgress(false)
   }
 
   // ── Day cell ──────────────────────────────────────────────────────────────
