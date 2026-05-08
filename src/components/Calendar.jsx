@@ -385,16 +385,14 @@ export default function Calendar() {
               onContextMenu={(e) => handleChipContextMenu(e, p, date)}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-all hover:opacity-80"
               style={{
-                background: posted ? 'rgba(74,222,128,0.10)'
-                          : ready  ? 'rgba(245,158,11,0.12)'
-                          : `${col}18`,
+                background: posted ? 'rgba(74,222,128,0.10)' : `${col}${ready ? '28' : '18'}`,
                 border:     posted ? '1px solid rgba(74,222,128,0.4)'
-                          : ready  ? '1px solid rgba(245,158,11,0.5)'
+                          : ready  ? `1px solid ${col}cc`
                           : `1px solid ${searchQ && hit ? col : `${col}30`}`,
                 cursor:     isAdmin ? 'grab' : 'pointer',
                 opacity:    searchQ && !hit ? 0.2 : 1,
                 boxShadow:  posted ? 'none'
-                          : ready  ? '0 0 0 1px rgba(245,158,11,0.2)'
+                          : ready  ? `0 0 0 1px ${col}40`
                           : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
               }}
             >
@@ -403,11 +401,11 @@ export default function Calendar() {
               {p.brand && p.brand !== 'Organic' && (
                 <span title={`Brand Deal: ${p.brand}`} style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}>B</span>
               )}
-              <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : ready ? '#fbbf24' : col }}>
+              <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : col }}>
                 {p.title}
               </span>
               {posted && <Check size={7} style={{ color: '#4ade80', flexShrink: 0, marginLeft: 'auto' }} />}
-              {ready  && <span style={{ fontSize: 7, fontWeight: 800, color: '#f59e0b', flexShrink: 0, marginLeft: 'auto', lineHeight: 1 }}>↑</span>}
+              {ready  && <span style={{ fontSize: 7, fontWeight: 900, color: col, flexShrink: 0, marginLeft: 'auto', lineHeight: 1 }}>↑</span>}
             </button>
           )})}
           {dayProjects.length > 3 && (
@@ -773,14 +771,12 @@ export default function Calendar() {
                             onContextMenu={(e) => handleChipContextMenu(e, p, day)}
                             className="w-full text-left rounded-lg px-2 py-1.5 transition-all hover:opacity-80 flex flex-col gap-1"
                             style={{
-                              background: posted ? 'rgba(74,222,128,0.10)'
-                                        : ready  ? 'rgba(245,158,11,0.12)'
-                                        : `${col}15`,
+                              background: posted ? 'rgba(74,222,128,0.10)' : `${col}${ready ? '28' : '15'}`,
                               border:     posted ? '1px solid rgba(74,222,128,0.4)'
-                                        : ready  ? '1px solid rgba(245,158,11,0.5)'
+                                        : ready  ? `1px solid ${col}cc`
                                         : `1px solid ${searchQ && hit ? col : `${col}35`}`,
                               boxShadow:  posted ? 'none'
-                                        : ready  ? '0 0 0 1px rgba(245,158,11,0.2)'
+                                        : ready  ? `0 0 0 1px ${col}40`
                                         : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
                               opacity:    searchQ && !hit ? 0.2 : 1,
                               cursor:     isAdmin ? 'grab' : 'pointer',
@@ -793,12 +789,12 @@ export default function Calendar() {
                                 <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
                               )}
                               {posted && <Check size={9} style={{ color: '#4ade80', marginLeft: 'auto', flexShrink: 0 }} />}
-                              {ready  && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', marginLeft: 'auto', flexShrink: 0, lineHeight: 1 }}>↑</span>}
+                              {ready  && <span style={{ fontSize: 9, fontWeight: 900, color: col, marginLeft: 'auto', flexShrink: 0, lineHeight: 1 }}>↑</span>}
                             </div>
-                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: posted ? '#4ade80' : ready ? '#fbbf24' : col }}>
+                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: posted ? '#4ade80' : col }}>
                               {p.title}
                             </span>
-                            <span className="text-[9px]" style={{ color: posted ? '#4ade8080' : ready ? 'rgba(245,158,11,0.6)' : '#52525b' }}>
+                            <span className="text-[9px]" style={{ color: posted ? '#4ade8080' : ready ? `${col}99` : '#52525b' }}>
                               {posted ? '✓ Posted' : ready ? '↑ ' + p.status : p.status}
                             </span>
                           </button>
