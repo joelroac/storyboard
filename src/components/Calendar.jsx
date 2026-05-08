@@ -166,22 +166,26 @@ export default function Calendar() {
   }
 
   const POSTED_STATUSES = ['Posted', 'Sent']
+  // Statuses that mean "production is done, just needs to go live"
+  const READY_STATUSES  = ['Ready to Post', 'Scheduled', 'Ready to Send']
 
   // True when the project has been published/sent
   function isPosted(p) {
     return POSTED_STATUSES.includes(p.status)
   }
 
-  // True when the project is at the final stage(s) before posting — all production work done.
-  // Covers both "Ready to Post" and "Scheduled" (the last 2 stages before Posted/Sent).
+  // True when the project is fully produced and waiting to publish.
+  // First checks known ready-status names directly (reliable across custom workflows),
+  // then falls back to workflow-position check as a safety net.
   function isReadyToPost(p) {
     if (isPosted(p)) return false
+    if (READY_STATUSES.includes(p.status)) return true
+    // Fallback: last 2 stages before Posted/Sent in the configured workflow
     const workflow = getWorkflow(p.type)
     if (!workflow || workflow.length < 2) return false
     const postIdx   = workflow.findIndex((s) => POSTED_STATUSES.includes(s))
     if (postIdx <= 0) return false
     const statusIdx = workflow.indexOf(p.status)
-    // Flag anything in the last 2 stages before "Posted"/"Sent"
     return statusIdx >= 0 && statusIdx >= postIdx - 2 && statusIdx < postIdx
   }
 
@@ -367,7 +371,7 @@ export default function Calendar() {
         </div>
         <div className="flex flex-col gap-1">
           {dayProjects.slice(0, 3).map((p) => {
-            const hit   = matchesSearch(p)
+            const hit    = matchesSearch(p)
             const posted = isPosted(p)
             const ready  = isReadyToPost(p)
             const col    = projectColor(p)
@@ -381,13 +385,17 @@ export default function Calendar() {
               onContextMenu={(e) => handleChipContextMenu(e, p, date)}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-all hover:opacity-80"
               style={{
-                background: posted ? 'rgba(74,222,128,0.07)' : `${col}18`,
-                border:     posted ? '1px solid rgba(74,222,128,0.3)'
-                          : ready  ? `1px solid ${col}70`
+                background: posted ? 'rgba(74,222,128,0.10)'
+                          : ready  ? 'rgba(245,158,11,0.12)'
+                          : `${col}18`,
+                border:     posted ? '1px solid rgba(74,222,128,0.4)'
+                          : ready  ? '1px solid rgba(245,158,11,0.5)'
                           : `1px solid ${searchQ && hit ? col : `${col}30`}`,
                 cursor:     isAdmin ? 'grab' : 'pointer',
                 opacity:    searchQ && !hit ? 0.2 : 1,
-                boxShadow:  posted ? 'none' : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
+                boxShadow:  posted ? 'none'
+                          : ready  ? '0 0 0 1px rgba(245,158,11,0.2)'
+                          : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
               }}
             >
               <PlatformDot type={p.type} size={5} />
@@ -395,11 +403,11 @@ export default function Calendar() {
               {p.brand && p.brand !== 'Organic' && (
                 <span title={`Brand Deal: ${p.brand}`} style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}>B</span>
               )}
-              <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : col }}>
+              <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : ready ? '#fbbf24' : col }}>
                 {p.title}
               </span>
               {posted && <Check size={7} style={{ color: '#4ade80', flexShrink: 0, marginLeft: 'auto' }} />}
-              {ready  && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginLeft: 'auto' }} />}
+              {ready  && <span style={{ fontSize: 7, fontWeight: 800, color: '#f59e0b', flexShrink: 0, marginLeft: 'auto', lineHeight: 1 }}>↑</span>}
             </button>
           )})}
           {dayProjects.length > 3 && (
@@ -765,11 +773,15 @@ export default function Calendar() {
                             onContextMenu={(e) => handleChipContextMenu(e, p, day)}
                             className="w-full text-left rounded-lg px-2 py-1.5 transition-all hover:opacity-80 flex flex-col gap-1"
                             style={{
-                              background: posted ? 'rgba(74,222,128,0.07)' : `${col}15`,
-                              border:     posted ? '1px solid rgba(74,222,128,0.3)'
-                                        : ready  ? `1px solid ${col}70`
+                              background: posted ? 'rgba(74,222,128,0.10)'
+                                        : ready  ? 'rgba(245,158,11,0.12)'
+                                        : `${col}15`,
+                              border:     posted ? '1px solid rgba(74,222,128,0.4)'
+                                        : ready  ? '1px solid rgba(245,158,11,0.5)'
                                         : `1px solid ${searchQ && hit ? col : `${col}35`}`,
-                              boxShadow:  posted ? 'none' : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
+                              boxShadow:  posted ? 'none'
+                                        : ready  ? '0 0 0 1px rgba(245,158,11,0.2)'
+                                        : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
                               opacity:    searchQ && !hit ? 0.2 : 1,
                               cursor:     isAdmin ? 'grab' : 'pointer',
                             }}
@@ -781,13 +793,13 @@ export default function Calendar() {
                                 <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
                               )}
                               {posted && <Check size={9} style={{ color: '#4ade80', marginLeft: 'auto', flexShrink: 0 }} />}
-                              {ready  && <span title="Ready to post" style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', marginLeft: 'auto', flexShrink: 0 }} />}
+                              {ready  && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', marginLeft: 'auto', flexShrink: 0, lineHeight: 1 }}>↑</span>}
                             </div>
-                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: posted ? '#4ade80' : col }}>
+                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: posted ? '#4ade80' : ready ? '#fbbf24' : col }}>
                               {p.title}
                             </span>
-                            <span className="text-[9px]" style={{ color: posted ? '#4ade8080' : ready ? '#f59e0b99' : '#52525b' }}>
-                              {posted ? '✓ ' : ready ? '● ' : ''}{p.status}
+                            <span className="text-[9px]" style={{ color: posted ? '#4ade8080' : ready ? 'rgba(245,158,11,0.6)' : '#52525b' }}>
+                              {posted ? '✓ Posted' : ready ? '↑ ' + p.status : p.status}
                             </span>
                           </button>
                         )
