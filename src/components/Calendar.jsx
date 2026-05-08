@@ -139,7 +139,7 @@ function projectColor(p) {
 }
 
 export default function Calendar() {
-  const { projects, setSelectedProject, updateProject, currentUser, permissions, postingGoals, previewRole } = useApp()
+  const { projects, setSelectedProject, updateProject, currentUser, permissions, postingGoals, previewRole, getWorkflow } = useApp()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [view, setView]                 = useState('month') // 'month' | 'week'
   const [selectedDay, setSelectedDay]   = useState(null)
@@ -163,6 +163,23 @@ export default function Calendar() {
       p.brand?.toLowerCase().includes(searchQ) ||
       p.status?.toLowerCase().includes(searchQ)
     )
+  }
+
+  const POSTED_STATUSES = ['Posted', 'Sent']
+
+  // True when the project has been published/sent
+  function isPosted(p) {
+    return POSTED_STATUSES.includes(p.status)
+  }
+
+  // True when the project is at the final stage before posting (all production work done)
+  function isReadyToPost(p) {
+    if (isPosted(p)) return false
+    const workflow = getWorkflow(p.type)
+    if (!workflow || workflow.length < 2) return false
+    const postIdx = workflow.findIndex((s) => POSTED_STATUSES.includes(s))
+    if (postIdx <= 0) return false
+    return p.status === workflow[postIdx - 1]
   }
 
   // When Joel is previewing another user, use that role for filtering/permissions
@@ -347,7 +364,10 @@ export default function Calendar() {
         </div>
         <div className="flex flex-col gap-1">
           {dayProjects.slice(0, 3).map((p) => {
-            const hit = matchesSearch(p)
+            const hit   = matchesSearch(p)
+            const posted = isPosted(p)
+            const ready  = isReadyToPost(p)
+            const col    = projectColor(p)
             return (
             <button
               key={p.id}
@@ -358,27 +378,25 @@ export default function Calendar() {
               onContextMenu={(e) => handleChipContextMenu(e, p, date)}
               className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-all hover:opacity-80"
               style={{
-                background: `${projectColor(p)}18`,
-                border:     `1px solid ${searchQ && hit ? projectColor(p) : `${projectColor(p)}30`}`,
+                background: posted ? 'rgba(74,222,128,0.07)' : `${col}18`,
+                border:     posted ? '1px solid rgba(74,222,128,0.3)'
+                          : ready  ? `1px solid ${col}70`
+                          : `1px solid ${searchQ && hit ? col : `${col}30`}`,
                 cursor:     isAdmin ? 'grab' : 'pointer',
                 opacity:    searchQ && !hit ? 0.2 : 1,
-                boxShadow:  searchQ && hit ? `0 0 0 1px ${projectColor(p)}50` : 'none',
+                boxShadow:  posted ? 'none' : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
               }}
             >
               <PlatformDot type={p.type} size={5} />
-              {/* Cross-post indicator — second platform dot */}
-              {p.crossPostTo && (
-                <PlatformDot type={p.crossPostTo} size={5} />
-              )}
+              {p.crossPostTo && <PlatformDot type={p.crossPostTo} size={5} />}
               {p.brand && p.brand !== 'Organic' && (
-                <span
-                  title={`Brand Deal: ${p.brand}`}
-                  style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}
-                >B</span>
+                <span title={`Brand Deal: ${p.brand}`} style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}>B</span>
               )}
-              <span className="text-[9px] font-medium truncate" style={{ color: projectColor(p) }}>
+              <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : col }}>
                 {p.title}
               </span>
+              {posted && <Check size={7} style={{ color: '#4ade80', flexShrink: 0, marginLeft: 'auto' }} />}
+              {ready  && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginLeft: 'auto' }} />}
             </button>
           )})}
           {dayProjects.length > 3 && (
@@ -730,7 +748,10 @@ export default function Calendar() {
                         </div>
                       )}
                       {dayProjects.map((p) => {
-                        const hit = matchesSearch(p)
+                        const hit    = matchesSearch(p)
+                        const posted = isPosted(p)
+                        const ready  = isReadyToPost(p)
+                        const col    = projectColor(p)
                         return (
                           <button
                             key={p.id}
@@ -741,9 +762,11 @@ export default function Calendar() {
                             onContextMenu={(e) => handleChipContextMenu(e, p, day)}
                             className="w-full text-left rounded-lg px-2 py-1.5 transition-all hover:opacity-80 flex flex-col gap-1"
                             style={{
-                              background: `${projectColor(p)}15`,
-                              border:     `1px solid ${searchQ && hit ? projectColor(p) : `${projectColor(p)}35`}`,
-                              boxShadow:  searchQ && hit ? `0 0 0 1px ${projectColor(p)}50` : 'none',
+                              background: posted ? 'rgba(74,222,128,0.07)' : `${col}15`,
+                              border:     posted ? '1px solid rgba(74,222,128,0.3)'
+                                        : ready  ? `1px solid ${col}70`
+                                        : `1px solid ${searchQ && hit ? col : `${col}35`}`,
+                              boxShadow:  posted ? 'none' : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
                               opacity:    searchQ && !hit ? 0.2 : 1,
                               cursor:     isAdmin ? 'grab' : 'pointer',
                             }}
@@ -754,11 +777,15 @@ export default function Calendar() {
                               {p.brand && p.brand !== 'Organic' && (
                                 <span style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1 }}>B</span>
                               )}
+                              {posted && <Check size={9} style={{ color: '#4ade80', marginLeft: 'auto', flexShrink: 0 }} />}
+                              {ready  && <span title="Ready to post" style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', marginLeft: 'auto', flexShrink: 0 }} />}
                             </div>
-                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: projectColor(p) }}>
+                            <span className="text-[10px] font-medium leading-tight w-full truncate block" style={{ color: posted ? '#4ade80' : col }}>
                               {p.title}
                             </span>
-                            <span className="text-[9px] text-zinc-600">{p.status}</span>
+                            <span className="text-[9px]" style={{ color: posted ? '#4ade8080' : ready ? '#f59e0b99' : '#52525b' }}>
+                              {posted ? '✓ ' : ready ? '● ' : ''}{p.status}
+                            </span>
                           </button>
                         )
                       })}
@@ -865,7 +892,15 @@ export default function Calendar() {
             </div>
             <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
               <Pencil size={9} style={{ color: '#71717a' }} />
-              <span className="text-xs text-zinc-500">Work Day <span className="text-zinc-700">(dashed = platform color)</span></span>
+              <span className="text-xs text-zinc-500">Work Day</span>
+            </div>
+            <div className="flex items-center gap-1.5 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, display: 'inline-block' }} />
+              <span className="text-xs text-zinc-500">Ready to post</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check size={9} style={{ color: '#4ade80' }} />
+              <span className="text-xs text-zinc-500">Posted</span>
             </div>
           </div>
 
