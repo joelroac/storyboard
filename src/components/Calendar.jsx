@@ -16,7 +16,8 @@ function GoalsPanel({ weeks, projects, goals }) {
   const activePlatforms = Object.entries(goals).filter(([, g]) => g > 0)
   if (activePlatforms.length === 0) return null
 
-  const COMPLETED_STATUSES = ['Posted', 'Sent']
+  // "Done" = actually posted/sent OR fully produced and ready to go live
+  const COMPLETED_STATUSES = ['Posted', 'Sent', 'Ready to Post', 'Scheduled', 'Ready to Send']
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#141418', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -32,7 +33,8 @@ function GoalsPanel({ weeks, projects, goals }) {
           const weekEnd   = week[week.length - 1]
           const label     = format(weekStart, 'MMM d') + ' – ' + format(weekEnd, 'd')
 
-          // completed = Posted/Sent;  scheduled = has a publish date in this week but not yet complete
+          // completed = Posted/Sent/Ready to Post/Scheduled (production done)
+          // scheduled = has a publish date in this week but still in production
           const completed = {}
           const scheduled = {}
           for (const p of projects) {
