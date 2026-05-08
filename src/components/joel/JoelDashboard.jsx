@@ -233,7 +233,10 @@ export default function JoelDashboard() {
   const active         = projects.filter(p => !['Posted', 'Sent', 'Inactive'].includes(p.status) && matchesSearch(p))
   const inactiveProjects = projects.filter(p => p.status === 'Inactive' && matchesSearch(p))
   const reviewQueue    = active.filter(p => JOEL_REVIEW_STAGES.includes(p.status))
-  const tianaProjects  = sortProjects(active.filter(p => getStageOwner(p.type, p.status) === 'tiana'), sortBy)
+  const tianaProjects  = sortProjects(active.filter(p =>
+    getStageOwner(p.type, p.status) === 'tiana' &&
+    !['Ready to Post', 'Ready to Send', 'Scheduled'].includes(p.status)
+  ), sortBy)
   const kanbanProjects = sortProjects(active.filter(
     p => !['Ready to Post', 'Scheduled', 'Ready to Send', 'Inactive'].includes(p.status)
        && getStageOwner(p.type, p.status) !== 'tiana'
