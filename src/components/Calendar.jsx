@@ -172,14 +172,17 @@ export default function Calendar() {
     return POSTED_STATUSES.includes(p.status)
   }
 
-  // True when the project is at the final stage before posting (all production work done)
+  // True when the project is at the final stage(s) before posting — all production work done.
+  // Covers both "Ready to Post" and "Scheduled" (the last 2 stages before Posted/Sent).
   function isReadyToPost(p) {
     if (isPosted(p)) return false
     const workflow = getWorkflow(p.type)
     if (!workflow || workflow.length < 2) return false
-    const postIdx = workflow.findIndex((s) => POSTED_STATUSES.includes(s))
+    const postIdx   = workflow.findIndex((s) => POSTED_STATUSES.includes(s))
     if (postIdx <= 0) return false
-    return p.status === workflow[postIdx - 1]
+    const statusIdx = workflow.indexOf(p.status)
+    // Flag anything in the last 2 stages before "Posted"/"Sent"
+    return statusIdx >= 0 && statusIdx >= postIdx - 2 && statusIdx < postIdx
   }
 
   // When Joel is previewing another user, use that role for filtering/permissions
