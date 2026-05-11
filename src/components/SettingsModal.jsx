@@ -20,7 +20,7 @@ export default function SettingsModal({ onClose }) {
     teamMembers, updateTeamMember,
     workflowSettings, saveWorkflowSettings,
     permissions, updatePermissions,
-    relevantLinks, updateRelevantLinks,
+    relevantLinks, updateRelevantLinks, saveAllRelevantLinks,
     postingGoals, updatePostingGoals,
   } = useApp()
 
@@ -150,12 +150,7 @@ export default function SettingsModal({ onClose }) {
     setLocalLinks(prev => ({ ...prev, [pwKey]: prev[pwKey].map((p, idx) => idx === i ? { ...p, [field]: val } : p) }))
   }
   function handleSaveLinks() {
-    updateRelevantLinks('editor', localLinks.editor)
-    updateRelevantLinks('socialManager', localLinks.socialManager)
-    updateRelevantLinks('editorPasswords', localLinks.editorPasswords)
-    updateRelevantLinks('socialManagerPasswords', localLinks.socialManagerPasswords)
-    updateRelevantLinks('admin', localLinks.admin)
-    updateRelevantLinks('adminPasswords', localLinks.adminPasswords)
+    saveAllRelevantLinks(localLinks)
     setLinksSaved(true)
     setTimeout(() => setLinksSaved(false), 2000)
   }

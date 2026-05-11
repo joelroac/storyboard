@@ -988,6 +988,16 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  // Save all link/password sections in one upsert — avoids the race condition
+  // where calling updateRelevantLinks 6 times causes each call to overwrite the others.
+  const saveAllRelevantLinks = useCallback(async (allLinks) => {
+    setRelevantLinks(allLinks)
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'relevant_links', value: allLinks }, { onConflict: 'key' })
+    if (error) console.error('Error saving relevant links:', error)
+  }, [])
+
   // ── Clear Notifications ───────────────────────────────────────────────────
   const clearNotifications = useCallback(async (userId) => {
     setNotifications((prev) => prev.filter((n) => n.forUser !== userId && n.forUser !== null))
@@ -1045,6 +1055,7 @@ export function AppProvider({ children }) {
         deleteIdea,
         relevantLinks,
         updateRelevantLinks,
+        saveAllRelevantLinks,
         clearNotifications,
         payments,
         requestPayment,
