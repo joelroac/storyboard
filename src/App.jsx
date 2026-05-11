@@ -56,7 +56,7 @@ function BannerContainer() {
 }
 
 function LinksPage() {
-  const { currentUser, relevantLinks, updateRelevantLinks, previewRole, verifyPin } = useApp()
+  const { currentUser, relevantLinks, updateRelevantLinks, saveAllRelevantLinks, previewRole, verifyPin } = useApp()
   const [showPasswords, setShowPasswords] = React.useState({})
   const [copiedKey, setCopiedKey]         = React.useState(null)
   // PIN re-auth state
@@ -110,16 +110,16 @@ function LinksPage() {
 
   async function handleSave() {
     setSaving(true)
-    // Strip out incomplete entries before saving
+    // Strip out incomplete entries before saving, then write everything in one upsert
     const clean = obj => obj.filter(l => l.label || l.url || l.password)
-    await Promise.all([
-      updateRelevantLinks('admin',                  clean(localLinks.admin                  || [])),
-      updateRelevantLinks('socialManager',          clean(localLinks.socialManager          || [])),
-      updateRelevantLinks('editor',                 clean(localLinks.editor                 || [])),
-      updateRelevantLinks('adminPasswords',         clean(localLinks.adminPasswords         || [])),
-      updateRelevantLinks('socialManagerPasswords', clean(localLinks.socialManagerPasswords || [])),
-      updateRelevantLinks('editorPasswords',        clean(localLinks.editorPasswords        || [])),
-    ])
+    await saveAllRelevantLinks({
+      admin:                  clean(localLinks.admin                  || []),
+      socialManager:          clean(localLinks.socialManager          || []),
+      editor:                 clean(localLinks.editor                 || []),
+      adminPasswords:         clean(localLinks.adminPasswords         || []),
+      socialManagerPasswords: clean(localLinks.socialManagerPasswords || []),
+      editorPasswords:        clean(localLinks.editorPasswords        || []),
+    })
     setSaving(false)
     setSaved(true)
     setTimeout(() => { setSaved(false); setEditMode(false) }, 1200)
