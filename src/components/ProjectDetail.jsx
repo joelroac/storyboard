@@ -706,6 +706,25 @@ export default function ProjectDetail() {
       // Fallback — Joel (admin) can always advance any stage
       if (nextStage)
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage)}>Advance to Next Stage</ActionBtn>
+      // Last stage in the workflow — always offer posting options regardless of stage name
+      if (currentIdx >= 0) return (
+        <div className="flex flex-col gap-2">
+          <ActionBtn color="amber" onClick={() => setShowScheduleInput((v) => !v)}>Schedule Post</ActionBtn>
+          {showScheduleInput && (
+            <div className="animate-fade-in flex flex-col gap-2">
+              <input
+                type="datetime-local"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="w-full rounded-lg text-sm p-2.5 text-white"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+              />
+              <ActionBtn color="amber" onClick={handleSchedule}>Confirm Schedule</ActionBtn>
+            </div>
+          )}
+          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
+        </div>
+      )
       // Status is not in the current workflow (e.g. set via override or legacy status)
       // Offer to move to the first stage so the project can enter the proper pipeline
       if (currentIdx === -1 && workflow.length > 0)
@@ -782,6 +801,28 @@ export default function ProjectDetail() {
         }
         return <ActionBtn color="purple" onClick={() => handleAdvance(nextStage)}>Mark as Published</ActionBtn>
       }
+      // Last stage in the workflow — always offer posting options regardless of stage name
+      if (currentIdx >= 0 && !nextStage) return (
+        <div className="flex flex-col gap-2">
+          <ActionBtn color="blue" onClick={() => setShowScheduleInput((v) => !v)}>Schedule Post</ActionBtn>
+          {showScheduleInput && (
+            <div className="animate-fade-in">
+              <DateTimePicker
+                value={scheduledTime}
+                onChange={iso => {
+                  setScheduledTime(iso)
+                  updateProject(proj.id, { scheduledTime: iso })
+                  advanceStatus(proj.id, 'Scheduled', currentUser.id)
+                  setShowScheduleInput(false)
+                  addBanner(`"${proj.title}" scheduled`, 'info')
+                }}
+                onClose={() => setShowScheduleInput(false)}
+              />
+            </div>
+          )}
+          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
+        </div>
+      )
       // Waiting for Joel's review (Tiana submitted)
       const prevOwner = currentIdx > 0 ? getStageOwner(proj.type, workflow[currentIdx - 1]) : null
       if (prevOwner === 'tiana') {

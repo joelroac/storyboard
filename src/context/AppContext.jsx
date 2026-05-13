@@ -642,6 +642,9 @@ export function AppProvider({ children }) {
       note,
     }
 
+    // Snapshot the current status before optimistic update so we can revert on failure
+    const prevStatus = projectsRef.current.find(p => p.id === projectId)?.status ?? null
+
     const applyAdvance = (p) => {
       if (p.id !== projectId) return p
       return {
@@ -663,8 +666,23 @@ export function AppProvider({ children }) {
       }),
     ])
 
-    if (projErr) console.error('Error advancing project status:', projErr)
-    if (logErr)  console.error('Error inserting activity_log entry:', logErr)
+    if (projErr) {
+      console.error('Error advancing project status:', projErr)
+      // Revert the optimistic update so the UI doesn't lie
+      const revert = (p) => p.id === projectId && prevStatus !== null
+        ? { ...p, status: prevStatus, statusHistory: (p.statusHistory || []).slice(0, -1) }
+        : p
+      setProjects((prev) => prev.map(revert))
+      setSelectedProject((prev) => prev ? revert(prev) : prev)
+      setBanners((prev) => {
+        const id = Date.now()
+        setTimeout(() => setBanners((b) => b.filter((x) => x.id !== id)), 5000)
+        return [...prev, { id, message: `Couldn't save status change — check your connection and try again. (${projErr.message})`, type: 'error' }]
+      })
+      return false
+    }
+    if (logErr) console.error('Error inserting activity_log entry:', logErr)
+    return true
   }, [])
 
   const overrideStatus = useCallback(async (projectId, newStatus, note, changedBy) => {

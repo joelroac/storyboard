@@ -86,7 +86,15 @@ export default function SocialMediaManagerDashboard() {
     const idx = wf.indexOf(p.status)
     return idx > 0 && getStageOwner(p.type, wf[idx - 1]) === 'tiana'
   }), sortBy)
-  const readyToPost = sortProjects(projects.filter(p => p.status === 'Ready to Post' || p.status === 'Ready to Send'), sortBy)
+  const readyToPost = sortProjects(projects.filter(p => {
+    if (['Posted', 'Sent', 'Scheduled', 'Inactive'].includes(p.status)) return false
+    // Explicit terminal statuses
+    if (p.status === 'Ready to Post' || p.status === 'Ready to Send') return true
+    // Any project sitting on its last workflow stage — regardless of what that stage is named
+    const wf  = getWorkflow(p.type)
+    const idx = wf.indexOf(p.status)
+    return idx >= 0 && idx === wf.length - 1
+  }), sortBy)
   const scheduled   = sortProjects(projects.filter(p => p.status === 'Scheduled'), sortBy)
   const postedThisMonth  = projects.filter(p => {
     if (!['Posted', 'Sent'].includes(p.status)) return false
@@ -116,9 +124,10 @@ export default function SocialMediaManagerDashboard() {
     setTimeout(() => setAnalyticsConfirmed(null), 2000)
   }
 
-  function handleMarkPublished(p) {
+  async function handleMarkPublished(p) {
     const newStatus = p.status === 'Ready to Send' ? 'Sent' : 'Posted'
-    advanceStatus(p.id, newStatus, currentUser.id)
+    const ok = await advanceStatus(p.id, newStatus, currentUser.id)
+    if (ok === false) return  // advanceStatus already shows the error banner
     const joelId = getMemberByRole('admin')?.id
     const msg = `${getTeamName(currentUser.id)} published "${p.title}"`
     addNotification({ message: msg, projectId: p.id, forUser: joelId })
