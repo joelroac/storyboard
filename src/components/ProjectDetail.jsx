@@ -688,11 +688,11 @@ export default function ProjectDetail() {
               <ActionBtn color="amber" onClick={handleSchedule}>Confirm Schedule</ActionBtn>
             </div>
           )}
-          <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
+          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
         </div>
       )
       if (s === 'Scheduled')
-        return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
+        return <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
       if (s === 'Drafting')
         return <ActionBtn color="amber" onClick={() => handleAdvance(nextStage || 'In Review')}>Move to In Review</ActionBtn>
       if (s === 'In Review')
@@ -779,13 +779,13 @@ export default function ProjectDetail() {
               />
             </div>
           )}
-          <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
+          <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
         </div>
       )
       if (s === 'Ready to Send')
         return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Sent')}>Mark as Sent</ActionBtn>
       if (s === 'Scheduled')
-        return <ActionBtn color="green" onClick={() => handleAdvance(nextStage || 'Posted')}>Mark as Posted</ActionBtn>
+        return <ActionBtn color="green" onClick={() => handleAdvance('Posted')}>Mark as Posted</ActionBtn>
 
       if (currentOwner === 'tiana' && nextStage) {
         const nextOwner = getStageOwner(proj.type, nextStage)
