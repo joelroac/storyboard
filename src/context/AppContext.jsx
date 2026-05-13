@@ -79,6 +79,7 @@ function dbToProject(row) {
     activeStages:       row.active_stages || [],
     crossPostTo:        row.cross_post_to || null,
     finalLink:          row.final_link || '',
+    relevantNotes:      row.relevant_notes || '',
     createdAt:          row.created_at,
     statusHistory:      [],
   }
@@ -339,6 +340,7 @@ export function AppProvider({ children }) {
           workDates:          row.work_dates?.length ? row.work_dates : (row.work_date ? [row.work_date] : []),
           completedWorkDates: row.completed_work_dates || [],
           finalLink:          row.final_link || '',
+          relevantNotes:      row.relevant_notes || '',
         })
         setProjects((prev) => prev.map((p) => p.id === row.id ? merge(p) : p))
         setSelectedProject((prev) => prev?.id === row.id ? merge(prev) : prev)
@@ -612,6 +614,7 @@ export function AppProvider({ children }) {
       activeStages:   'active_stages',
       crossPostTo:    'cross_post_to',
       finalLink:      'final_link',
+      relevantNotes:  'relevant_notes',
     }
 
     const dbUpdates = {}

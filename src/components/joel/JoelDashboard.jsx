@@ -35,7 +35,9 @@ const OWNER_COLOR = {
   tiana:   { bg: 'rgba(192,132,252,0.18)', border: 'rgba(192,132,252,0.35)', text: '#c084fc' },
 }
 
-function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow, getStageOwner, updateProject }) {
+const PLATFORM_COLORS_MINI = { youtube: '#ef4444', instagram: '#a855f7', tiktok: '#14b8a6', newsletter: '#f59e0b', patreon: '#ff424d' }
+
+function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelete, teamMembers, getWorkflow, getStageOwner, updateProject, advanceStatus, currentUser }) {
   const ownerKey    = getStageOwner ? getStageOwner(project.type, project.status) : null
   const ownerMember = teamMembers?.find(m => m.role === OWNER_ROLE[ownerKey])
   const days        = daysLabel(project.publishDate)
@@ -44,6 +46,8 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
   const idx         = workflow.indexOf(project.status)
   const safeIdx     = Math.max(0, idx)
   const pct         = isPosted ? 100 : (workflow.length > 1 ? ((safeIdx + 1) / workflow.length) * 100 : 100)
+  const statusColor = getStatusColor(project.status)
+  const barColor    = isPosted ? '#4ade80' : (statusColor !== '#71717a' ? statusColor : (PLATFORM_COLORS_MINI[project.type] || '#f59e0b'))
   const [editingDate, setEditingDate] = useState(false)
 
   return (
@@ -152,11 +156,24 @@ function ProjectMiniCard({ project, onClick, onDelete, showDelete, onToggleDelet
 
       {/* Mini progress bar */}
       <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: isPosted ? '#4ade80' : getStatusColor(project.status), borderRadius: 1 }} />
+        <div style={{ height: '100%', width: `${Math.max(pct, idx === -1 ? 8 : 0)}%`, background: barColor, borderRadius: 1 }} />
       </div>
-      {isPosted && (
+      {isPosted ? (
         <span className="text-[9px] font-semibold tracking-wide" style={{ color: '#4ade80' }}>✓ POSTED</span>
-      )}
+      ) : ['Ready to Post', 'Ready to Send', 'Scheduled'].includes(project.status) && advanceStatus ? (
+        <button
+          onClick={e => {
+            e.stopPropagation()
+            const nextStatus = project.status === 'Ready to Send' ? 'Sent' : 'Posted'
+            advanceStatus(project.id, nextStatus, currentUser?.id || null)
+          }}
+          className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg w-full justify-center transition-all hover:opacity-90 active:scale-95"
+          style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}
+        >
+          <CheckCircle2 size={10} />
+          Mark as Posted
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -208,7 +225,7 @@ function ReviewCard({ project, onClick, getTeamName }) {
 }
 
 export default function JoelDashboard() {
-  const { projects, setSelectedProject, advanceStatus, deleteProject, updateProject, getTeamName, getWorkflow, getStageOwner, teamMembers, payments, markPaymentPaid, addBanner, analyticsLog, acknowledgeAnalytics } = useApp()
+  const { projects, setSelectedProject, advanceStatus, deleteProject, updateProject, getTeamName, getWorkflow, getStageOwner, teamMembers, payments, markPaymentPaid, addBanner, analyticsLog, acknowledgeAnalytics, currentUser } = useApp()
   const [showAdd, setShowAdd]           = useState(false)
   const [dragOverCol, setDragOverCol]   = useState(null)
   const [deletingId, setDeletingId]     = useState(null)
@@ -506,7 +523,8 @@ export default function JoelDashboard() {
                               showDelete={deletingId === p.id}
                               onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
                               teamMembers={teamMembers} getWorkflow={getWorkflow}
-                              getStageOwner={getStageOwner} updateProject={updateProject} />
+                              getStageOwner={getStageOwner} updateProject={updateProject}
+                              advanceStatus={advanceStatus} currentUser={currentUser} />
                           ))}
                           {!isExpanded && hidden > 0 && (
                             <button onClick={toggleExpand} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors text-left px-1 pt-1">

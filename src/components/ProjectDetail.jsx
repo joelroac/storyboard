@@ -143,6 +143,7 @@ export default function ProjectDetail() {
   const captionTimerRef    = useRef(null)
   const scriptTimerRef     = useRef(null)
   const shotTimerRef       = useRef(null)
+  const notesTimerRef      = useRef(null)
   const thumbInputRef      = useRef(null)
   const loadedProjectIdRef = useRef(null)  // tracks which project is currently loaded
   const scriptDirtyRef     = useRef(false) // true while user has unsaved script changes
@@ -211,7 +212,7 @@ export default function ProjectDetail() {
       setCaptionSaved(false)
       setTitleError('')
       const meta = getLocalProjMeta(fresh.id)
-      setEditRelevantNotes(meta.relevantNotes || '')
+      setEditRelevantNotes(fresh.relevantNotes || meta.relevantNotes || '')
       setBrandLinks(meta.brandLinks || [])
       setHideScript(meta.hideScript || false)
       setHideAsana(meta.hideAsana || false)
@@ -1418,18 +1419,22 @@ export default function ProjectDetail() {
             </div>
           )}
 
-          {/* ── Relevant Notes (Joel internal notes) ── */}
-          {(canEdit || editRelevantNotes) && (
+          {/* ── Relevant Notes (Joel writes, whole team reads) ── */}
+          {(isJoel || editRelevantNotes) && (
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Relevant Notes</p>
-            {canEdit ? (
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">Notes</p>
+            {isJoel ? (
               <textarea
                 value={editRelevantNotes}
                 onChange={(e) => {
-                  setEditRelevantNotes(e.target.value)
-                  saveLocalProjMeta(proj.id, { relevantNotes: e.target.value })
+                  const val = e.target.value
+                  setEditRelevantNotes(val)
+                  if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+                  notesTimerRef.current = setTimeout(() => {
+                    updateProject(proj.id, { relevantNotes: val }, { skipUndo: true })
+                  }, 800)
                 }}
-                placeholder="Internal notes, context, production details…"
+                placeholder="Notes for the team — visible to everyone…"
                 className="w-full text-sm rounded-lg px-3 py-2.5 text-zinc-300 placeholder-zinc-700"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
                 rows={3}
