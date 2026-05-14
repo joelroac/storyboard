@@ -760,6 +760,23 @@ export default function ProjectDetail() {
     }
 
     if (isTiana) {
+      const canAdvanceWorkflow = permissions?.socialManager?.canAdvanceWorkflow ?? false
+
+      // If permission is granted, Tiana can advance any stage she owns
+      if (canAdvanceWorkflow && currentOwner === 'tiana' && nextStage) {
+        const nextOwner = getStageOwner(proj.type, nextStage)
+        if (nextOwner === 'joel') {
+          return (
+            <div className="flex flex-col gap-2">
+              <ActionBtn color="purple" onClick={() => handleAdvance(nextStage)}>
+                Done → Send to Joel
+              </ActionBtn>
+            </div>
+          )
+        }
+        return <ActionBtn color="purple" onClick={() => handleAdvance(nextStage)}>Mark as Done → Next Stage</ActionBtn>
+      }
+
       // Ready to post — Tiana can schedule or mark as posted
       if (s === 'Ready to Post') return (
         <div className="flex flex-col gap-2">

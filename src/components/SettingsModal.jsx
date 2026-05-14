@@ -48,9 +48,10 @@ export default function SettingsModal({ onClose }) {
   }
 
   const PERMISSION_TOGGLES = [
-    { key: 'canEditCalendar', label: 'Adjust Calendar & Dates',  desc: 'Can drag projects to reschedule and change publish dates on the calendar' },
-    { key: 'canAddCaptions',  label: 'Write & Edit Captions',    desc: 'Can add and edit captions on any project at any stage' },
-    { key: 'canEditLinks',    label: 'Edit Project Links',        desc: 'Can add and edit Dropbox, Google Drive, and Asana links' },
+    { key: 'canEditCalendar',    label: 'Adjust Calendar & Dates',  desc: 'Can drag projects to reschedule and change publish dates on the calendar' },
+    { key: 'canAddCaptions',     label: 'Write & Edit Captions',    desc: 'Can add and edit captions on any project at any stage' },
+    { key: 'canEditLinks',       label: 'Edit Project Links',        desc: 'Can add and edit Dropbox, Google Drive, and Asana links' },
+    { key: 'canAdvanceWorkflow', label: 'Advance Workflow Stages',   desc: 'Can move projects forward through any stage assigned to them in the workflow' },
   ]
 
   // ── Team names + passcodes + photos ───────────────────────────────────────
