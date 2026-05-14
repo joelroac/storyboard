@@ -251,12 +251,26 @@ export default function JoelDashboard() {
   const inactiveProjects = projects.filter(p => p.status === 'Inactive' && matchesSearch(p))
   const reviewQueue    = active.filter(p => JOEL_REVIEW_STAGES.includes(p.status))
   const tianaProjects  = sortProjects(active.filter(p => getStageOwner(p.type, p.status) === 'tiana'), sortBy)
-  const kanbanProjects = sortProjects(active.filter(
-    p => !['Ready to Post', 'Scheduled', 'Ready to Send', 'Inactive'].includes(p.status)
-       && getStageOwner(p.type, p.status) !== 'tiana'
-  ), sortBy)
+  const kanbanProjects = sortProjects(active.filter(p => {
+    if (['Ready to Post', 'Scheduled', 'Ready to Send', 'Inactive'].includes(p.status)) return false
+    if (getStageOwner(p.type, p.status) === 'tiana') return false
+    // Also exclude projects sitting on the last stage of their workflow (they belong in Going Live)
+    const wf  = getWorkflow(p.type)
+    const idx = wf.indexOf(p.status)
+    if (idx >= 0 && idx === wf.length - 1) return false
+    return true
+  }), sortBy)
   const readyProjects  = projects
-    .filter(p => ['Ready to Post', 'Ready to Send'].includes(p.status) && matchesSearch(p))
+    .filter(p => {
+      if (['Posted', 'Sent', 'Scheduled', 'Inactive'].includes(p.status)) return false
+      if (!matchesSearch(p)) return false
+      // Explicit terminal statuses
+      if (['Ready to Post', 'Ready to Send'].includes(p.status)) return true
+      // Any project sitting on the last stage of its workflow
+      const wf  = getWorkflow(p.type)
+      const idx = wf.indexOf(p.status)
+      return idx >= 0 && idx === wf.length - 1
+    })
     .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate))
   const scheduledProjects = projects
     .filter(p => p.status === 'Scheduled' && matchesSearch(p))
