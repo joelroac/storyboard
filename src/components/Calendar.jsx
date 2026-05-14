@@ -155,6 +155,7 @@ export default function Calendar() {
   const [hoveredDate, setHoveredDate]   = useState(null)
   const [search, setSearch]             = useState('')
   const [filterType, setFilterType]     = useState(null) // null = all platforms
+  const [expandedDays, setExpandedDays] = useState(new Set()) // date strings with expanded chip list
 
   const searchQ = search.trim().toLowerCase()
   function matchesSearch(p) {
@@ -372,52 +373,77 @@ export default function Calendar() {
           )}
         </div>
         <div className="flex flex-col gap-1">
-          {dayProjects.slice(0, 3).map((p) => {
-            const hit    = matchesSearch(p)
-            const posted = isPosted(p)
-            const ready  = isReadyToPost(p)
-            const col    = projectColor(p)
+          {(() => {
+            const dateKey   = format(date, 'yyyy-MM-dd')
+            const expanded  = expandedDays.has(dateKey)
+            const visible   = expanded ? dayProjects : dayProjects.slice(0, 3)
+            const overflow  = dayProjects.length - 3
             return (
-            <button
-              key={p.id}
-              draggable={canReschedule}
-              onDragStart={(e) => { handleChipDragStart(e, p.id) }}
-              onDragEnd={handleDragEnd}
-              onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
-              onContextMenu={(e) => handleChipContextMenu(e, p, date)}
-              className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-all hover:opacity-80"
-              style={{
-                background: posted ? 'rgba(74,222,128,0.10)' : `${col}${ready ? '28' : '18'}`,
-                border:     posted ? '1px solid rgba(74,222,128,0.4)'
-                          : ready  ? `1px solid ${col}cc`
-                          : `1px solid ${searchQ && hit ? col : `${col}30`}`,
-                cursor:     isAdmin ? 'grab' : 'pointer',
-                opacity:    searchQ && !hit ? 0.2 : 1,
-                boxShadow:  posted ? 'none'
-                          : ready  ? `0 0 0 1px ${col}40`
-                          : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
-              }}
-            >
-              <PlatformDot type={p.type} size={5} />
-              {p.crossPostTo && <PlatformDot type={p.crossPostTo} size={5} />}
-              {p.brand && p.brand !== 'Organic' && (
-                <span title={`Brand Deal: ${p.brand}`} style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}>B</span>
-              )}
-              <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : col }}>
-                {p.title}
-              </span>
-              {posted && <Check size={7} style={{ color: '#4ade80', flexShrink: 0, marginLeft: 'auto' }} />}
-              {ready  && <span style={{ fontSize: 7, fontWeight: 900, color: col, flexShrink: 0, marginLeft: 'auto', lineHeight: 1 }}>↑</span>}
-            </button>
-          )})}
-          {dayProjects.length > 3 && (
-            <span
-              className="text-[9px] text-zinc-600 pl-1 cursor-pointer hover:text-zinc-400 transition-colors"
-              onClick={(e) => { e.stopPropagation(); setSelectedDay(date) }}
-            >
-              +{dayProjects.length - 3} more
-            </span>
-          )}
+              <>
+                {visible.map((p) => {
+                  const hit    = matchesSearch(p)
+                  const posted = isPosted(p)
+                  const ready  = isReadyToPost(p)
+                  const col    = projectColor(p)
+                  return (
+                    <button
+                      key={p.id}
+                      draggable={canReschedule}
+                      onDragStart={(e) => { handleChipDragStart(e, p.id) }}
+                      onDragEnd={handleDragEnd}
+                      onClick={(e) => { e.stopPropagation(); setSelectedProject(p) }}
+                      onContextMenu={(e) => handleChipContextMenu(e, p, date)}
+                      className="flex items-center gap-1 text-left w-full rounded px-1 py-0.5 transition-all hover:opacity-80"
+                      style={{
+                        background: posted ? 'rgba(74,222,128,0.10)' : `${col}${ready ? '28' : '18'}`,
+                        border:     posted ? '1px solid rgba(74,222,128,0.4)'
+                                  : ready  ? `1px solid ${col}cc`
+                                  : `1px solid ${searchQ && hit ? col : `${col}30`}`,
+                        cursor:     isAdmin ? 'grab' : 'pointer',
+                        opacity:    searchQ && !hit ? 0.2 : 1,
+                        boxShadow:  posted ? 'none'
+                                  : ready  ? `0 0 0 1px ${col}40`
+                                  : searchQ && hit ? `0 0 0 1px ${col}50` : 'none',
+                      }}
+                    >
+                      <PlatformDot type={p.type} size={5} />
+                      {p.crossPostTo && <PlatformDot type={p.crossPostTo} size={5} />}
+                      {p.brand && p.brand !== 'Organic' && (
+                        <span title={`Brand Deal: ${p.brand}`} style={{ fontSize: 7, fontWeight: 800, color: '#fbbf24', lineHeight: 1, flexShrink: 0 }}>B</span>
+                      )}
+                      <span className="text-[9px] font-medium truncate" style={{ color: posted ? '#4ade80' : col }}>
+                        {p.title}
+                      </span>
+                      {posted && <Check size={7} style={{ color: '#4ade80', flexShrink: 0, marginLeft: 'auto' }} />}
+                      {ready  && <span style={{ fontSize: 7, fontWeight: 900, color: col, flexShrink: 0, marginLeft: 'auto', lineHeight: 1 }}>↑</span>}
+                    </button>
+                  )
+                })}
+                {!expanded && overflow > 0 && (
+                  <span
+                    className="text-[9px] text-zinc-500 pl-1 cursor-pointer hover:text-zinc-300 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setExpandedDays((prev) => { const next = new Set(prev); next.add(dateKey); return next })
+                    }}
+                  >
+                    +{overflow} more
+                  </span>
+                )}
+                {expanded && overflow > 0 && (
+                  <span
+                    className="text-[9px] text-zinc-600 pl-1 cursor-pointer hover:text-zinc-400 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setExpandedDays((prev) => { const next = new Set(prev); next.delete(dateKey); return next })
+                    }}
+                  >
+                    show less
+                  </span>
+                )}
+              </>
+            )
+          })()}
           {/* WIP chips — platform color tint + dashed border to distinguish from publish chips */}
           {projectsWorkingOnDay(date).map((p) => {
             const col      = projectColor(p)
