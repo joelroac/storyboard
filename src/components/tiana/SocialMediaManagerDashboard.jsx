@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink, BarChart2 } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Clock, Plus, ExternalLink, BarChart2, Search, X } from 'lucide-react'
 import DateTimePicker from '../shared/DateTimePicker'
 import SortBar, { sortProjects } from '../shared/SortBar'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, isToday, isTomorrow } from 'date-fns'
@@ -75,28 +75,41 @@ export default function SocialMediaManagerDashboard() {
   const [schedulingId, setSchedulingId]   = useState(null)
   const [scheduleInput, setScheduleInput] = useState('')
   const [analyticsConfirmed, setAnalyticsConfirmed] = useState(null) // project id just completed
+  const [search, setSearch]                         = useState('')
   const now = new Date()
+
+  const searchQ = search.trim().toLowerCase()
+  function matchesSearch(p) {
+    if (!searchQ) return true
+    return (
+      p.title?.toLowerCase().includes(searchQ) ||
+      p.brand?.toLowerCase().includes(searchQ) ||
+      p.status?.toLowerCase().includes(searchQ) ||
+      p.type?.toLowerCase().includes(searchQ)
+    )
+  }
 
   const TERMINAL_STATUSES = ['Ready to Post', 'Ready to Send', 'Scheduled', 'Posted', 'Sent']
 
   // Projects where Joel owns the current stage and the previous stage was Tiana's (she submitted)
   const awaitingApproval = sortProjects(projects.filter(p => {
+    if (!matchesSearch(p)) return false
     if (getStageOwner(p.type, p.status) !== 'joel') return false
     const wf = getWorkflow(p.type)
     const idx = wf.indexOf(p.status)
     return idx > 0 && getStageOwner(p.type, wf[idx - 1]) === 'tiana'
   }), sortBy)
   const readyToPost = sortProjects(projects.filter(p => {
+    if (!matchesSearch(p)) return false
     if (['Posted', 'Sent', 'Scheduled', 'Inactive'].includes(p.status)) return false
-    // Explicit terminal statuses
     if (p.status === 'Ready to Post' || p.status === 'Ready to Send') return true
-    // Any project sitting on its last workflow stage — regardless of what that stage is named
     const wf  = getWorkflow(p.type)
     const idx = wf.indexOf(p.status)
     return idx >= 0 && idx === wf.length - 1
   }), sortBy)
-  const scheduled   = sortProjects(projects.filter(p => p.status === 'Scheduled'), sortBy)
-  const postedThisMonth  = projects.filter(p => {
+  const scheduled = sortProjects(projects.filter(p => p.status === 'Scheduled' && matchesSearch(p)), sortBy)
+  const postedThisMonth = projects.filter(p => {
+    if (!matchesSearch(p)) return false
     if (!['Posted', 'Sent'].includes(p.status)) return false
     const history = p.statusHistory || []
     const postedEntry = [...history].reverse().find(h => ['Posted', 'Sent'].includes(h.status))
@@ -109,6 +122,7 @@ export default function SocialMediaManagerDashboard() {
 
   // Posted/Sent projects that still need analytics submitted
   const analyticsDue = projects.filter(p => {
+    if (!matchesSearch(p)) return false
     if (!['Posted', 'Sent'].includes(p.status)) return false
     const submitted = analyticsLog.find(a => a.projectId === p.id)
     return !submitted
@@ -163,7 +177,7 @@ export default function SocialMediaManagerDashboard() {
     <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-3xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 sm:mb-8 gap-3">
+      <div className="flex items-start justify-between mb-4 gap-3">
         <div>
           <h1 className="font-editorial text-2xl sm:text-3xl font-semibold text-white">Social Queue</h1>
           <p className="text-zinc-500 text-sm mt-1">
@@ -181,6 +195,30 @@ export default function SocialMediaManagerDashboard() {
             <span className="sm:hidden">New</span>
           </button>
         </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="relative mb-6 sm:mb-8">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-600" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search projects…"
+          className="w-full text-sm rounded-xl pl-9 pr-8 py-2.5 text-white placeholder-zinc-600"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: `1px solid ${searchQ ? 'rgba(168,85,247,0.35)' : 'rgba(255,255,255,0.08)'}`,
+            outline: 'none',
+          }}
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        )}
       </div>
 
       {showAdd && (
@@ -430,9 +468,9 @@ export default function SocialMediaManagerDashboard() {
 
       {awaitingApproval.length === 0 && readyToPost.length === 0 && scheduled.length === 0 && postedThisMonth.length === 0 && (
         <div className="card p-8 text-center">
-          <div className="text-3xl mb-3">✓</div>
-          <p className="text-base font-semibold text-white mb-2">All caught up!</p>
-          <p className="text-sm text-zinc-500">No items in your queue right now.</p>
+          <div className="text-3xl mb-3">{searchQ ? '🔍' : '✓'}</div>
+          <p className="text-base font-semibold text-white mb-2">{searchQ ? 'No results' : 'All caught up!'}</p>
+          <p className="text-sm text-zinc-500">{searchQ ? `Nothing matched "${search}"` : 'No items in your queue right now.'}</p>
         </div>
       )}
 
@@ -450,7 +488,7 @@ export default function SocialMediaManagerDashboard() {
               className="text-xs px-1.5 py-0.5 rounded font-semibold"
               style={{ background: 'rgba(255,255,255,0.05)', color: '#52525b' }}
             >
-              {projects.length}
+              {searchQ ? projects.filter(matchesSearch).length : projects.length}
             </span>
           </div>
           <ChevronDown
@@ -463,6 +501,7 @@ export default function SocialMediaManagerDashboard() {
         {showAllProjects && (
           <div className="flex flex-col gap-1.5 mt-3 animate-fade-in">
             {[...projects]
+              .filter(matchesSearch)
               .sort((a, b) => (a.publishDate || '9999').localeCompare(b.publishDate || '9999'))
               .map(p => (
                 <button
