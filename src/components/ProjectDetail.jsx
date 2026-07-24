@@ -540,14 +540,20 @@ export default function ProjectDetail() {
 
         try {
           const parsed = JSON.parse(proj.notes)
-          if (Array.isArray(parsed) && parsed.length > 0 && 'scriptLine' in parsed[0]) {
-            // Structured blocks → two-column table
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed.some((b) => 'scriptLine' in b || b.type === 'scene')) {
+            // Structured blocks → two-column table (scene breaks become spanning header rows)
             const hasShots = parsed.some((b) => b.shotNote)
+            const colCount = hasShots ? 2 : 1
             doc.autoTable({
               startY: y,
               margin: { left: 40, right: 40 },
               head: [hasShots ? ['Script Line', 'Shot / Visual'] : ['Script Line']],
-              body: parsed.map((b) => hasShots ? [b.scriptLine || '', b.shotNote || ''] : [b.scriptLine || '']),
+              body: parsed.map((b) => {
+                if (b.type === 'scene') {
+                  return [{ content: b.sceneTitle ? `— ${b.sceneTitle} —` : '— Scene Break —', colSpan: colCount, styles: { fontStyle: 'bold', textColor: [160, 100, 0], fillColor: [255, 248, 225], halign: 'center' } }]
+                }
+                return hasShots ? [b.scriptLine || '', b.shotNote || ''] : [b.scriptLine || '']
+              }),
               styles: { fontSize: 9, cellPadding: 4 },
               headStyles: { fillColor: [40, 40, 48], textColor: [180, 180, 180] },
               columnStyles: hasShots ? { 0: { cellWidth: 250 }, 1: { cellWidth: 'auto', fontStyle: 'italic' } } : {},
