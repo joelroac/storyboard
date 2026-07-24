@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ExternalLink, ChevronRight, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical, Plus } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, ChevronUp, ChevronDown, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical, Plus } from 'lucide-react'
 import DateTimePicker from './shared/DateTimePicker'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
@@ -310,6 +310,16 @@ export default function ProjectDetail() {
     setEditCaption(value)
     if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
     captionTimerRef.current = setTimeout(() => saveCaption(value), 1000)
+  }
+
+  // Move a script block up or down one position (reliable fallback to drag-and-drop)
+  function moveScriptBlock(idx, dir) {
+    const to = idx + dir
+    if (to < 0 || to >= scriptBlocks.length) return
+    const next = [...scriptBlocks]
+    const [removed] = next.splice(idx, 1)
+    next.splice(to, 0, removed)
+    handleScriptBlocksChange(next)
   }
 
   // Script blocks auto-save with 800ms debounce
@@ -1645,6 +1655,26 @@ export default function ProjectDetail() {
                                 className="flex-1 text-sm font-medium text-white placeholder-zinc-700 rounded-lg px-3 py-2"
                                 style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}
                               />
+                              <div className="flex flex-col shrink-0">
+                                <button
+                                  onClick={() => moveScriptBlock(idx, -1)}
+                                  disabled={idx === 0}
+                                  className="text-zinc-600 hover:text-amber-500 disabled:opacity-25 disabled:hover:text-zinc-600 transition-colors"
+                                  style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', padding: '1px 2px' }}
+                                  title="Move up"
+                                >
+                                  <ChevronUp size={13} />
+                                </button>
+                                <button
+                                  onClick={() => moveScriptBlock(idx, 1)}
+                                  disabled={idx === scriptBlocks.length - 1}
+                                  className="text-zinc-600 hover:text-amber-500 disabled:opacity-25 disabled:hover:text-zinc-600 transition-colors"
+                                  style={{ background: 'none', border: 'none', cursor: idx === scriptBlocks.length - 1 ? 'default' : 'pointer', padding: '1px 2px' }}
+                                  title="Move down"
+                                >
+                                  <ChevronDown size={13} />
+                                </button>
+                              </div>
                             </div>
                           </>
                         ) : (
