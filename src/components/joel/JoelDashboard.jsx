@@ -230,6 +230,7 @@ export default function JoelDashboard() {
   const [dragOverCol, setDragOverCol]   = useState(null)
   const [deletingId, setDeletingId]     = useState(null)
   const [showInactive, setShowInactive] = useState(false)
+  const [showAllActive, setShowAllActive] = useState(false)
   const [expandedCols, setExpandedCols] = useState({})
   const [sortBy, setSortBy]             = useState(() => localStorage.getItem('sb_sort') || 'due_date')
   const [search, setSearch]             = useState('')
@@ -582,7 +583,18 @@ export default function JoelDashboard() {
                     transition: 'background 0.15s, border-color 0.15s',
                   }}>
                   <div className="flex items-center gap-2 mb-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{group.label}</p>
+                    {groupIdx === 0 ? (
+                      <button
+                        onClick={() => setShowAllActive(true)}
+                        className="text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-amber-400 transition-colors"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', letterSpacing: 'inherit' }}
+                        title="View all active projects in a grid"
+                      >
+                        {group.label}
+                      </button>
+                    ) : (
+                      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{group.label}</p>
+                    )}
                     {groupProjects.length > 0 && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
                         style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
@@ -734,6 +746,58 @@ export default function JoelDashboard() {
       )}
 
       {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} />}
+
+      {/* All Active Projects grid popup — opened by clicking the "In Production" column header */}
+      {showAllActive && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '40px 16px' }}
+          onClick={() => setShowAllActive(false)}
+        >
+          <div
+            className="rounded-2xl w-full animate-fade-in"
+            style={{ maxWidth: 1100, background: '#141416', border: '1px solid rgba(255,255,255,0.08)', padding: 24 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-white uppercase tracking-widest">All Active Projects</h2>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                  {sortProjects(active, sortBy).length}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowAllActive(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {active.length === 0 ? (
+              <div className="rounded-xl py-16 flex items-center justify-center"
+                style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
+                <span className="text-xs text-zinc-700">No active projects</span>
+              </div>
+            ) : (
+              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+                {sortProjects(active, sortBy).map(p => (
+                  <ProjectMiniCard key={p.id} project={p}
+                    onClick={() => { setShowAllActive(false); openProject(p) }}
+                    onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
+                    showDelete={deletingId === p.id}
+                    onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
+                    teamMembers={teamMembers} getWorkflow={getWorkflow}
+                    getStageOwner={getStageOwner} updateProject={updateProject}
+                    advanceStatus={advanceStatus} currentUser={currentUser} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
