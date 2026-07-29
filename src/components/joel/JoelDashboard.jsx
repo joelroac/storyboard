@@ -232,6 +232,37 @@ export default function JoelDashboard() {
   const [showInactive, setShowInactive] = useState(false)
   const [showAllActive, setShowAllActive] = useState(false)
   const [brandFilter, setBrandFilter]     = useState('all') // 'all' | 'brand' | 'organic'
+  const [selectMode, setSelectMode]       = useState(false)
+  const [selectedIds, setSelectedIds]     = useState(new Set())
+  const [bulkCompleting, setBulkCompleting] = useState(false)
+
+  function closeAllActive() {
+    setShowAllActive(false)
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
+
+  function toggleSelected(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  async function handleBulkComplete() {
+    if (selectedIds.size === 0 || bulkCompleting) return
+    setBulkCompleting(true)
+    for (const id of selectedIds) {
+      const p = projects.find(x => x.id === id)
+      if (!p) continue
+      const doneStatus = p.type === 'newsletter' ? 'Sent' : 'Posted'
+      await advanceStatus(id, doneStatus, currentUser.id)
+    }
+    setBulkCompleting(false)
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
   const [expandedCols, setExpandedCols] = useState({})
   const [sortBy, setSortBy]             = useState(() => localStorage.getItem('sb_sort') || 'due_date')
   const [search, setSearch]             = useState('')
@@ -753,7 +784,7 @@ export default function JoelDashboard() {
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto"
           style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '40px 16px' }}
-          onClick={() => setShowAllActive(false)}
+          onClick={closeAllActive}
         >
           <div
             className="rounded-2xl w-full animate-fade-in"
@@ -780,14 +811,28 @@ export default function JoelDashboard() {
                         {filtered.length}
                       </span>
                     </div>
-                    <button
-                      onClick={() => setShowAllActive(false)}
-                      className="text-zinc-500 hover:text-white transition-colors"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                      title="Close"
-                    >
-                      <X size={18} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => { setSelectMode(m => !m); setSelectedIds(new Set()) }}
+                        className="text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                        style={{
+                          background: selectMode ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${selectMode ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                          color: selectMode ? '#4ade80' : '#a1a1aa',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {selectMode ? 'Cancel' : 'Select'}
+                      </button>
+                      <button
+                        onClick={closeAllActive}
+                        className="text-zinc-500 hover:text-white transition-colors"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="Close"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 mb-5">
                     {pills.map(pill => {
@@ -818,16 +863,74 @@ export default function JoelDashboard() {
                     </div>
                   ) : (
                     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-                      {filtered.map(p => (
-                        <ProjectMiniCard key={p.id} project={p}
-                          onClick={() => { setShowAllActive(false); openProject(p) }}
-                          onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
-                          showDelete={deletingId === p.id}
-                          onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
-                          teamMembers={teamMembers} getWorkflow={getWorkflow}
-                          getStageOwner={getStageOwner} updateProject={updateProject}
-                          advanceStatus={advanceStatus} currentUser={currentUser} />
-                      ))}
+                      {filtered.map(p => {
+                        const isSelected = selectedIds.has(p.id)
+                        return (
+                          <div key={p.id} style={{ position: 'relative' }}>
+                            {selectMode && (
+                              <div
+                                onClick={() => toggleSelected(p.id)}
+                                style={{
+                                  position: 'absolute', inset: 0, zIndex: 2, cursor: 'pointer',
+                                  borderRadius: 12,
+                                  border: isSelected ? '2px solid #4ade80' : '2px solid transparent',
+                                  background: isSelected ? 'rgba(74,222,128,0.08)' : 'transparent',
+                                  transition: 'border-color 0.15s, background 0.15s',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    position: 'absolute', top: 8, right: 8,
+                                    width: 20, height: 20, borderRadius: 6,
+                                    background: isSelected ? '#4ade80' : 'rgba(0,0,0,0.5)',
+                                    border: `1.5px solid ${isSelected ? '#4ade80' : 'rgba(255,255,255,0.3)'}`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  }}
+                                >
+                                  {isSelected && (
+                                    <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+                                      <path d="M1.5 5L4 7.5L8.5 2.5" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            <ProjectMiniCard project={p}
+                              onClick={() => { closeAllActive(); openProject(p) }}
+                              onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
+                              showDelete={deletingId === p.id}
+                              onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
+                              teamMembers={teamMembers} getWorkflow={getWorkflow}
+                              getStageOwner={getStageOwner} updateProject={updateProject}
+                              advanceStatus={advanceStatus} currentUser={currentUser} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {selectMode && (
+                    <div
+                      className="flex items-center justify-between mt-5 rounded-xl px-4 py-3"
+                      style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)' }}
+                    >
+                      <span className="text-xs text-zinc-400">
+                        {selectedIds.size === 0
+                          ? 'Tap projects to select them'
+                          : `${selectedIds.size} project${selectedIds.size === 1 ? '' : 's'} selected`}
+                      </span>
+                      <button
+                        onClick={handleBulkComplete}
+                        disabled={selectedIds.size === 0 || bulkCompleting}
+                        className="text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                        style={{
+                          background: selectedIds.size > 0 && !bulkCompleting ? '#4ade80' : 'rgba(255,255,255,0.06)',
+                          color: selectedIds.size > 0 && !bulkCompleting ? '#0a0a0a' : '#52525b',
+                          border: 'none',
+                          cursor: selectedIds.size > 0 && !bulkCompleting ? 'pointer' : 'default',
+                        }}
+                      >
+                        {bulkCompleting ? 'Marking…' : 'Mark Complete'}
+                      </button>
                     </div>
                   )}
                 </>
