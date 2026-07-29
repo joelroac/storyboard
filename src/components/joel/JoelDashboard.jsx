@@ -231,6 +231,7 @@ export default function JoelDashboard() {
   const [deletingId, setDeletingId]     = useState(null)
   const [showInactive, setShowInactive] = useState(false)
   const [showAllActive, setShowAllActive] = useState(false)
+  const [brandFilter, setBrandFilter]     = useState('all') // 'all' | 'brand' | 'organic'
   const [expandedCols, setExpandedCols] = useState({})
   const [sortBy, setSortBy]             = useState(() => localStorage.getItem('sb_sort') || 'due_date')
   const [search, setSearch]             = useState('')
@@ -759,42 +760,79 @@ export default function JoelDashboard() {
             style={{ maxWidth: 1100, background: '#141416', border: '1px solid rgba(255,255,255,0.08)', padding: 24 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-white uppercase tracking-widest">All Active Projects</h2>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                  style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
-                  {sortProjects(active, sortBy).length}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowAllActive(false)}
-                className="text-zinc-500 hover:text-white transition-colors"
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                title="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            {active.length === 0 ? (
-              <div className="rounded-xl py-16 flex items-center justify-center"
-                style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
-                <span className="text-xs text-zinc-700">No active projects</span>
-              </div>
-            ) : (
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-                {sortProjects(active, sortBy).map(p => (
-                  <ProjectMiniCard key={p.id} project={p}
-                    onClick={() => { setShowAllActive(false); openProject(p) }}
-                    onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
-                    showDelete={deletingId === p.id}
-                    onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
-                    teamMembers={teamMembers} getWorkflow={getWorkflow}
-                    getStageOwner={getStageOwner} updateProject={updateProject}
-                    advanceStatus={advanceStatus} currentUser={currentUser} />
-                ))}
-              </div>
-            )}
+            {(() => {
+              const isBrandDeal = (p) => !!p.brand && p.brand !== 'Organic'
+              const filtered = sortProjects(active.filter(p =>
+                brandFilter === 'all' ? true : brandFilter === 'brand' ? isBrandDeal(p) : !isBrandDeal(p)
+              ), sortBy)
+              const pills = [
+                { key: 'all',     label: 'All' },
+                { key: 'brand',   label: 'Brand Deals' },
+                { key: 'organic', label: 'Organic' },
+              ]
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-white uppercase tracking-widest">All Active Projects</h2>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                        style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                        {filtered.length}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowAllActive(false)}
+                      className="text-zinc-500 hover:text-white transition-colors"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                      title="Close"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mb-5">
+                    {pills.map(pill => {
+                      const isOn = brandFilter === pill.key
+                      return (
+                        <button
+                          key={pill.key}
+                          onClick={() => setBrandFilter(pill.key)}
+                          className="text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                          style={{
+                            background: isOn ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${isOn ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                            color: isOn ? '#fbbf24' : '#71717a',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {pill.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {filtered.length === 0 ? (
+                    <div className="rounded-xl py-16 flex items-center justify-center"
+                      style={{ border: '1px dashed rgba(255,255,255,0.07)' }}>
+                      <span className="text-xs text-zinc-700">
+                        {brandFilter === 'brand' ? 'No active brand deals' : brandFilter === 'organic' ? 'No active organic projects' : 'No active projects'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+                      {filtered.map(p => (
+                        <ProjectMiniCard key={p.id} project={p}
+                          onClick={() => { setShowAllActive(false); openProject(p) }}
+                          onDelete={() => { deleteProject(p.id); setDeletingId(null) }}
+                          showDelete={deletingId === p.id}
+                          onToggleDelete={() => setDeletingId(deletingId === p.id ? null : p.id)}
+                          teamMembers={teamMembers} getWorkflow={getWorkflow}
+                          getStageOwner={getStageOwner} updateProject={updateProject}
+                          advanceStatus={advanceStatus} currentUser={currentUser} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
