@@ -1622,23 +1622,43 @@ export default function ProjectDetail() {
                           transition: 'opacity 0.15s',
                         }}
                       >
-                        {/* Grip handle */}
-                        <div
-                          draggable
-                          onMouseDown={() => { const t = document.activeElement?.tagName; if (t === 'TEXTAREA' || t === 'INPUT') document.activeElement.blur() }}
-                          onMouseEnter={() => setHoveredGripIdx(idx)}
-                          onMouseLeave={() => setHoveredGripIdx(null)}
-                          onDragStart={(e) => {
-                            e.stopPropagation()
-                            e.dataTransfer.setData('scriptIdx', String(idx))
-                            e.dataTransfer.effectAllowed = 'move'
-                            setDraggedScriptIdx(idx)
-                          }}
-                          onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null); setHoveredGripIdx(null) }}
-                          style={{ paddingTop: 8, cursor: 'grab', color: hoveredGripIdx === idx ? '#a1a1aa' : '#3f3f46', display: 'flex', justifyContent: 'center', transition: 'color 0.15s' }}
-                          title="Drag to reorder"
-                        >
-                          <GripVertical size={13} style={{ pointerEvents: 'none' }} />
+                        {/* Grip handle + up/down arrows */}
+                        <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                          <div
+                            draggable
+                            onMouseDown={() => { const t = document.activeElement?.tagName; if (t === 'TEXTAREA' || t === 'INPUT') document.activeElement.blur() }}
+                            onMouseEnter={() => setHoveredGripIdx(idx)}
+                            onMouseLeave={() => setHoveredGripIdx(null)}
+                            onDragStart={(e) => {
+                              e.stopPropagation()
+                              e.dataTransfer.setData('scriptIdx', String(idx))
+                              e.dataTransfer.effectAllowed = 'move'
+                              setDraggedScriptIdx(idx)
+                            }}
+                            onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null); setHoveredGripIdx(null) }}
+                            style={{ cursor: 'grab', color: hoveredGripIdx === idx ? '#a1a1aa' : '#3f3f46', display: 'flex', justifyContent: 'center', transition: 'color 0.15s' }}
+                            title="Drag to reorder"
+                          >
+                            <GripVertical size={13} style={{ pointerEvents: 'none' }} />
+                          </div>
+                          <button
+                            onClick={() => moveScriptBlock(idx, -1)}
+                            disabled={idx === 0}
+                            className="text-zinc-600 hover:text-amber-500 disabled:opacity-25 disabled:hover:text-zinc-600 transition-colors"
+                            style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', padding: 0, lineHeight: 0 }}
+                            title="Move up"
+                          >
+                            <ChevronUp size={13} />
+                          </button>
+                          <button
+                            onClick={() => moveScriptBlock(idx, 1)}
+                            disabled={idx === scriptBlocks.length - 1}
+                            className="text-zinc-600 hover:text-amber-500 disabled:opacity-25 disabled:hover:text-zinc-600 transition-colors"
+                            style={{ background: 'none', border: 'none', cursor: idx === scriptBlocks.length - 1 ? 'default' : 'pointer', padding: 0, lineHeight: 0 }}
+                            title="Move down"
+                          >
+                            <ChevronDown size={13} />
+                          </button>
                         </div>
 
                         {block.type === 'scene' ? (
@@ -1655,26 +1675,6 @@ export default function ProjectDetail() {
                                 className="flex-1 text-sm font-medium text-white placeholder-zinc-700 rounded-lg px-3 py-2"
                                 style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}
                               />
-                              <div className="flex flex-col shrink-0">
-                                <button
-                                  onClick={() => moveScriptBlock(idx, -1)}
-                                  disabled={idx === 0}
-                                  className="text-zinc-600 hover:text-amber-500 disabled:opacity-25 disabled:hover:text-zinc-600 transition-colors"
-                                  style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', padding: '1px 2px' }}
-                                  title="Move up"
-                                >
-                                  <ChevronUp size={13} />
-                                </button>
-                                <button
-                                  onClick={() => moveScriptBlock(idx, 1)}
-                                  disabled={idx === scriptBlocks.length - 1}
-                                  className="text-zinc-600 hover:text-amber-500 disabled:opacity-25 disabled:hover:text-zinc-600 transition-colors"
-                                  style={{ background: 'none', border: 'none', cursor: idx === scriptBlocks.length - 1 ? 'default' : 'pointer', padding: '1px 2px' }}
-                                  title="Move down"
-                                >
-                                  <ChevronDown size={13} />
-                                </button>
-                              </div>
                             </div>
                           </>
                         ) : (
