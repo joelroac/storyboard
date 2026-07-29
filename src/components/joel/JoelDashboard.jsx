@@ -240,14 +240,27 @@ export default function JoelDashboard() {
     setShowAllActive(false)
     setSelectMode(false)
     setSelectedIds(new Set())
+    setConfirmBulkDelete(false)
   }
 
   function toggleSelected(id) {
+    setConfirmBulkDelete(false)
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
+  }
+
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+
+  function handleBulkDelete() {
+    if (selectedIds.size === 0) return
+    if (!confirmBulkDelete) { setConfirmBulkDelete(true); return }
+    for (const id of selectedIds) deleteProject(id)
+    setConfirmBulkDelete(false)
+    setSelectMode(false)
+    setSelectedIds(new Set())
   }
 
   async function handleBulkComplete() {
@@ -813,7 +826,7 @@ export default function JoelDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => { setSelectMode(m => !m); setSelectedIds(new Set()) }}
+                        onClick={() => { setSelectMode(m => !m); setSelectedIds(new Set()); setConfirmBulkDelete(false) }}
                         className="text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
                         style={{
                           background: selectMode ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)',
@@ -918,19 +931,34 @@ export default function JoelDashboard() {
                           ? 'Tap projects to select them'
                           : `${selectedIds.size} project${selectedIds.size === 1 ? '' : 's'} selected`}
                       </span>
-                      <button
-                        onClick={handleBulkComplete}
-                        disabled={selectedIds.size === 0 || bulkCompleting}
-                        className="text-xs font-bold px-4 py-2 rounded-lg transition-colors"
-                        style={{
-                          background: selectedIds.size > 0 && !bulkCompleting ? '#4ade80' : 'rgba(255,255,255,0.06)',
-                          color: selectedIds.size > 0 && !bulkCompleting ? '#0a0a0a' : '#52525b',
-                          border: 'none',
-                          cursor: selectedIds.size > 0 && !bulkCompleting ? 'pointer' : 'default',
-                        }}
-                      >
-                        {bulkCompleting ? 'Marking…' : 'Mark Complete'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleBulkDelete}
+                          disabled={selectedIds.size === 0 || bulkCompleting}
+                          className="text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                          style={{
+                            background: confirmBulkDelete ? '#ef4444' : 'rgba(239,68,68,0.12)',
+                            color: selectedIds.size > 0 ? (confirmBulkDelete ? '#fff' : '#f87171') : '#52525b',
+                            border: `1px solid ${selectedIds.size > 0 ? 'rgba(239,68,68,0.4)' : 'transparent'}`,
+                            cursor: selectedIds.size > 0 && !bulkCompleting ? 'pointer' : 'default',
+                          }}
+                        >
+                          {confirmBulkDelete ? `Really delete ${selectedIds.size}?` : 'Delete'}
+                        </button>
+                        <button
+                          onClick={handleBulkComplete}
+                          disabled={selectedIds.size === 0 || bulkCompleting}
+                          className="text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                          style={{
+                            background: selectedIds.size > 0 && !bulkCompleting ? '#4ade80' : 'rgba(255,255,255,0.06)',
+                            color: selectedIds.size > 0 && !bulkCompleting ? '#0a0a0a' : '#52525b',
+                            border: 'none',
+                            cursor: selectedIds.size > 0 && !bulkCompleting ? 'pointer' : 'default',
+                          }}
+                        >
+                          {bulkCompleting ? 'Marking…' : 'Mark Complete'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
