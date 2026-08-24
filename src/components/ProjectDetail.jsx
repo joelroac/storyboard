@@ -153,12 +153,26 @@ export default function ProjectDetail() {
   function newBlock()      { return { id: 'b_' + Date.now(), type: 'line',  scriptLine: '', shotNote: '', filmed: false } }
   function newSceneBlock() { return { id: 'b_' + Date.now(), type: 'scene', sceneTitle: '' } }
 
+  function isBlockArray(parsed) {
+    return Array.isArray(parsed) && parsed.length > 0 &&
+      parsed.every((b) => b && typeof b === 'object' && ('scriptLine' in b || b.type === 'scene'))
+  }
+
   function parseScriptBlocks(notesStr) {
     if (!notesStr) return [newBlock()]
     try {
       const parsed = JSON.parse(notesStr)
-      if (Array.isArray(parsed) && parsed.length > 0 && 'scriptLine' in parsed[0])
-        return parsed.map((b) => ({ filmed: false, ...b })) // backfill filmed for older blocks
+      // Self-repair: a whole block array mistakenly saved as the text of a single
+      // script line (old loader bug when the first block was a scene break)
+      if (Array.isArray(parsed) && parsed.length === 1 && typeof parsed[0]?.scriptLine === 'string'
+          && parsed[0].scriptLine.trim().startsWith('[{')) {
+        try {
+          const inner = JSON.parse(parsed[0].scriptLine)
+          if (isBlockArray(inner)) return inner.map((b) => (b.type === 'scene' ? b : { filmed: false, ...b }))
+        } catch (_) {}
+      }
+      if (isBlockArray(parsed))
+        return parsed.map((b) => (b.type === 'scene' ? b : { filmed: false, ...b })) // backfill filmed for older blocks
     } catch (_) {}
     // Legacy plain text → single row
     return [{ id: 'b_' + Date.now(), scriptLine: notesStr, shotNote: '' }]
