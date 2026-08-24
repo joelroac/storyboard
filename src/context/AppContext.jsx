@@ -682,6 +682,11 @@ export function AppProvider({ children }) {
       return false
     }
     if (logErr) console.error('Error inserting activity_log entry:', logErr)
+
+    // Status changes are undoable too (Cmd/Ctrl+Z)
+    if (prevStatus !== null && prevStatus !== newStatus) {
+      setUndoStack((stack) => [...stack.slice(-29), { projectId, previousFields: { status: prevStatus } }])
+    }
     return true
   }, [])
 

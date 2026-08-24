@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ExternalLink, ChevronRight, ChevronUp, ChevronDown, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, GripVertical, Plus } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, ChevronUp, ChevronDown, AlertCircle, Trash2, Upload, Download, Maximize2, Minimize2, Copy, Check, Plus } from 'lucide-react'
 import DateTimePicker from './shared/DateTimePicker'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { useApp } from '../context/AppContext'
@@ -109,9 +109,6 @@ export default function ProjectDetail() {
   const [scriptBlocks, setScriptBlocks]           = useState([])
   const [scriptUnsaved, setScriptUnsaved]         = useState(false)
   const [scriptSavedAt, setScriptSavedAt]         = useState(null)
-  const [draggedScriptIdx, setDraggedScriptIdx]   = useState(null)
-  const [dragOverScriptIdx, setDragOverScriptIdx] = useState(null)
-  const [hoveredGripIdx, setHoveredGripIdx]       = useState(null)
   // Shot list with debounce (Feature 7)
   const [shotListDraft, setShotListDraft]         = useState([])
   const [shotListSavedAt, setShotListSavedAt]     = useState(null)
@@ -517,6 +514,9 @@ export default function ProjectDetail() {
       // Ensure jsPDF is loaded (CDN in index.html)
       const { jsPDF } = window.jspdf || {}
       if (!jsPDF) { alert('PDF library not loaded. Please refresh.'); return }
+      // AcroForm text fields let brands type feedback directly into the PDF.
+      // If unavailable (older CDN cache), fall back to the static export.
+      const AcroTextField = window.jspdf?.AcroForm?.TextField || null
 
       const doc = new jsPDF({ unit: 'pt', format: 'a4' })
       const W   = doc.internal.pageSize.getWidth()
@@ -536,7 +536,13 @@ export default function ProjectDetail() {
         proj.publishDate ? `Publish: ${format(parseISO(proj.publishDate), 'MMMM d, yyyy')}` : null,
         `Status: ${proj.status}`,
       ].filter(Boolean).join('   ·   ')
-      doc.text(meta, 40, y); y += 20
+      doc.text(meta, 40, y); y += 14
+      if (AcroTextField) {
+        doc.setFontSize(8)
+        doc.setTextColor(150)
+        doc.text('Type feedback in the boxes, save, and send this file back.', 40, y)
+      }
+      y += 12
       doc.setTextColor(0)
 
       // Divider
@@ -565,22 +571,51 @@ export default function ProjectDetail() {
         try {
           const parsed = JSON.parse(proj.notes)
           if (Array.isArray(parsed) && parsed.length > 0 && parsed.some((b) => 'scriptLine' in b || b.type === 'scene')) {
-            // Structured blocks → two-column table (scene breaks become spanning header rows)
-            const hasShots = parsed.some((b) => b.shotNote)
-            const colCount = hasShots ? 2 : 1
+            // Structured blocks → table (scene breaks become spanning header rows).
+            // With AcroForm support, a typeable "Brand Feedback" column is added.
+            const hasShots  = parsed.some((b) => b.shotNote)
+            const withFb    = !!AcroTextField
+            const colCount  = (hasShots ? 2 : 1) + (withFb ? 1 : 0)
+            const fbCol     = hasShots ? 2 : 1
+            const head      = hasShots ? ['Script Line', 'Shot / Visual'] : ['Script Line']
+            if (withFb) head.push('Brand Feedback')
+            const columnStyles = hasShots
+              ? (withFb
+                  ? { 0: { cellWidth: 180 }, 1: { cellWidth: 160, fontStyle: 'italic' }, 2: { cellWidth: 'auto', minCellHeight: 34 } }
+                  : { 0: { cellWidth: 250 }, 1: { cellWidth: 'auto', fontStyle: 'italic' } })
+              : (withFb
+                  ? { 0: { cellWidth: 300 }, 1: { cellWidth: 'auto', minCellHeight: 34 } }
+                  : {})
             doc.autoTable({
               startY: y,
               margin: { left: 40, right: 40 },
-              head: [hasShots ? ['Script Line', 'Shot / Visual'] : ['Script Line']],
+              head: [head],
               body: parsed.map((b) => {
                 if (b.type === 'scene') {
                   return [{ content: b.sceneTitle ? `— ${b.sceneTitle} —` : '— Scene Break —', colSpan: colCount, styles: { fontStyle: 'bold', textColor: [160, 100, 0], fillColor: [255, 248, 225], halign: 'center' } }]
                 }
-                return hasShots ? [b.scriptLine || '', b.shotNote || ''] : [b.scriptLine || '']
+                const row = hasShots ? [b.scriptLine || '', b.shotNote || ''] : [b.scriptLine || '']
+                if (withFb) row.push('')
+                return row
               }),
               styles: { fontSize: 9, cellPadding: 4 },
               headStyles: { fillColor: [40, 40, 48], textColor: [180, 180, 180] },
-              columnStyles: hasShots ? { 0: { cellWidth: 250 }, 1: { cellWidth: 'auto', fontStyle: 'italic' } } : {},
+              columnStyles,
+              didDrawCell: withFb ? (data) => {
+                // Drop a typeable field into each feedback cell (skip scene colSpan rows)
+                if (data.section !== 'body') return
+                if (data.column.index !== fbCol) return
+                if (!Array.isArray(data.row.raw) || data.row.raw.length <= fbCol) return
+                const c = data.cell
+                doc.setDrawColor(215)
+                doc.rect(c.x + 2, c.y + 2, c.width - 4, c.height - 4)
+                const f = new AcroTextField()
+                f.fieldName = 'feedback_' + data.row.index
+                f.multiline = true
+                f.fontSize  = 8
+                f.Rect      = [c.x + 3, c.y + 3, c.width - 6, c.height - 6]
+                doc.addField(f)
+              } : undefined,
             })
             y = doc.lastAutoTable.finalY + 16
           } else {
@@ -622,6 +657,48 @@ export default function ProjectDetail() {
         doc.setFontSize(10)
         const lines = doc.splitTextToSize(proj.caption, W - 80)
         doc.text(lines, 40, y); y += lines.length * 13 + 10
+      }
+
+      // Brand Comments — big typeable box + reviewer/date fields
+      if (AcroTextField) {
+        if (y > 560) { doc.addPage(); y = 40 }
+        y += 6
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.setTextColor(0)
+        doc.text('Brand Comments', 40, y); y += 12
+        doc.setDrawColor(215)
+        doc.rect(40, y, W - 80, 120)
+        const comments = new AcroTextField()
+        comments.fieldName = 'brand_comments'
+        comments.multiline = true
+        comments.fontSize  = 9
+        comments.Rect      = [42, y + 2, W - 84, 116]
+        doc.addField(comments)
+        y += 132
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(100)
+        const half = (W - 80 - 16) / 2
+        doc.text('Reviewed by', 40, y)
+        doc.text('Date', 40 + half + 16, y)
+        y += 4
+        doc.setDrawColor(215)
+        doc.rect(40, y, half, 20)
+        doc.rect(40 + half + 16, y, half, 20)
+        const reviewer = new AcroTextField()
+        reviewer.fieldName = 'reviewed_by'
+        reviewer.fontSize  = 9
+        reviewer.Rect      = [42, y + 2, half - 4, 16]
+        doc.addField(reviewer)
+        const revDate = new AcroTextField()
+        revDate.fieldName = 'review_date'
+        revDate.fontSize  = 9
+        revDate.Rect      = [42 + half + 16, y + 2, half - 4, 16]
+        doc.addField(revDate)
+        doc.setTextColor(0)
+        y += 36
       }
 
       // Thumbnails
@@ -1590,13 +1667,8 @@ export default function ProjectDetail() {
                 <div className="flex flex-col">
                   {scriptBlocks.map((block, idx) => (
                     <React.Fragment key={block.id}>
-                      {/* Amber drop indicator — shown above this row while dragging over it */}
-                      {dragOverScriptIdx === idx && draggedScriptIdx !== null && draggedScriptIdx !== idx && (
-                        <div style={{ height: 2, borderRadius: 1, background: 'rgba(245,158,11,0.6)', margin: '2px 0' }} />
-                      )}
-
-                      {/* Insert-between — only shown when nothing is being dragged */}
-                      {idx > 0 && draggedScriptIdx === null && (
+                      {/* Insert-between */}
+                      {idx > 0 && (
                         <button
                           onClick={() => {
                             const next = [...scriptBlocks]
@@ -1612,49 +1684,20 @@ export default function ProjectDetail() {
                         </button>
                       )}
 
-                      {/* Block row — drop target only; drag is initiated exclusively from the grip */}
+                      {/* Block row */}
                       <div
-                        onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(idx) }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          const from = parseInt(e.dataTransfer.getData('scriptIdx'), 10)
-                          const to   = idx
-                          if (isNaN(from) || from === to) { setDraggedScriptIdx(null); setDragOverScriptIdx(null); return }
-                          const next = [...scriptBlocks]
-                          const [removed] = next.splice(from, 1)
-                          next.splice(to, 0, removed)
-                          handleScriptBlocksChange(next)
-                          setDraggedScriptIdx(null); setDragOverScriptIdx(null)
-                        }}
                         style={{
                           display: 'grid',
                           gridTemplateColumns: '16px 1fr 1fr 32px 24px',
                           gap: 8,
                           alignItems: 'start',
                           marginBottom: 4,
-                          opacity: draggedScriptIdx === idx ? 0.35 : (block.type !== 'scene' && block.filmed) ? 0.45 : 1,
+                          opacity: (block.type !== 'scene' && block.filmed) ? 0.45 : 1,
                           transition: 'opacity 0.15s',
                         }}
                       >
-                        {/* Grip handle + up/down arrows */}
+                        {/* Up/down arrows */}
                         <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                          <div
-                            draggable
-                            onMouseDown={() => { const t = document.activeElement?.tagName; if (t === 'TEXTAREA' || t === 'INPUT') document.activeElement.blur() }}
-                            onMouseEnter={() => setHoveredGripIdx(idx)}
-                            onMouseLeave={() => setHoveredGripIdx(null)}
-                            onDragStart={(e) => {
-                              e.stopPropagation()
-                              e.dataTransfer.setData('scriptIdx', String(idx))
-                              e.dataTransfer.effectAllowed = 'move'
-                              setDraggedScriptIdx(idx)
-                            }}
-                            onDragEnd={() => { setDraggedScriptIdx(null); setDragOverScriptIdx(null); setHoveredGripIdx(null) }}
-                            style={{ cursor: 'grab', color: hoveredGripIdx === idx ? '#a1a1aa' : '#3f3f46', display: 'flex', justifyContent: 'center', transition: 'color 0.15s' }}
-                            title="Drag to reorder"
-                          >
-                            <GripVertical size={13} style={{ pointerEvents: 'none' }} />
-                          </div>
                           <button
                             onClick={() => moveScriptBlock(idx, -1)}
                             disabled={idx === 0}
@@ -1755,28 +1798,6 @@ export default function ProjectDetail() {
                     </React.Fragment>
                   ))}
 
-                  {/* End drop zone — accepts a drop to move a row to the very bottom */}
-                  {draggedScriptIdx !== null && (
-                    <div
-                      onDragOver={(e) => { e.preventDefault(); setDragOverScriptIdx(scriptBlocks.length) }}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        const from = parseInt(e.dataTransfer.getData('scriptIdx'), 10)
-                        if (isNaN(from)) return
-                        const next = [...scriptBlocks]
-                        const [removed] = next.splice(from, 1)
-                        next.push(removed)
-                        handleScriptBlocksChange(next)
-                        setDraggedScriptIdx(null); setDragOverScriptIdx(null)
-                      }}
-                      style={{
-                        height: 32, borderRadius: 6, marginTop: 4, transition: 'border-color 0.15s',
-                        border: dragOverScriptIdx === scriptBlocks.length
-                          ? '1px dashed rgba(245,158,11,0.5)'
-                          : '1px dashed rgba(255,255,255,0.06)',
-                      }}
-                    />
-                  )}
                 </div>
                 <div className="flex items-center gap-4 mt-2">
                   <button
