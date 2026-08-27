@@ -126,6 +126,7 @@ export default function ProjectDetail() {
   const [showTypeConfirm, setShowTypeConfirm]     = useState(false)
   // Expand to fullscreen
   const [expanded, setExpanded]                   = useState(false)
+  const [scriptFocus, setScriptFocus]             = useState(false)
   // Relevant Notes
   const [editRelevantNotes, setEditRelevantNotes] = useState('')
   // Brand deal links
@@ -223,6 +224,7 @@ export default function ProjectDetail() {
       setConfirmDelete(false)
       setCaptionSaved(false)
       setTitleError('')
+      setScriptFocus(false)
       const meta = getLocalProjMeta(fresh.id)
       setEditRelevantNotes(fresh.relevantNotes || meta.relevantNotes || '')
       setBrandLinks(meta.brandLinks || [])
@@ -1031,7 +1033,7 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <div className="flex-1 px-6 py-5 flex flex-col gap-6">
+        <div className={`flex-1 px-6 py-5 flex flex-col gap-6 ${scriptFocus ? 'script-focus' : ''}`}>
 
           {/* ── Progress bar ── */}
           <div>
@@ -1599,7 +1601,7 @@ export default function ProjectDetail() {
           )}
 
           {/* ── Script / Notes (Feature 8: structured two-column template) ── */}
-          <div>
+          <div className="script-section">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600">
@@ -1628,7 +1630,24 @@ export default function ProjectDetail() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {canEdit && (
+                <button
+                  onClick={() => {
+                    const v = !scriptFocus
+                    setScriptFocus(v)
+                    if (v) { setExpanded(true); if (hideScript) { setHideScript(false); saveLocalProjMeta(proj.id, { hideScript: false }) } }
+                  }}
+                  className="text-xs px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                  style={{
+                    background: scriptFocus ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${scriptFocus ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.1)'}`,
+                    color: scriptFocus ? '#fbbf24' : '#a1a1aa',
+                  }}
+                  title={scriptFocus ? 'Show everything again' : 'Focus on the script only'}
+                >
+                  {scriptFocus ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+                  {scriptFocus ? 'Exit Focus' : 'Focus'}
+                </button>
+                {canEdit && !scriptFocus && (
                   <button
                     onClick={() => { const v = !hideScript; setHideScript(v); saveLocalProjMeta(proj.id, { hideScript: v }) }}
                     className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"

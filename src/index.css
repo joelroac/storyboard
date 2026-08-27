@@ -340,3 +340,8 @@ select option {
 .wf-row.drag-target-below {
   box-shadow: 0 2px 0 #f59e0b;
 }
+
+/* Script focus mode — hide every sibling section except the script */
+.script-focus > *:not(.script-section) {
+  display: none;
+}
